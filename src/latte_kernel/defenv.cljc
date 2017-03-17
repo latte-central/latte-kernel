@@ -151,37 +151,23 @@
 
 (defrecord Notation [name notation-fn])
 
-(comment
+(defn notation?
+  "Is `v` a notation?"
+  [v]
+  (instance? Notation v))
 
-;; somewhat hacky but "safe"
-(defn- mk-args [n]
-  (vec (repeat n nil)))
-
-;; courtesy of #whocaresanyway@stackoverflow
-(defn- arg-count [f]
-  (let [m (first (.getDeclaredMethods (class f)))
-        p (.getParameterTypes m)]
-    (alength p)))
-
-(defn- dummy-call [f]
-  (let [n (arg-count f)]
-    (apply f (mk-args n))))
-
-(defn get-notation-fn [f]
-  (:notation-fn (dummy-call f)))
-
-
-
-(defn notation? [v]
-  (and (fn? v)
-       (instance? Notation (dummy-call v))))
-)
-
-(declare notation?) ;; TODO
+;;{
+;; ## Specials
+;;
+;; A *special* is a term expanded at typing-time.
+;; This is mostly used for proof automation.
+;;}
 
 (defrecord Special [name special-fn])
 
-(defn special? [v]
+(defn special?
+  "Is `v` a special?"
+  [v]
   (instance? Special v))
 
 
@@ -204,5 +190,3 @@
       (axiom? v)
       (notation? v)
       (special? v)))
-
-

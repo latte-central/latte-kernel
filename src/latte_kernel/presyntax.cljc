@@ -86,6 +86,18 @@ by LaTTe."
 ;;}
 
 ;;{
+;; The following is the main parsing function in the API.
+;;}
+
+(defn parse
+  "Parse term `t` in definitional environment `def-env` (empty by default)."
+  ([t] (parse {} t))
+  ([def-env t] (let [[status t'] (parse-term def-env t)]
+                 (if (= status :ko)
+                   (throw (ex-info "Parse error" t'))
+                   t'))))
+
+;;{
 ;; ## Symbol parsing
 ;;
 ;; A symbol can be either:
@@ -141,7 +153,6 @@ by LaTTe."
 (declare parse-lambda-term
          parse-product-term
          parse-arrow-term
-         parse-exists-term
          parse-defined-term
          parse-application-term)
 
@@ -155,7 +166,6 @@ by LaTTe."
       (lambda-kw? (first t)) (parse-lambda-term def-env t bound)
       (product-kw? (first t)) (parse-product-term def-env t bound)
       (arrow-kw? (first t)) (parse-arrow-term def-env t bound)
-      (exists-kw? (first t)) (parse-exists-term def-env t bound)
       :else
       (if (and (or (symbol? (first t)) (var? (first t)))
                (defenv/registered-definition? def-env (first t)))
@@ -173,6 +183,20 @@ by LaTTe."
             (parse-defined-term def-env sdef t bound)))
         ;; else
         (parse-application-term def-env t bound)))))
+
+;;{
+;; ## Abstractions
+;;
+;; There are two kinds of abstractions in LaTTe:
+;;   - lambda abstractions, i.e. unary unanymous functions of the form `(λ [x t] u)`
+;;   - product abstractions, a.k.a. "Pi-types" (also) universal quantifications of the form `(Π [x t] u)` 
+;;
+;; A simple but useful syntactic sugar is proposed:
+;;
+;; `(λ [x y z t] u)` is the same as `(λ [x t] (λ [y t] (λ [z t] u)))`
+;;
+;; (and similarly for products).
+;;}
 
 (defn parse-binding
   "Parse an abstraction binding form."
@@ -199,9 +223,9 @@ by LaTTe."
               :else (recur (rest s) (conj vars (first s)) (conj res [(first s) ty'])))
             [:ok res]))))))
 
-(comment
-
-(defn parse-binder-term [def-env binder t bound]
+(defn parse-binder-term
+  "Parse the binding vector of an abstraction form."
+  [def-env binder t bound]
   (if (< (count t) 3)
     [:ko {:msg (str "Wrong " binder " form (expecting at least 3 arguments)") :term t :nb-args (count t)}]
     (let [[status bindings] (parse-binding def-env (second t) bound)]
@@ -220,60 +244,36 @@ by LaTTe."
                     (recur (dec i) (list binder (bindings i) res))
                     [:ok res]))))))))))
 
-(defn parse-lambda-term [def-env t bound]
+(defn parse-lambda-term
+  "Parse a lambda abstraction."
+  [def-env t bound]
   (parse-binder-term def-env 'λ t bound))
 
-(example
- (parse-term {} '(λ [x :type] x))
-  => '[:ok (λ [x ✳] x)])
-
-(example
- (parse-term {} '(λ [x y :type] x))
- => '[:ok (λ [x ✳] (λ [y ✳] x))])
-
-(example
- (parse-term {} '(λ [x x :type] x))
- => '[:ko {:msg "Wrong bindings in λ form",
-           :term (λ [x x :type] x),
-           :from {:msg "Duplicate binding variable", :term [x x :type], :var x}}])
-
-(example
- (parse-term {} '(λ [x] x))
- => '[:ko {:msg "Wrong bindings in λ form",
-           :term (λ [x] x),
-           :from {:msg "Binding must have at least 2 elements", :term [x]}}])
-
-(example
- (parse-term {} '(λ [x :type] z))
- => '[:ok (λ [x ✳] z)])
-
-(defn parse-product-term [def-env t bound]
+(defn parse-product-term
+  "Parse a production abstraction."
+  [def-env t bound]
   (parse-binder-term def-env 'Π t bound))
 
-(example
- (parse-term {} '(Π [x :type] x))
- => '[:ok (Π [x ✳] x)])
 
-(example
- (parse-term {} '(Π [x y :type] x))
- => '[:ok (Π [x ✳] (Π [y ✳] x))])
+;;{
+;; ## Arrow types
+;;
+;; The arrow type `(==> t u)` is the type of functions
+;; from values of type `t` to values of type `u`.
+;;}
 
-(defn parse-terms [def-env ts bound]
+(defn parse-terms
+  "Parse a sequence `ts` of terms."
+  [def-env ts bound]
   (reduce (fn [res t]
             (let [[status t' :as tres] (parse-term def-env t bound)]
               (if (= status :ok)
                 [:ok (conj (second res) t')]
                 (reduced tres)))) [:ok []] ts))
 
-(example
- (parse-terms {} '(x y z) #{'x 'y 'z})
- => '[:ok [x y z]])
-
-(example
- (parse-terms {} '(x y z) #{'x 'z})
- => '[:ok [x y z]])
-
-(defn parse-arrow-term [def-env t bound]
+(defn parse-arrow-term
+  "Parse an arrow type."
+  [def-env t bound]
   (if (< (count t) 3)
     [:ko {:msg "Arrow (implies) requires at least 2 arguments"
           :term t
@@ -286,40 +286,20 @@ by LaTTe."
             (recur (rest ts) (list 'Π ['⇧ (first ts)] res))
             [:ok res]))))))
 
-(example
- (parse-term {} '(⟶ :type :type))
- => '[:ok (Π [⇧ ✳] ✳)])
 
-(example
- (parse-term {} '(⟶ sigma tau mu))
- => '[:ok (Π [⇧ sigma] (Π [⇧ tau] mu))])
+;;{
+;; ## Defined terms
+;;
+;; A defined term references a registered definition.
+;; It can be a *notation* in which case it gets expanded
+;; or it can be mathematical definition.
+;;}
 
-(defn parse-exists-term [def-env t bound]
-  (if (< (count t) 3)
-    [:ko {:msg (str "Wrong `exists` form (expecting at least 3 arguments)") :term t :nb-args (count t)}]
-    (let [[status bindings] (parse-binding def-env (second t) bound)]
-      (if (= status :ko)
-        [:ko {:msg (str "Wrong bindings in `exists` form") :term t :from bindings}]
-        (let [bound' (reduce (fn [res [x _]]
-                               (conj res x)) #{} bindings)]
-          (let [body (if (= (count t) 3)
-                       (nth t 2)
-                       (rest (rest t)))]
-            (let [[status body] (parse-term def-env body bound')]
-              (if (= status :ko)
-                [:ko {:msg (str "Wrong body in `exists` form") :term t :from body}]
-                (loop [i (dec (count bindings)), res body]
-                  (if (>= i 0)
-                    (recur (dec i) (list (resolve 'latte.quant/ex) (second (bindings i)) (list 'λ (bindings i) res)))
-                    [:ok res]))))))))))
-
-(example
- (parse-term {} '(∃ [x T] P))
- => [:ok (list (resolve 'latte.quant/ex) 'T '(λ [x T] P))])
-
-(defn parse-defined-term [def-env sdef t bound]
+(defn parse-defined-term
+  "Parse a defined term."
+  [def-env sdef t bound]
   (if (defenv/notation? sdef)
-    (let [notation-fn (defenv/get-notation-fn sdef)
+    (let [notation-fn (:notation-fn sdef)
           [status t'] (apply notation-fn (rest t))]
       (if (= status :ko)
         [:ko t']
@@ -336,17 +316,20 @@ by LaTTe."
             [:ko {:msg "Wrong argument" :term t :from ts}]
             [:ok (list* (defenv/qualify-def def-env def-name) ts)]))))))
 
-(example
- (parse-term {'ex (defenv/map->Definition {:arity 2})}
-             '(ex x :kind) #{'x})
- => '[:ok (ex x □)])
 
-(example
- (parse-term {'ex (defenv/map->Definition {:arity 3})}
-             '(ex x y z) '#{x y z})
- => '[:ok (ex x y z)])
-
-(defn left-binarize [t]
+;;{
+;; ## Applications
+;;
+;; An application is simply the application of a function to a
+;; sequence of arguments, i.e. something of the form `(f e1 e2 ... eN)`.
+;;
+;; Internally, this will become a set of binary applications, of the form:
+;; `[...[[f e1] e2]... eN]`
+;;}
+  
+(defn left-binarize
+  "Binarization (sic!) of an application."
+  [t]
   (if (< (count t) 2)
     t
     (loop [s (rest (rest t)), res [(first t) (second t)]]
@@ -354,16 +337,8 @@ by LaTTe."
         (recur (rest s) [res (first s)])
         res))))
 
-(example
- (left-binarize '(a b)) => '[a b])
-
-(example
- (left-binarize '(a b c)) => '[[a b] c])
-
-(example
- (left-binarize '(a b c d e)) => '[[[[a b] c] d] e])
-
 (defn parse-application-term [def-env t bound]
+  "Parse an application."
   ;; (println "[parse-application-term] t=" t)
   (if (< (count t) 2)
     [:ko {:msg "Application needs at least 2 terms" :term t :nb-terms (count t)}]
@@ -372,26 +347,3 @@ by LaTTe."
       (if (= status :ko)
         [:ko {:msg "Parse error in operand of application" :term t :from ts}]
         [:ok (left-binarize ts)]))))
-
-(example
- (parse-term {} '(x y) '#{x y}) => '[:ok [x y]])
-
-(example
- (parse-term {} '(x y z) '#{x y z}) => '[:ok [[x y] z]])
-
-(example
- (parse-term {} '(x y z t) '#{x y z t}) => '[:ok [[[x y] z] t]])
-
-(example
- (parse-term {} '(λ [x :type] x :type :kind))
- => '[:ok (λ [x ✳] [[x ✳] □])])
-
-
-(defn parse
-  ([t] (parse {} t))
-  ([def-env t] (let [[status t'] (parse-term def-env t)]
-                 (if (= status :ko)
-                   (throw (ex-info "Parse error" t'))
-                   t'))))
-
-)

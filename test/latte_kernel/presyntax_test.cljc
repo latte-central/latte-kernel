@@ -2,7 +2,8 @@
 (ns latte-kernel.presyntax-test
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
-            [latte-kernel.presyntax :refer :all]))
+            [latte-kernel.presyntax :refer :all]
+            [latte-kernel.defenv :as defenv]))
 
 
 (deftest test-reserved-symbols
@@ -49,4 +50,66 @@
          '[:ko {:msg "Binding must have at least 2 elements", :term [x]}]))
   (is (= (parse-binding {} '[x y :bad] #{})
          '[:ko {:msg "Wrong binding type", :term [x y :bad], :from {:msg "Cannot parse term", :term :bad}}])))
+
+(deftest test-parse-lambda-term
+  (is (= (parse-term {} '(λ [x :type] x))
+         '[:ok (λ [x ✳] x)]))
+  (is (= (parse-term {} '(λ [x y :type] x)))
+      '[:ok (λ [x ✳] (λ [y ✳] x))])
+  (is (= (parse-term {} '(λ [x x :type] x))
+         '[:ko {:msg "Wrong bindings in λ form",
+                :term (λ [x x :type] x),
+                :from {:msg "Duplicate binding variable",
+                       :term [x x :type],
+                       :var x}}]))
+  (is (= (parse-term {} '(λ [x] x))
+         '[:ko {:msg "Wrong bindings in λ form",
+                :term (λ [x] x),
+                :from {:msg "Binding must have at least 2 elements", :term [x]}}]))
+  (is (= (parse-term {} '(λ [x :type] z))
+         '[:ok (λ [x ✳] z)])))
+
+(deftest test-parse-product-term
+  (is (= (parse-term {} '(Π [x :type] x))
+         '[:ok (Π [x ✳] x)]))
+  (is (= (parse-term {} '(Π [x y :type] x))
+         '[:ok (Π [x ✳] (Π [y ✳] x))])))
+
+(deftest test-parse-terms
+  (is (= (parse-terms {} '(x y z) #{'x 'y 'z})
+         '[:ok [x y z]]))
+  (is (= (parse-terms {} '(x y z) #{'x 'z})
+         '[:ok [x y z]])))
+
+(deftest test-parse-arrow-term
+  (is (= (parse-term {} '(⟶ :type :type))
+         '[:ok (Π [⇧ ✳] ✳)]))
+  (is (= (parse-term {} '(⟶ sigma tau mu))
+         '[:ok (Π [⇧ sigma] (Π [⇧ tau] mu))])))
+
+(deftest test-parse-defined-term
+  (is (= (parse-term {'ex (defenv/map->Definition {:arity 2})}
+                     '(ex x :kind) #{'x})
+         '[:ok (ex x □)]))
+  (is (= (parse-term {'ex (defenv/map->Definition {:arity 3})}
+                     '(ex x y z) '#{x y z})
+         '[:ok (ex x y z)])))
+
+(deftest test-left-binarize
+  (is (= (left-binarize '(a b))
+         '[a b]))
+  (is (= (left-binarize '(a b c))
+         '[[a b] c]))
+  (is (= (left-binarize '(a b c d e)))
+      '[[[[a b] c] d] e]))
+
+(deftest test-parse-application-term
+  (is (= (parse-term {} '(x y) '#{x y})
+         '[:ok [x y]]))
+  (is (= (parse-term {} '(x y z) '#{x y z})
+         '[:ok [[x y] z]]))
+  (is (= (parse-term {} '(x y z t) '#{x y z t})
+         '[:ok [[[x y] z] t]]))
+  (is (= (parse-term {} '(λ [x :type] x :type :kind))
+         '[:ok (λ [x ✳] [[x ✳] □])])))
 
