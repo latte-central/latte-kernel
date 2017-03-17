@@ -27,8 +27,68 @@
 ;;   - the `type` of the defined lambda-term.
 ;;}
 
-(defn definition? [v]
+(defn definition?
+  "Is `v` a definition?"
+  [v]
   (instance? Definition v))
+
+;;{
+;; Definitions are searched by *name*, which can be:
+;;   - directly a Clojure or Clojurescript *var*
+;;   - indirectly a symbol
+;;
+;; In the case of Clojurescript, the symbol will be *resolved* to
+;; the corresponding var (if any). In Clojurescript, dynamic name
+;; resolution is not available.
+
+;; The definitions identified by symbols are searched in an explicit
+;; definitional environment. The *vars* are searched in the implicit
+;; environment provided by the current namespace.
+;;}
+
+(defn fetch-definition
+  "Fetches definition named `dname` in priority in the supplied `def-env` map.
+  In the Clojure (not Clojurescript) version the definition is also sought in the current namespace."
+  [def-env dname]
+  ;; (println "[fetch-definition] dname=" dname)
+  (cond
+    (symbol? dname) (if-let [ldef (get def-env dname)]
+                    [:ok ldef]
+                    #?(:cjj (if-let [dnamevar (resolve dname)]
+                              (recur def-env dnamevar)
+                              [:ko {:msg "No such (local) definition" :def dname}])
+                       :cljs [:ko {:msg "No such definition" :def dname}]))
+    (var? dname) (let [gdef @dname]
+                 ;;(println "[fetch-definition] " gdef)
+                 [:ok gdef])
+    :else (throw (ex-info "Cannot fetch definition (please report)"
+                          {:dname dname}))))
+
+(defn registered-definition?
+  "Does `dname` corresponds to the name of a registered definition
+  in `def-env` (or the current namespace)?"
+  [def-env dname]
+  (let [[status _] (fetch-definition def-env dname)]
+    (= status :ok)))
+
+;;{
+;; Definition name corresponding to namespace *vars* must be resolved
+;; to a fully qualified name.
+;; This does not apply to the Clojurescript case since symbol resolution
+;; is not available.
+;;}
+
+(defn qualify-def [def-env dname]
+  (if (var? dname)
+    dname
+    (do
+      (when (not (symbol? dname))
+        (throw (ex-info "Value to qualify should be a var or a symbol (please report)" {:dname dname :type (type dname)})))
+      (if-let [_ (get def-env dname)]
+        dname
+        #?(:clj (resolve dname)
+           :cljs (throw (ex-info "Cannot qualify symbol: not a known definition"
+                                 {:symbol dname})))))))
 
 ;;{
 ;; ## Theorem
@@ -88,9 +148,10 @@
 ;; some syntactic sugar provided by notations.
 ;;}
 
-(comment
 
 (defrecord Notation [name notation-fn])
+
+(comment
 
 ;; somewhat hacky but "safe"
 (defn- mk-args [n]
@@ -109,9 +170,14 @@
 (defn get-notation-fn [f]
   (:notation-fn (dummy-call f)))
 
+
+
 (defn notation? [v]
   (and (fn? v)
        (instance? Notation (dummy-call v))))
+)
+
+(declare notation?) ;; TODO
 
 (defrecord Special [name special-fn])
 
@@ -119,43 +185,24 @@
   (instance? Special v))
 
 
-(defn latte-definition? [v]
+;;{
+;; ## LaTTe definitions
+;;
+;; As a summary, a LaTTe definition can be:
+;;  - a mathematical definition
+;;  - a theorem statement
+;;  - an axiom statement
+;;  - a new notation
+;;  - a *special*
+;;}
+
+(defn latte-definition?
+  "Is `v` a LaTTe defining *thing*?"
+  [v]
   (or (definition? v)
       (theorem? v)
       (axiom? v)
       (notation? v)
       (special? v)))
 
-;;{
-;; ## Definitional environment
-;;}
 
-(defn fetch-definition [locals sym]
-  ;; (println "[fetch-definition] sym=" sym "(type" (type sym) ")")
-  (cond
-    (symbol? sym) (if-let [ldef (get locals sym)]
-                    [:ok ldef]
-                    (if-let [symvar (resolve sym)]
-                      (recur locals symvar)
-                      [:ko {:msg "No such (local) definition" :def sym}]))
-    (var? sym) (let [gdef @sym]
-                 ;;(println "[fetch-definition] " gdef)
-                 [:ok gdef])
-    :else (throw (ex-info "Cannot fetch definition (please report)"
-                          {:sym sym}))))
-
-(defn registered-definition? [locals sym]
-  (let [[status _] (fetch-definition locals sym)]
-    (= status :ok)))
-
-(defn qualify-def [locals sym]
-  (if (var? sym)
-    sym
-    (do
-      (when (not (symbol? sym))
-        (throw (ex-info "Value to qualify should be a var or a symbol (please report)" {:sym sym :type (type sym)})))
-      (if-let [_ (get locals sym)]
-        sym
-        (resolve sym)))))
-
-)

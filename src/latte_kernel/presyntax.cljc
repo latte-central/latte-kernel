@@ -29,8 +29,8 @@ by LaTTe."
 ;; The symbols above are well explained in the
 ;; book "Type theory and formal proof: an introduction".
 
-;;  - □ is a sort, the type of all kinds (Page 87)
-;;  - ✳ is a sort, the type of all types (Page 70)
+;;  - □ (or `:kind`) is a sort, the type of all kinds (Page 87)
+;;  - ✳ (or `:type`) is a sort, the type of all types (Page 70)
 ;;  - λ is the symbol of lambda abstractions (Page 1)
 ;;  - Π is the symbol of product abstractions (Page 72)
 ;;  - ⟶ is the arrow type (Page 34)
@@ -38,21 +38,38 @@ by LaTTe."
 ;;  - ∀ is the universal quantifier (Page 246)
 ;;}
 
-(defn reserved-symbol? [s]
-  (contains? +reserved-symbols+ s))
+(defn reserved-symbol?
+  "Is `s` a reserved symbol?"
+  [s] (contains? +reserved-symbols+ s))
 
-(comment
+(defn kind?
+  "Is `t` the sort `:kind`?"
+  [t] (contains? '#{:kind □} t))
 
-(defn kind? [t]
-  (contains? '#{:kind □} t))
+(defn type?
+  "Is `t` the sort `:type`?"
+  [t] (contains? '#{:type ✳} t))
 
-(defn type? [t]
-  (contains? '#{:type ✳} t))
+;;{
+;; ## Main parsing function
+;;
+;; This is the main parsing function, that
+;; dispatches given four subcases depending
+;; on the term to parse being:
+;;   - the sort `:kind`
+;;   - the sort `:type`
+;;   - a sequential term, covering all parenthesized expressions
+;;   - an isolated symbol
+;;}
 
 (declare parse-compound-term
          parse-symbol-term)
 
 (defn parse-term
+  "Parses the input term `t` in definitional environment `def-env` and
+  set of bound variables `bound`.
+  The function returns a pair with the keyword `:ok` and the parsed term if the
+  parse was successful, else `:ko` followed by a parse error."
   ([def-env t] (parse-term def-env t #{}))
   ([def-env t bound]
    (cond
@@ -62,14 +79,25 @@ by LaTTe."
      (symbol? t) (parse-symbol-term def-env t bound)
      :else [:ko {:msg "Cannot parse term" :term t}])))
 
-(example
- (parse-term {} :kind) => '[:ok □])
+;;{
+;; **Remark**: that errors are always returned as a map with
+;; at least a key `:msg` for the error message, the other key,value pairs
+;; depend on the type of error message.
+;;}
 
-(example
- (parse-term {} :type) => '[:ok ✳])
+;;{
+;; ## Symbol parsing
+;;
+;; A symbol can be either:
+;;  - a reserved symbol, in which case an error is returned
+;; (it cannot be used at an isolated place)
+;;  - an occurrence of a bound variable
+;;  - the name of a registered definition of arity 0
+;;  - an occurrence of a free variable
+;;}
 
 (defn parse-symbol-term [def-env sym bound]
-  ;;(println "[parse-symbol-term] sym=" sym)
+  "Parses the symbol `sym`."
   (cond
     (reserved-symbol? sym) [:ko {:msg "Symbol is reserved" :term sym}]
     (contains? bound sym) [:ok sym]
@@ -78,31 +106,36 @@ by LaTTe."
     ;; free variable
     [:ok sym]))
 
-(example
- (parse-term {} 'x #{'x}) => '[:ok x])
+;;{
+;; ## Compound term parsing
+;;
+;; In LaTTe a compound term may be:
+;;   - a lambda abstraction
+;;   - a product abstraction
+;;   - an arrow type
+;;   - an existential
+;;   - a defined term, i.e. a "call" to a definition
+;;   - an application
+;;}
 
-(example
- (parse-term {} 'x #{'y}) => '[:ok x])
+(defn lambda-kw?
+  "Lambda abstraction?"
+  [t] (= t 'λ))
 
-(example
- (parse-term {'x {:arity 0}} 'x)
- => '[:ok (x)])
-
-(example
- (parse-term {'x {:arity 1}} 'x)
- => '[:ok (x)])
-
-(defn lambda-kw? [t]
-  (= t 'λ))
-
-(defn product-kw? [t]
+(defn product-kw?
+  "Product abstraction?"
+  [t]
   (or (= t 'Π)
       (= t '∀)))
 
-(defn arrow-kw? [t]
+(defn arrow-kw?
+  "Arrow type?"
+  [t]
   (= t '⟶))
 
-(defn exists-kw? [t]
+(defn exists-kw?
+  "Existential?"
+  [t]
   (= t '∃))
 
 (declare parse-lambda-term
@@ -112,7 +145,9 @@ by LaTTe."
          parse-defined-term
          parse-application-term)
 
-(defn parse-compound-term [def-env t bound]
+(defn parse-compound-term
+  "Parses `t` as a compound term."
+  [def-env t bound]
   ;; (println "[parse-compound-term] t=" t)
   (if (empty? t)
     [:ko {:msg "Compound term is empty" :term t}]
@@ -139,7 +174,9 @@ by LaTTe."
         ;; else
         (parse-application-term def-env t bound)))))
 
-(defn parse-binding [def-env v bound]
+(defn parse-binding
+  "Parse an abstraction binding form."
+  [def-env v bound]
   (cond
     (not (vector? v))
     [:ko {:msg "Binding is not a vector" :term v}]
@@ -162,31 +199,7 @@ by LaTTe."
               :else (recur (rest s) (conj vars (first s)) (conj res [(first s) ty'])))
             [:ok res]))))))
 
-(example
- (parse-binding {} '[x :type] #{})
- => '[:ok [[x ✳]]])
-
-(example
- (parse-binding {} '[x y z :type] #{})
- => '[:ok [[x ✳] [y ✳] [z ✳]]])
-
-(example
- (parse-binding {} '[x y Π :type] #{})
- => '[:ko {:msg "Wrong binding variable: symbol is reserved",
-           :term [x y Π :type],
-           :symbol Π}])
-
-(example
- (parse-binding {} '[x y x :type] #{})
- => '[:ko {:msg "Duplicate binding variable", :term [x y x :type], :var x}])
-
-(example
- (parse-binding {} '[x] #{})
- => '[:ko {:msg "Binding must have at least 2 elements", :term [x]}])
-
-(example
- (parse-binding {} '[x y :bad] #{})
- => '[:ko {:msg "Wrong binding type", :term [x y :bad], :from {:msg "Cannot parse term", :term :bad}}])
+(comment
 
 (defn parse-binder-term [def-env binder t bound]
   (if (< (count t) 3)
