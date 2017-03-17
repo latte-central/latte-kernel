@@ -1,0 +1,106 @@
+
+(ns latte-kernel.syntax-test
+  (:require #?(:clj [clojure.test :refer :all]
+               :cljs [cljs.test :as t :refer-macros [is deftest testing]])
+            [latte-kernel.syntax :refer :all]))
+
+(deftest test-free-vars
+  (is (= (free-vars 'x)
+         #{'x}))
+  
+  (is (= (free-vars '[x y])
+         #{'x 'y}))
+  
+  (is (= (free-vars '(λ [x t] [x [y z]]))
+         #{'t 'y 'z}))
+  
+  (is (= (free-vars '(Π [x t] [x [y z]]))
+         #{'t 'y 'z}))
+  
+  (is (= (free-vars '(λ [x t] (test x y z)))
+         '#{t y z})))
+
+(deftest test-vars- ;; nameclash
+  (is (= (vars 'x)
+       #{'x}))
+  
+  (is (= (vars '[x y])
+         #{'x 'y}))
+  
+  (is (= (vars '(λ [x t] (test x [y z])))
+         #{'t 'x 'y 'z}))
+  
+  (is (= (vars '(Π [x t] (test x [y z])))
+         #{'t 'x 'y 'z})))
+
+(deftest test-bound-vars
+  (is (= (bound-vars 'x)
+         #{}))
+
+  (is (= (bound-vars '[x y])
+         #{}))
+
+  (is (= (bound-vars '(λ [x t] (test x [y z])))
+         #{'x}))
+
+  (is (= (bound-vars '(λ [x t] (test t [y z])))
+         #{}))
+
+  (is (= (bound-vars '(Π [x t] (test x [y z])))
+         #{'x})))
+
+(deftest test-mk-fresh
+  (is (= (mk-fresh 'x '#{x x' x''})
+         'x'''))
+
+  (is (=(mk-fresh 'x '#{x x' x'' x'''})
+        'x-4)))
+
+(deftest test-subst
+  (is (= (subst 'x {'x '✳})
+         '✳))
+
+  (is (= (subst 'y {'x '✳})
+         'y))
+
+  (is (= (subst '[y x] {'x '✳})
+         '[y ✳]))
+
+  (is (= (subst '[x (λ [x ✳] (test x y z y))] {'x '✳, 'y '□})
+         '[✳ (λ [x' ✳] (test x' □ z □))]))
+
+  (is (= (subst '[x (Π [x ✳] [y x])] {'x '✳, 'y 'x})
+         '[✳ (Π [x' ✳] [x x'])]))
+
+  (is (= (subst '(λ [x ✳] (test x y (λ [x ✳] (test x y z)) y)) {'x ':replace})
+         '(λ [x' ✳] (test x' y (λ [x'' ✳] (test x'' y z)) y))))
+
+  (is (= (subst '(λ [x ✳] (test x y (λ [x ✳] (test x y x')) y)) {'x :replace-x
+                                                                 'x' :replace-x' })
+         '(λ [x'' ✳] (test x'' y (λ [x''' ✳] (test x''' y :replace-x')) y))))
+
+  (is (= (subst '(test x y (λ [x ✳] (test x y x')) y) {'x :replace-x
+                                                       'x' :replace-x' })
+         '(test :replace-x y (λ [x'' ✳] (test x'' y :replace-x')) y)))
+
+  (is  ;; XXX: this comes from a very subtile bug !
+   (= (subst '(Π [⇧ (Π [x' T] (Π [⇧ (Π [x T] (Π [⇧ [X x]] [[R x] x']))] [R z]))]
+                 [R z]) 'z 'x)
+      '(Π [⇧ (Π [x' T] (Π [⇧' (Π [x'' T] (Π [⇧'' [X x'']] [[R x''] x']))] [R x]))] [R x]))))
+
+(deftest test-alpha-norm
+  (is (= (alpha-norm 'x)
+         'x))
+
+  (is (= (alpha-norm '(λ [x ✳] x))
+         '(λ [_1 ✳] _1)))
+
+  (is (= (alpha-norm '[x (λ [x ✳] (test x y [x z]))])
+         '[x (λ [_1 ✳] (test _1 y [_1 z]))])))
+
+(deftest test-alpha-eq?
+  (is (= (alpha-eq? '(λ [x ✳] x)
+                    '(λ [y ✳] y))
+         true)))
+
+
