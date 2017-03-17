@@ -18,7 +18,13 @@
          #{'t 'y 'z}))
   
   (is (= (free-vars '(λ [x t] (test x y z)))
-         '#{t y z})))
+         '#{t y z}))
+
+  (is (= (free-vars '(:latte-kernel.syntax/assert x [y z]))
+         '#{x y z}))
+  
+  (is (= (free-vars '(λ [x y] (:latte-kernel.syntax/assert x [y z])))
+         '#{y z})))
 
 (deftest test-vars- ;; nameclash
   (is (= (vars 'x)
@@ -31,7 +37,13 @@
          #{'t 'x 'y 'z}))
   
   (is (= (vars '(Π [x t] (test x [y z])))
-         #{'t 'x 'y 'z})))
+         #{'t 'x 'y 'z}))
+
+  (is (= (vars '(:latte-kernel.syntax/assert x [y z]))
+         '#{x y z}))
+  
+  (is (= (vars '(λ [x y] (:latte-kernel.syntax/assert x [y z])))
+         '#{x y z})))
 
 (deftest test-bound-vars
   (is (= (bound-vars 'x)
@@ -47,7 +59,13 @@
          #{}))
 
   (is (= (bound-vars '(Π [x t] (test x [y z])))
-         #{'x})))
+         #{'x}))
+  
+  (is (= (bound-vars '(:latte-kernel.syntax/assert x [y z]))
+         '#{}))
+  
+  (is (= (bound-vars '(λ [x y] (:latte-kernel.syntax/assert x [y z])))
+         '#{x})))
 
 (deftest test-mk-fresh
   (is (= (mk-fresh 'x '#{x x' x''})
@@ -65,6 +83,9 @@
 
   (is (= (subst '[y x] {'x '✳})
          '[y ✳]))
+
+  (is (= (subst '(:latte-kernel.syntax/assert x y) '{x ✳, y z})
+         '(:latte-kernel.syntax/assert ✳ z)))
 
   (is (= (subst '[x (λ [x ✳] (test x y z y))] {'x '✳, 'y '□})
          '[✳ (λ [x' ✳] (test x' □ z □))]))
