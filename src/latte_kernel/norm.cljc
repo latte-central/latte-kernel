@@ -84,29 +84,39 @@
        (stx/lambda? (first t))))
 
 
-(defn beta-reduction [t]
+(defn beta-reduction
+  "The basic rule of *beta-reduction* for term `t`.
+  Note that the term `t` must already be a *redex*
+  so that the rewrite can be performed."
+  [t]
   (if (redex? t)
     (let [[[_ [x _] body] rand] t]
       (stx/subst body x rand))
     (throw (ex-info "Cannot beta-reduce. Not a redex" {:term t}))))
 
-(comment
+;;{
+;; #### The normalization strategy
+;;
+;; The most important principle in the normalization process
+;; is the way *redexes* are discovered. For this, a *strategy*
+;; must be implemented. It is a kind of a *black art* of not
+;; spending too much time looking for them, but also ensuring
+;; that all of them are found. LaTTe focuses on the latter.
+;;}
+  
+  
+(declare beta-step-args)
 
-(example
- (beta-reduction '[(λ [x ✳] [x x]) y])
- => '[y y])
+(defn beta-step
+  "A call to this function will reduce a (somewhat)
+  arbitrary number of *redexes* in term `t`
+   using a mostly bottom-up strategy, and reducing
+ all terms at the same level (e.g. definition arguments).
 
-
-(declare beta-step)
-
-(defn beta-step-args [ts]
-  (loop [ts ts, ts' [], red? false]
-    (if (seq ts)
-      (let [[t' red-1?] (beta-step (first ts))]
-        (recur (rest ts) (conj ts' t') (or red? red-1?)))
-      [ts' red?])))
-
-(defn beta-step [t]
+The return value is a pair `[t' red?]` with `t'` the
+potentially rewritten version of `t` and `red?` is `true`
+ iff at least one redex was found and reduced."
+  [t]
   (cond
     ;; binder
     (stx/binder? t)
@@ -134,28 +144,36 @@
           [args' red?] (beta-step-args args)
           t' (if red? (list* def-name args') t)]
       [t' red?])
+    ;; ascriptions
+    (stx/ascription? t)
+    (let [[_ ty term] t
+          [ty' tyred?] (beta-step ty)
+          [term' termred?] (beta-step term)]
+      [(list :latte-kernel.syntax/ascribe ty' term') (or tyred? termred?)])
     ;; other cases
     :else [t false]))
 
-(defn beta-red [t]
+(defn beta-step-args
+  "Apply the reduction strategy on the sequence of
+terms `ts` in *\"parallel\"*. This is one place
+where many redexes can be found at once.
+This returns a pair composed of the rewritten
+ terms and a flag telling if at least one reduction
+took place."
+  [ts]
+  (loop [ts ts, ts' [], red? false]
+    (if (seq ts)
+      (let [[t' red-1?] (beta-step (first ts))]
+        (recur (rest ts) (conj ts' t') (or red? red-1?)))
+      [ts' red?])))
+
+(defn beta-red
+  "Reduce term `t` according to the normalization strategy."
+  [t]
   (let [[t' _] (beta-step t)]
     t'))
 
-(example
- (beta-red '[(λ [x ✳] x) y]) => 'y)
-
-(example
- (beta-red '[[(λ [x ✳] x) y] z]) => '[y z])
-
-(example
- (beta-red '(λ [y [(λ [x □] x) ✳]] y))
- => '(λ [y ✳] y))
-
-(example
- (beta-red '[z [(λ [x ✳] x) y]]) => '[z y])
-
-(example
- (beta-red '[x y]) => '[x y])
+(comment
 
 ;;{
 ;; ## Delta-reduction (unfolding of definitions)
