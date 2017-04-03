@@ -82,23 +82,29 @@
   "Is `t` a reference?"
   [t]
   (and (seq? t)
-       (not (contains? '#{λ Π ::assert} (first t)))))
+       (not (contains? '#{λ Π ::ascribe} (first t)))))
 
 ;;{
-;;  - *assertions* `(::assert e t)` that term `e` is of type `t`. Assertions are used internally and cannot
+;;  - *ascriptions* `(::ascribe e t)` that term `e` is of type `t`. These are like
+;; explicit type assertions that are used internally and cannot
 ;; result from parsing a term in the user-level syntax.
+
+;; As a safety measure we use the word *ascription* that a user will unlikely
+;; use its own code. Moreover, the keyword is namespaces so these should
+;; be enought to emphasis the fact that ascriptions are *dangerous* and
+;; only used inside the kernel...
 ;;}
 
-(defn assert?
-  "Is `t` a type assertion?"
+(defn ascription?
+  "Is `t` a type ascription?"
   [t]
   (and (seq? t)
        (= (count t) 3)
-       (= (first t) ::assert)))
+       (= (first t) ::ascribe)))
 
 ;;{
-;; Note that type assertions do not add any expressivity, but
-;; they allow interesting optimizations (asserted types do not need
+;; Note that type ascriptions do not add any expressivity, but
+;; they allow interesting optimizations (ascribed types do not need
 ;; to be recomputed).
 ;;}
 
@@ -124,7 +130,7 @@
                              (disj (free-vars body) x)))
     (app? t) (set/union (free-vars (first t))
                         (free-vars (second t)))
-    (assert? t) (let [[_ e u] t]
+    (ascription? t) (let [[_ e u] t]
                   (set/union (free-vars e)
                              (free-vars u)))
     (ref? t) (apply set/union (map free-vars (rest t)))
@@ -139,7 +145,7 @@
                   (set/union (vars ty) (vars body)))
     (app? t) (set/union (vars (first t))
                         (vars (second t)))
-    (assert? t) (let [[_ e u] t]
+    (ascription? t) (let [[_ e u] t]
                   (set/union (vars e) (vars u)))
     (ref? t) (apply set/union (map vars (rest t)))
     :else #{}))
@@ -214,12 +220,12 @@ Names generated fresh along the substitution cannot be members of `forbid`.
           (let [[rator forbid'] (subst- (first t) sub forbid rebind)
                 [rand forbid''] (subst- (second t) sub forbid' rebind)]
             [[rator rand] forbid''])
-          ;; assertions
-          (assert? t)
+          ;; ascriptions
+          (ascription? t)
           (let [[_ e u] t
                 [e' forbid'] (subst- e sub forbid rebind)
                 [u' forbid''] (subst- u sub forbid' rebind)]
-            [(list ::assert e' u') forbid''])
+            [(list ::ascribe e' u') forbid''])
           ;; references
           (ref? t) (let [[args forbid']
                          (reduce (fn [[ts forbid] t]
@@ -271,12 +277,12 @@ Names generated fresh along the substitution cannot be members of `forbid`.
     (let [[left' level'] (alpha-norm- (first t) sub level)
           [right' level''] (alpha-norm- (second t) sub level')]
       [[left' right'] level''])
-    ;; assertions
-    (assert? t)
+    ;; ascription
+    (ascription? t)
     (let [[_ e u] t
           [e' level'] (alpha-norm- e sub level)
           [u' level''] (alpha-norm- u sub level')]
-      [(list ::assert e' u') level''])
+      [(list ::ascribe e' u') level''])
     ;; references
     (ref? t) (let [[args level']
                    (reduce (fn [[args level] arg]
