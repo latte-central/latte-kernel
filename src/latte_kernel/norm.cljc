@@ -520,9 +520,22 @@ potentially rewritten version of `t` and `red?` is `true`
   ([def-env t] (normalize def-env [] t))
   ([def-env ctx t] (beta-delta-special-normalize def-env ctx t)))
 
-(comment
+;;{
+;; ## Beta-equivalence
+;;
+;; The main objective of having a normalization algorithm is to be
+;; able to compare terms for a dedicated notion of equivalence.
+;; In the lambda-calculus this is generally called *beta-equivalence*
+;; and we will convey the same name here. However it is clear that
+;; we also mean equivalent for our general normalization procedure
+;; (involving delta and special reduction also).
+;; Note also that the resulting normal forms are compared for
+;; alpha-equivalence so that bound variables do not get in the way.
+;;}
 
-  (defn beta-eq?
+(defn beta-eq?
+  "Are terms `t1` and `t2` equivalent, i.e. with the
+same normal form (up-to alpha-convertion)?"
   ([t1 t2]
    (let [t1' (normalize t1)
          t2' (normalize t2)]
@@ -536,8 +549,3 @@ potentially rewritten version of `t` and `red?` is `true`
          t2' (normalize def-env ctx t2)]
      (stx/alpha-eq? t1' t2'))))
 
-(example
- (beta-eq? '(λ [z ✳] z)
-           '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y])) => true)
-
-)

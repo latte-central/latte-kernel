@@ -103,3 +103,9 @@
   (is (= (normalize '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))
          '(λ [y ✳] y))))
 
+
+(deftest test-beta-eq?
+  (is (= (beta-eq? '(λ [z ✳] z)
+                   '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))
+         true)))
+
