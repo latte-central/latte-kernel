@@ -98,3 +98,8 @@
                                 :parsed-term [x [y x]]})}
                      '[y (test [t t] u)])
          '[[y [[t t] [u [t t]]]] true])))
+
+(deftest test-normalize
+  (is (= (normalize '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))
+         '(λ [y ✳] y))))
+

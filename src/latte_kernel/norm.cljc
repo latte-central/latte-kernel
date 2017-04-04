@@ -423,37 +423,77 @@ potentially rewritten version of `t` and `red?` is `true`
       [ts' red?])))
 
 ;;{
-;; ## Normalization (up-to beta/delta)
+;; ## Normalization
+;;
+;; We finally define a few normalization functions:
+;;   - normalize specials only: [[special-normalize]]
+;;   - normalize using beta-reduction only: [[beta-normalize]]
+;;   - normalize using delta-reduction only: [[delta-normalize]]
+;;   - normalize using delta-reduction with the local environment only: [[delta-normalize-local]]
+;;   - generic normalization: [[beta-delta-special-normalize]]
 ;;}
 
-(comment
-
-(defn special-normalize [def-env ctx t]
+(defn special-normalize
+  "Normalize term `t` for special-reduction."
+  [def-env ctx t]
   (let [[t' red?] (special-step def-env ctx t)]
     (if red?
       (recur def-env ctx t')
       t')))
 
-(defn beta-normalize [t]
+(defn beta-normalize
+  "Normalize term `t` for beta-reduction."
+  [t]
   (let [[t' red?] (beta-step t)]
     (if red?
       (recur t')
       t')))
 
-(defn delta-normalize [def-env t]
+(defn delta-normalize
+  "Normalize term `t` for delta-reduction."
+  [def-env t]
   (let [[t' red?] (delta-step def-env t)]
     (if red?
       (recur def-env t')
       t')))
 
-(defn delta-normalize-local [def-env t]
+(defn delta-normalize-local
+  "Normalize term `t` for delta-reduction using only
+  environment `def-env` (and *not* the current namespace)."
+  [def-env t]
   (let [[t' red?] (delta-step def-env t true)]
     (if red?
       (recur def-env t')
       t')))
 
-;; XXX : this is a critical function... need to be checked
-(defn beta-delta-special-normalize [def-env ctx t]
+;;{
+;; The heart of the general normalization process is
+;; the following function. It orders the strategies
+;; in the following way:
+;;   1. apply special-reduction first,
+;;   2. then apply delta-reduction
+;;   3. then apply beta-reduction
+;;   4. try again the whole process if the term was rewritten
+;;      or just return the result.
+;;
+;; The LaTTe *normal forms* are defined by this function, i.e.
+;; these are the terms for which the function acts as an identity.
+;; This is a formal definition, but its mathematical properties
+;; are not easy to derive from the code. However it has been
+;; thoroughly tested. It is also *safe* in the sense that at worst
+;; it will lead to too many distinctions, but there is no risk
+;; of confusion.
+;;
+;; **Remark**: some optimizations could be performed here, but
+;; we found out that even small change in this definition
+;; could easily lead to dramatic effects, so we are very
+;; conservative in this part of the kernel.
+;;}
+
+(defn beta-delta-special-normalize
+  "Apply the general normalization strategy of LaTTe on term `t`.
+  The result is defined as *the normal form* of `t`."
+  [def-env ctx t]
   ;;(println "[beta-delta-special-normalize]: t=" t)
   (let [[t' spec-red?] (special-step def-env ctx t)]
     (if spec-red?
@@ -469,16 +509,20 @@ potentially rewritten version of `t` and `red?` is `true`
                   (recur def-env ctx t'))
               t')))))))
 
+;;{
+;; The following is the main user-level function for normalization.
+;;}
+
 (defn normalize
+  "Normalize term `t` in (optional) environment `def-env` and (optional) context `ctx`.
+  The result is *the normal form* of `t`."
   ([t] (normalize {} [] t))
   ([def-env t] (normalize def-env [] t))
   ([def-env ctx t] (beta-delta-special-normalize def-env ctx t)))
 
-(example
- (normalize '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))
- => '(λ [y ✳] y))
+(comment
 
-(defn beta-eq?
+  (defn beta-eq?
   ([t1 t2]
    (let [t1' (normalize t1)
          t2' (normalize t2)]
