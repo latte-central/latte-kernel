@@ -328,34 +328,30 @@ potentially rewritten version of `t` and `red?` is `true`
         (recur (rest ts) (conj ts' t') (or red? red-1?)))
       [ts' red?])))
 
-(comment
-
-(example
- (delta-step {} 'x) => '[x false])
-
-(example
- (delta-step {'test (defenv/map->Definition
-                     '{:arity 1
-                       :tag :definition
-                       :params [[x ✳]]
-                       :parsed-term [x x]})}
-             '[y (test [t t])])
- => '[[y [[t t] [t t]]] true])
-
-(example
- (delta-step {'test (defenv/map->Definition
-                     '{:arity 2
-                       :tag :definition
-                       :params [[x ✳] [y ✳]]
-                       :parsed-term [x [y x]]})}
-             '[y (test [t t] u)])
- => '[[y [[t t] [u [t t]]]] true])
 
 ;;{
 ;; ## Reduction of specials
+;;
+;; The *specials* represent the place where one can benefit of the
+;; full power of the host language, namely Clojure or Clojurescript,
+;; to generate a term.
+;; Because of the complex interactions between the normalization and
+;; the type inference processes, there are strong restrictions imposed
+;; on the rewrite engine for specials. The main restriction is that
+;; a special must be removed before any further normalization using
+;; the beta or delta rules.
+;;
+;; The rule of *special-reduction* (could be named *sigma-reduction*) is
+;; basically calling the Clojure(script) function attached to the
+;; special.
 ;;}
 
-(defn special-reduction [def-env ctx t]
+(defn special-reduction
+  "Expand the term `t` as a special reference. If it is not
+  a special it is not reduced. The function returns a pair `[t' red?]`
+  with `t'` the expanded special, and `red?` is `true` iff an actual
+  rewrite took place."
+  [def-env ctx t]
   ;; (println "[special-reduction] t=" t)
   (if (not (stx/ref? t))
     (throw (ex-info "Cannot special-reduce: not a reference term." {:term t}))
@@ -363,28 +359,26 @@ potentially rewritten version of `t` and `red?` is `true`
           [status sdef] (defenv/fetch-definition def-env name)]
       (if (= status :ko)
         [t false] ;; No error?  or (throw (ex-info "No such definition" {:term t :def-name name}))
-        ;;(if (> (count args) (:arity sdef))
-          ;;(throw (ex-info "Too many arguments to instantiate special." {:term t :def-name name :nb-params (count (:arity sdef)) :nb-args (count args)}))
-          (if (special? sdef)
-            ;;(if (< (count args) (:arity sdef))
-            ;;(throw (ex-info "Not enough argument for special definition." { :term t :arity (:arity sdef)}))
-            (do
-              ;; (println "[special-reduction] sdef=" sdef)
-              (let [term (apply (:special-fn sdef) def-env ctx args)]
-                [term true])) ;;)
-            [t false])))))
-;;)
+        (if (special? sdef)
+          (do
+            ;; (println "[special-reduction] sdef=" sdef)
+            (let [term (apply (:special-fn sdef) def-env ctx args)]
+              [term true])) ;;)
+          [t false])))))
 
-(declare special-step)
+;;{
+;; ### The special-reduction strategy
+;;
+;; Once again we use the bottom-up "parallel" strategy of
+;; reduction we used for both the beta and delta reduction cases.
+;;}
 
-(defn special-step-args [def-env ctx ts]
-  (loop [ts ts, ts' [], red? false]
-    (if (seq ts)
-      (let [[t' red1?] (special-step def-env ctx (first ts))]
-        (recur (rest ts) (conj ts' t') (or red? red1?)))
-      [ts' red?])))
+(declare special-step-args)
 
-(defn special-step [def-env ctx t]
+(defn special-step
+  "Applies the strategy of *special-reduction* on term `t` with definitional
+  environment `def-env` and context `ctx`."
+  [def-env ctx t]
   ;; (println "[delta-step] t=" t)
   (cond
     ;; binder
@@ -410,18 +404,35 @@ potentially rewritten version of `t` and `red?` is `true`
           t' (if red1? (list* def-name args') t)
           [t'' red2?] (special-reduction def-env ctx t')]
       [t'' (or red1? red2?)])
+    ;; ascription
+    (stx/ascription? t)
+    (let [[_ ty term] t
+          [ty' tyred?] (special-step def-env ctx ty)
+          [term' termred?] (special-step def-env ctx term)]
+      [(list :latte-kernel.syntax/ascribe ty' term') (or tyred? termred?)])
     ;; other cases
     :else [t false]))
+
+(defn special-step-args
+  "Applies the delta-reduction on the terms `ts`."
+  [def-env ctx ts]
+  (loop [ts ts, ts' [], red? false]
+    (if (seq ts)
+      (let [[t' red1?] (special-step def-env ctx (first ts))]
+        (recur (rest ts) (conj ts' t') (or red? red1?)))
+      [ts' red?])))
+
+;;{
+;; ## Normalization (up-to beta/delta)
+;;}
+
+(comment
 
 (defn special-normalize [def-env ctx t]
   (let [[t' red?] (special-step def-env ctx t)]
     (if red?
       (recur def-env ctx t')
       t')))
-
-;;{
-;; ## Normalization (up-to beta/delta)
-;;}
 
 (defn beta-normalize [t]
   (let [[t' red?] (beta-step t)]
