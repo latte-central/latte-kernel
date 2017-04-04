@@ -154,12 +154,12 @@ potentially rewritten version of `t` and `red?` is `true`
     :else [t false]))
 
 (defn beta-step-args
-  "Apply the reduction strategy on the sequence of
-terms `ts` in *\"parallel\"*. This is one place
-where many redexes can be found at once.
-This returns a pair composed of the rewritten
- terms and a flag telling if at least one reduction
-took place."
+  "Apply the reduction strategy on the terms `ts` 
+  in *\"parallel\"*. This is one place
+  where many redexes can be found at once.
+  This returns a pair composed of the rewritten
+  terms and a flag telling if at least one reduction
+  took place."
   [ts]
   (loop [ts ts, ts' [], red? false]
     (if (seq ts)
@@ -173,13 +173,38 @@ took place."
   (let [[t' _] (beta-step t)]
     t'))
 
-(comment
 
 ;;{
 ;; ## Delta-reduction (unfolding of definitions)
+;;
+;; If beta-reduction is at the heart of computing with
+;; values in the lambda-calculus, the *delta-reduction* is
+;; the corresponding principle for computing with *names*.
+;;
+;; From the point of view of calculability, names are not
+;; needed: they don't add any expressive power to the
+;; language. As such, they are not part of the theoretical
+;; lambda-calculus. However in practice, names play a
+;; central role in computation.
+;;
+;; From the point of view of LaTTe, the use of names
+;; is important for two reasons:
+;;
+;;   1. Mathematical definitions and theorems need to be named so that they can
+;;  be further referenced, that's a basic fact of mathematics.
+;;
+;;   2. Named computation can be performed much more efficiently than relying
+;; on beta-reduction, this will be made clear later on.
+;;
+;; The rewrite rule of delta-reduction corresponds to the unfolding
+;; of a pameterized definition, based on the substitution of the parameters
+;; by actual arguments. The process is called *instantiation*.
 ;;}
 
-(defn instantiate-def [params body args]
+(defn instantiate-def
+  "Substitute in the `body` of a definition the parameters `params` 
+  by the actual arguments `args`."
+  [params body args]
   ;;(println "[instantiate-def] params=" params "body=" body "args=" args)
   (loop [args args, params params, sub {}]
     (if (seq args)
@@ -191,41 +216,30 @@ took place."
           (recur (rest params) (list 'λ (first params) res))
           (stx/subst res sub))))))
 
-(example
- (instantiate-def '[[x ✳] [y ✳] [z ✳]]
-                  '[[x y] [z x]]
-                  '((λ [t ✳] t) t1 [t2 t3]))
- => '[[(λ [t ✳] t) t1] [[t2 t3] (λ [t ✳] t)]])
-
-(example
- (instantiate-def '[[x ✳] [y ✳] [z ✳] [t ✳]]
-                  '[[x y] [z t]]
-                  '((λ [t ✳] t) t1 [t2 t3]))
- => '(λ [t' ✳] [[(λ [t ✳] t) t1] [[t2 t3] t']]))
-
-(example
- (instantiate-def '[[x ✳] [y ✳] [z ✳]]
-                  '[[x y] z]
-                  '())
- => '(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] z]))))
+;;{
+;; Note that for the sake of efficiency, we do not unfold theorems (by their proof)
+;; hence at the computational level a theorem is not equivalent to its proof, which
+;; is of course a good thing because of *proof irrelevance*. However an error is
+;; raised if one tries to reduce with a yet unproven theorem.
+;;}
 
 (defn delta-reduction
+  "Apply a strategy of delta-reduction in definitional environment `def-env` and
+  term `t`. If the flag `local?` is `true` the definition in only looked for
+  in `def-env`. By default it is also looked for in the current namespace (in Clojure only).²"
   ([def-env t] (delta-reduction def-env t false))
   ([def-env t local?]
    ;; (println "[delta-reduction] t=" t)
    (if (not (stx/ref? t))
      (throw (ex-info "Cannot delta-reduce: not a reference term (please report)." {:term t}))
      (let [[name & args] t
-           [status sdef] (if local?
-                           (if-let [sdef (get def-env name)]
-                             [:ok sdef]
-                             [:ko nil])
-                           (defenv/fetch-definition def-env name))]
+           [status sdef]  (defenv/fetch-definition def-env name local?)]
        ;; (println "[delta-reduction] term=" t "def=" sdef)
        (if (= status :ko)
          [t false] ;; No error?  or (throw (ex-info "No such definition" {:term t :def-name name}))
          (if (> (count args) (:arity sdef))
-           (throw (ex-info "Too many arguments to instantiate definition." {:term t :def-name name :nb-params (count (:arity sdef)) :nb-args (count args)}))
+           (throw (ex-info "Too many arguments to instantiate definition."
+                           {:term t :def-name name :nb-params (count (:arity sdef)) :nb-args (count args)}))
            (cond
             (definition? sdef)
             ;; unfolding a defined term
@@ -244,60 +258,31 @@ took place."
               (throw (ex-info "Cannot use theorem with no proof." {:term t :theorem sdef})))
             (axiom? sdef) [t false]
             (special? sdef)
-            (throw (ex-info "Specials must not exist at delta-reduction time (please report)" {:term t :special sdef}))
+            (throw (ex-info "Specials must not exist at delta-reduction time (please report)"
+                            {:term t :special sdef}))
             ;; XXX: before that, specials were handled by delta-reduction
             ;; (if (< (count args) (:arity sdef))
             ;;   (throw (ex-info "Not enough argument for special definition." { :term t :arity (:arity sdef)}))
             ;;   (let [term (apply (:special-fn sdef) def-env ctx args)]
             ;;     [term true]))
-            :else (throw (ex-info "Not a Latte definition (please report)." {:term t :def sdef})))))))))
+            :else (throw (ex-info "Not a Latte definition (please report)."
+                                  {:term t :def sdef})))))))))
 
-(example
- (delta-reduction {'test (defenv/map->Definition
-                          '{:name test
-                            :arity 3
-                            :params [[x ✳] [y □] [z ✳]]
-                            :parsed-term [y (λ [t ✳] [x [z t]])]})}
-                  '(test [a b] c [t (λ [t] t)]))
- => '[[c (λ [t' ✳] [[a b] [[t (λ [t] t)] t']])] true])
+;;{
+;; ### Delta-reduction strategy
+;;
+;; The strategy we adopt for delta-reduction is close to the one usesd
+;; for beta-reduction. Of course we are not looking for beta but *delta-redexes*,
+;;  i.e. *"call"* to definitions.
+;;}
 
-(example
- (delta-reduction {'test (defenv/map->Theorem
-                          '{:name test
-                            :arity 3
-                            :params [[x ✳] [y □] [z ✳]]
-                            :proof [y (λ [t ✳] [x [z t]])]})}
-                  '(test [a b] c [t (λ [t] t)]))
- => '[(test [a b] c [t (λ [t] t)]) false])
- ;;=> '[[c (λ [t' ✳] [[a b] [[t (λ [t] t)] t']])] true])
-
-(example
- (delta-reduction {'test (defenv/map->Axiom
-                          '{:arity 3
-                            :tag :axiom
-                            :params [[x ✳] [y □] [z ✳]]})}
-                   '(test [a b] c [t (λ [t] t)]))
- => '[(test [a b] c [t (λ [t] t)]) false])
-
-(example
- (delta-reduction {'test (defenv/map->Definition
-                          '{:arity 3
-                            :tag :definition
-                            :params [[x ✳] [y □] [z ✳]]
-                            :parsed-term [y (λ [t ✳] [x [z t]])]})}
-                  '(test [a b] c))
- => '[(λ [z ✳] [c (λ [t ✳] [[a b] [z t]])]) true])
-
-(declare delta-step)
-
-(defn delta-step-args [def-env ts local?]
-  (loop [ts ts, ts' [], red? false]
-    (if (seq ts)
-      (let [[t' red-1?] (delta-step def-env (first ts) local?)]
-        (recur (rest ts) (conj ts' t') (or red? red-1?)))
-      [ts' red?])))
+(declare delta-step-args)
 
 (defn delta-step
+  "Applies the strategy of *delta-reduction* on term `t` with definitional
+ environment `def-env`. If the optional flag `local?` is `true` only the
+  local environment is used, otherwise (the default case) the definitions
+  are also searched in the current namespace (in Clojure only)."
   ([def-env t] (delta-step def-env t false))
   ([def-env t local?]
    ;; (println "[delta-step] t=" t)
@@ -325,8 +310,25 @@ took place."
            t' (if red1? (list* def-name args') t)
            [t'' red2?] (delta-reduction def-env t' local?)]
        [t'' (or red1? red2?)])
+     ;; ascription
+     (stx/ascription? t)
+     (let [[_ ty term] t
+           [ty' tyred?] (delta-step def-env ty local?)
+           [term' termred?] (delta-step def-env term local?)]
+       [(list :latte-kernel.syntax/ascribe ty' term') (or tyred? termred?)])
      ;; other cases
      :else [t false])))
+
+(defn delta-step-args
+  "Applies the delta-reduction on the terms `ts`."
+  [def-env ts local?]
+  (loop [ts ts, ts' [], red? false]
+    (if (seq ts)
+      (let [[t' red-1?] (delta-step def-env (first ts) local?)]
+        (recur (rest ts) (conj ts' t') (or red? red-1?)))
+      [ts' red?])))
+
+(comment
 
 (example
  (delta-step {} 'x) => '[x false])

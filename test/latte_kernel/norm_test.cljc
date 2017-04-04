@@ -2,6 +2,7 @@
 (ns latte-kernel.norm-test
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
+            [latte-kernel.defenv :as defenv]
             [latte-kernel.norm :refer :all]))
 
 (deftest test-beta-reduction
@@ -29,3 +30,71 @@
   
   (is (= (beta-red '[x y])
          '[x y])))
+
+(deftest test-instantiate-def
+  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
+                          '[[x y] [z x]]
+                          '((λ [t ✳] t) t1 [t2 t3]))
+         '[[(λ [t ✳] t) t1] [[t2 t3] (λ [t ✳] t)]]))
+  
+  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳] [t ✳]]
+                          '[[x y] [z t]]
+                          '((λ [t ✳] t) t1 [t2 t3]))
+         '(λ [t' ✳] [[(λ [t ✳] t) t1] [[t2 t3] t']])))
+  
+  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
+                          '[[x y] z]
+                          '())
+         '(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] z]))))))
+
+(deftest test-delta-reduction
+  (is (= (delta-reduction {'test (defenv/map->Definition
+                                   '{:name test
+                                     :arity 3
+                                     :params [[x ✳] [y □] [z ✳]]
+                                     :parsed-term [y (λ [t ✳] [x [z t]])]})}
+                          '(test [a b] c [t (λ [t] t)]))
+         '[[c (λ [t' ✳] [[a b] [[t (λ [t] t)] t']])] true]))
+
+  (is (= (delta-reduction {'test (defenv/map->Theorem
+                                   '{:name test
+                                     :arity 3
+                                     :params [[x ✳] [y □] [z ✳]]
+                                     :proof [y (λ [t ✳] [x [z t]])]})}
+                          '(test [a b] c [t (λ [t] t)]))
+         '[(test [a b] c [t (λ [t] t)]) false]))
+ 
+  (is (= (delta-reduction {'test (defenv/map->Axiom
+                                   '{:arity 3
+                                     :tag :axiom
+                                     :params [[x ✳] [y □] [z ✳]]})}
+                          '(test [a b] c [t (λ [t] t)]))
+         '[(test [a b] c [t (λ [t] t)]) false]))
+
+  (is (= (delta-reduction {'test (defenv/map->Definition
+                                   '{:arity 3
+                                     :tag :definition
+                                     :params [[x ✳] [y □] [z ✳]]
+                                     :parsed-term [y (λ [t ✳] [x [z t]])]})}
+                          '(test [a b] c))
+         '[(λ [z ✳] [c (λ [t ✳] [[a b] [z t]])]) true])))
+
+(deftest test-delta-step
+  (is (= (delta-step {} 'x)
+         '[x false]))
+      
+  (is (= (delta-step {'test (defenv/map->Definition
+                              '{:arity 1
+                                :tag :definition
+                                :params [[x ✳]]
+                                :parsed-term [x x]})}
+                     '[y (test [t t])])
+         '[[y [[t t] [t t]]] true]))
+
+  (is (= (delta-step {'test (defenv/map->Definition
+                              '{:arity 2
+                                :tag :definition
+                                :params [[x ✳] [y ✳]]
+                                :parsed-term [x [y x]]})}
+                     '[y (test [t t] u)])
+         '[[y [[t t] [u [t t]]]] true])))

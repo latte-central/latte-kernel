@@ -48,21 +48,28 @@
 
 (defn fetch-definition
   "Fetches definition named `dname` in priority in the supplied `def-env` map.
-  In the Clojure (not Clojurescript) version the definition is also sought in the current namespace."
-  [def-env dname]
-  ;; (println "[fetch-definition] dname=" dname)
-  (cond
-    (symbol? dname) (if-let [ldef (get def-env dname)]
-                    [:ok ldef]
-                    #?(:cjj (if-let [dnamevar (resolve dname)]
-                              (recur def-env dnamevar)
-                              [:ko {:msg "No such (local) definition" :def dname}])
-                       :cljs [:ko {:msg "No such definition" :def dname}]))
-    (var? dname) (let [gdef @dname]
-                 ;;(println "[fetch-definition] " gdef)
-                 [:ok gdef])
-    :else (throw (ex-info "Cannot fetch definition (please report)"
-                          {:dname dname}))))
+  In the Clojure (not Clojurescript) version the definition is also sought in the current namespace.
+
+  If the optional argument `local-only?` is set to `true` then the definition is
+only looked for in `def-env` and *not* in the current namespace. The flag is `false` by 
+  default. For clojurescript the flag is without any effet."
+  ([def-env dname] (fetch-definition def-env dname false))
+  ([def-env dname local-only?]
+   ;; (println "[fetch-definition] dname=" dname)
+   (cond
+     (symbol? dname) (if-let [ldef (get def-env dname)]
+                       [:ok ldef]
+                       #?(:cjj (if local-only?
+                                 [:ko {:msg "No such (local) definition" :def dname}]
+                                 (if-let [dnamevar (resolve dname)]
+                                   (recur def-env dnamevar)
+                                   [:ko {:msg "No such definition" :def dname}]))
+                          :cljs [:ko {:msg "No such definition" :def dname}]))
+     (var? dname) (let [gdef @dname]
+                    ;;(println "[fetch-definition] " gdef)
+                    [:ok gdef])
+     :else (throw (ex-info "Cannot fetch definition (please report)"
+                           {:dname dname})))))
 
 (defn registered-definition?
   "Does `dname` corresponds to the name of a registered definition
