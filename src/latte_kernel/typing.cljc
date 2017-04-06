@@ -128,14 +128,19 @@
   [:ok '□])
 
 ;;{
+;;
+;;  The type of a variable is to be found in the context.
+;;  And it must be associated to a type or a kind.
+;;
+;;
 ;;        ty::>Type or t::>Kind in E
 ;;     ------------------------------
 ;;        E,x::ty |- x ::> ty
 ;;}
 
-(comment
-
-(defn type-of-var [def-env ctx x]
+(defn type-of-var
+  "Infer the type of variable `x` in context `ctx`."
+  [def-env ctx x]
   (if-let [ty (ctx-fetch ctx x)]
     (let [[status sort] (let [ty' (norm/normalize def-env ctx ty)]
                           (if (stx/kind? ty')
@@ -148,36 +153,14 @@
           [:ko {:msg "Not a correct type (super-type is not a sort)" :term x :type ty :sort sort}])))
     [:ko {:msg "No such variable in type context" :term x}]))
 
-(example
- (type-of-term {} '[[bool ✳] [x bool]] 'x) => '[:ok bool])
-
-(example
- (type-of-term {} '[[x bool]] 'x)
- => '[:ko {:msg "Cannot calculate type of variable.",
-           :term x,
-           :from {:msg "No such variable in type context", :term bool}}])
-
-(example
- (type-of-term {} '[[y x] [x bool]] 'y)
- => '[:ko {:msg "Cannot calculate type of variable.", :term y, :from {:msg "Cannot calculate type of variable.", :term x, :from {:msg "No such variable in type context", :term bool}}}])
-
-(example
- (type-of-term {} '[[x ✳]] 'x)
- => '[:ok ✳])
-
-(example
- (type-of-term {} '[[x □]] 'x)
- => '[:ok □])
-
-(example
- (type-of-term {} '[[bool ✳] [y bool]] 'x)
- => '[:ko {:msg "No such variable in type context", :term x}])
 
 ;;{
 ;;    E |- A ::> s1     E,x:A |- B ::> s2
 ;;    -----------------------------------
 ;;     E |- prod x:A . B  ::>  s2
 ;;}
+
+(comment
 
 (defn type-of-prod [def-env ctx x A B]
   (let [[status sort1] (type-of-term def-env ctx A)]
