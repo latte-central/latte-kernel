@@ -279,10 +279,11 @@ Names generated fresh along the substitution cannot be members of `forbid`.
       [[left' right'] level''])
     ;; ascription
     (ascription? t)
-    (let [[_ e u] t
+    (let [[_ e _] t
           [e' level'] (alpha-norm- e sub level)
-          [u' level''] (alpha-norm- u sub level')]
-      [(list ::ascribe e' u') level''])
+          ;; the type part is removed during alpha-normalization
+          ]
+      [e' level'])
     ;; references
     (ref? t) (let [[args level']
                    (reduce (fn [[args level] arg]

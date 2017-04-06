@@ -122,6 +122,10 @@
 (deftest test-alpha-eq?
   (is (= (alpha-eq? '(λ [x ✳] x)
                     '(λ [y ✳] y))
-         true)))
+         true))
+  ;; the type part of an ascription is not
+  ;; considered for alpha-equivalence
+  (is (= (alpha-eq? '(:latte-kernel.syntax/ascribe (λ [x ✳] x) (∀ [A □] A))
+                    '(λ [z ✳] z)))))
 
 
