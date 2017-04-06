@@ -85,4 +85,7 @@
          '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x ✳] z),
                 :from {:msg "Not a correct type (super-type is not a sort)", :term z, :type y, :sort w}}])))
 
-
+(deftest test-type-of-app
+  (is (= (type-of-term {} '[[bool ✳] [y bool]]
+                       '[(λ [x bool] x) y])
+         '[:ok bool])))

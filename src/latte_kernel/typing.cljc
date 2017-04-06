@@ -230,14 +230,23 @@
 
 
 ;;{
+;;
+;; ### The type of applications
+;;
+;; The typing of an application is a little bit more demanding,
+;; especially because it involves the substitution of the
+;; bound variable by the operand in the return type.
+;;
+;;
 ;;       E |- rator ::> prod x:A . B    E|- rand :: A
 ;;    -------------------------------------------------
 ;;          E |- rator rand : B [rand/x]
 ;;}
 
-(comment
-
-(defn type-of-app [def-env ctx rator rand]
+(defn type-of-app
+  "Infer the type of an application with operator `rator` and
+  operand `rand`."
+  [def-env ctx rator rand]
   (let [[status trator] (type-of-term def-env ctx rator)]
     (if (= status :ko)
       [:ko {:msg "Cannot calculate operator (left-hand) type in application."
@@ -257,13 +266,6 @@
                     ;;(println "   ===> " res)
                     [:ok res])))))))))
 
-
-(example
- (type-of-term {} '[[bool ✳] [y bool]]
-          '[(λ [x bool] x) y])
- => '[:ok bool])
-
-
 ;;{
 ;;    D |- ref :: [x1 t1] [x2 t2] ... [xN tN] -> t
 ;;    E |- e1 :: t1   E, x1:t1 |- e2 :: t2
@@ -273,6 +275,8 @@
 ;;      D, E |- (ref e1 e2 ... eM)
 ;;              ::> (prod [xM+1 tM+1] ... (prod [xN tN] t [e1/x1, e2/x2, ...eM/xM]) ...)
 ;;}
+
+(comment
 
 (defn type-of-ref [def-env ctx name args]
   (let [[status ty]
