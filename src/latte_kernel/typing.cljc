@@ -93,9 +93,16 @@
     ;;(println "--------------------")
     [status ty]))
 
-(comment
+;;{
+;; Type-checking is a derived form of type inference. Given a term `t`
+;; and a type `T`, the first step is to infer the type of `t`, say `U`,
+;; and then check that it is beta-equivalent to the expected type `T`.
+;;}
 
-(defn type-check? [def-env ctx term type]
+(defn type-check?
+  "Check if `term` has the given `type` in the definitional
+  environment `def-env` and context `ctx`."
+  [def-env ctx term type]
   ;;(println "[type-check?] term=" term "type=" type)
   ;;(println "    ctx=" ctx)
   (let [[status type'] (type-of-term def-env ctx term)]
@@ -105,22 +112,28 @@
       (throw (ex-info "Cannot check type of term" {:term term :from type'})))))
 
 ;;{
+;; The type of *the type of types* `✳` (or `:type`) is the kind `□` (or `:kind`).
 ;;
+;; **Remark**: LaTTe uses an *impredicative* type theory, marked by the fact that
+;; the kind `□` itself has no type.
+;;  
 ;;     --------------------
 ;;     E |- Type ::> Kind
+;;
 ;;}
 
-(defn type-of-type []
+(defn type-of-type
+  "Return type type of `:type`."
+  []
   [:ok '□])
-
-(example
- (type-of-term {} [] '✳) => '[:ok □])
 
 ;;{
 ;;        ty::>Type or t::>Kind in E
 ;;     ------------------------------
 ;;        E,x::ty |- x ::> ty
 ;;}
+
+(comment
 
 (defn type-of-var [def-env ctx x]
   (if-let [ty (ctx-fetch ctx x)]
