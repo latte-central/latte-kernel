@@ -112,6 +112,9 @@
       (throw (ex-info "Cannot check type of term" {:term term :from type'})))))
 
 ;;{
+;;
+;; ### The type of types
+;;
 ;; The type of *the type of types* `✳` (or `:type`) is the kind `□` (or `:kind`).
 ;;
 ;; **Remark**: LaTTe uses an *impredicative* type theory, marked by the fact that
@@ -128,6 +131,8 @@
   [:ok '□])
 
 ;;{
+;;
+;;  ### The type of variables
 ;;
 ;;  The type of a variable is to be found in the context.
 ;;  And it must be associated to a type or a kind.
@@ -155,14 +160,21 @@
 
 
 ;;{
+;;
+;; ### The type of products
+;;
+;;  The type of a product is a *sort*, either the type of types or the
+;; type of kinds.
+;;
 ;;    E |- A ::> s1     E,x:A |- B ::> s2
 ;;    -----------------------------------
 ;;     E |- prod x:A . B  ::>  s2
 ;;}
 
-(comment
-
-(defn type-of-prod [def-env ctx x A B]
+(defn type-of-prod
+  "Infer the type of a product with bound variable `x` of
+  type `A` in body `B`."
+  [def-env ctx x A B]
   (let [[status sort1] (type-of-term def-env ctx A)]
     (if (= status :ko)
       [:ko {:msg "Cannot calculate domain type of product." :term A :from sort1}]
@@ -179,27 +191,21 @@
                   [:ko {:msg "Not a valid codomain type in product (not a sort)" :term B :type sort2}]
                   [:ok sort2])))))))))
 
-(example
- (type-of-term {} [] '(Π [x ✳] x)) => '[:ok ✳])
-
-(example
- (type-of-term {} [] '(Π [x ✳] ✳)) => '[:ok □])
-
-(example
- (type-of-term {} [] '(Π [x □] ✳))
- => '[:ko {:msg "Cannot calculate domain type of product.", :term □,
-           :from {:msg "Kind has not type" :term □}}])
-
-(example
- (type-of-term {} [] '(Π [x ✳] □))
- => '[:ko {:msg "Cannot calculate codomain type of product.", :term □,
-           :from {:msg "Kind has not type" :term □}}])
 
 ;;{
+;;
+;; ### The type of abstractions
+;;
+;; The type of an abstraction is simply the coresponding
+;; product, on of the beauties of type theory.
+;;
+;;
 ;;    E,x:A |- t ::> B  E |- prod x:A. B ::> s
 ;;    --------------------------------------------
 ;;    E |- lambda x:A . t  ::>  prod x:A . B
 ;;}
+
+(comment
 
 (defn type-of-abs [def-env ctx x A t]
   (let [ctx' (ctx-put ctx x A)

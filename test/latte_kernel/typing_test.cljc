@@ -35,3 +35,17 @@
   (is (= (type-of-term {} '[[bool ✳] [y bool]] 'x)
          '[:ko {:msg "No such variable in type context", :term x}])))
 
+(deftest test-type-of-prod
+  (is (= (type-of-term {} [] '(Π [x ✳] x))
+         '[:ok ✳]))
+
+  (is (= (type-of-term {} [] '(Π [x ✳] ✳))
+         '[:ok □]))
+
+  (is (= (type-of-term {} [] '(Π [x □] ✳))
+         '[:ko {:msg "Cannot calculate domain type of product.", :term □,
+                :from {:msg "Kind has not type" :term □}}]))
+
+  (is (= (type-of-term {} [] '(Π [x ✳] □))
+         '[:ko {:msg "Cannot calculate codomain type of product.", :term □,
+                :from {:msg "Kind has not type" :term □}}])))
