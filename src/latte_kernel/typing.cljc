@@ -205,9 +205,11 @@
 ;;    E |- lambda x:A . t  ::>  prod x:A . B
 ;;}
 
-(comment
 
-(defn type-of-abs [def-env ctx x A t]
+(defn type-of-abs
+  "Infer the type of an  with bound variable `x` of
+  type `A` in body `B`."
+  [def-env ctx x A t]
   (let [ctx' (ctx-put ctx x A)
         [status B] (type-of-term def-env ctx' t)]
     (if (= status :ko)
@@ -226,54 +228,14 @@
                   :type sort}]
             [:ok tprod]))))))
 
-(example
- (type-of-term {} '[[bool ✳] [t bool] [y bool]]
-          '(λ [x bool] x))
- => '[:ok (Π [x bool] bool)])
-
-(example
- (type-of-term {} [] '(λ [x ✳] x)) => '[:ok (Π [x ✳] ✳)])
-
-(example
- (type-of-term {} '[[y bool]] '(λ [x bool] x))
- => '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x bool] x),
-           :from {:msg "Cannot calculate type of variable.", :term x,
-                  :from {:msg "No such variable in type context", :term bool}}}])
-
-(example
- (type-of-term {} '[[y ✳] [z y]] '(λ [x z] x))
-
- 
- => '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x z] x),
-           :from {:msg "Not a correct type (super-type is not a sort)", :term x, :type z, :sort y}}])
-
-(example
- (type-of-term {} '[[y bool]] '(λ [x ✳] y))
- => '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x ✳] y),
-           :from {:msg "Cannot calculate type of variable.", :term y,
-                  :from {:msg "No such variable in type context", :term bool}}}])
-
-(example
- (type-of-term {} '[[y bool]] '(λ [x ✳] □))
- => '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x ✳] □),
-           :from {:msg "Kind has not type" :term □}}])
-
-(example
- (type-of-term {} '[[y bool]] '(λ [x ✳] ✳))
- => '[:ko {:msg "Not a valid codomain type in abstraction (cannot calculate super-type).",
-           :term (λ [x ✳] ✳), :codomain □,
-           :from {:msg "Cannot calculate codomain type of product.", :term □,
-                  :from {:msg "Kind has not type", :term □}}}])
-(example
- (type-of-term {} '[[w ✳] [y w] [z y]] '(λ [x ✳] z))
- => '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x ✳] z),
-           :from {:msg "Not a correct type (super-type is not a sort)", :term z, :type y, :sort w}}])
 
 ;;{
 ;;       E |- rator ::> prod x:A . B    E|- rand :: A
 ;;    -------------------------------------------------
 ;;          E |- rator rand : B [rand/x]
 ;;}
+
+(comment
 
 (defn type-of-app [def-env ctx rator rand]
   (let [[status trator] (type-of-term def-env ctx rator)]

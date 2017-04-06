@@ -49,3 +49,40 @@
   (is (= (type-of-term {} [] '(Π [x ✳] □))
          '[:ko {:msg "Cannot calculate codomain type of product.", :term □,
                 :from {:msg "Kind has not type" :term □}}])))
+
+(deftest test-type-of-abs
+  (is (= (type-of-term {} '[[bool ✳] [t bool] [y bool]]
+                       '(λ [x bool] x))
+         '[:ok (Π [x bool] bool)]))
+
+  (is (= (type-of-term {} [] '(λ [x ✳] x))
+         '[:ok (Π [x ✳] ✳)]))
+
+  (is (= (type-of-term {} '[[y bool]] '(λ [x bool] x))
+         '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x bool] x),
+                :from {:msg "Cannot calculate type of variable.", :term x,
+                       :from {:msg "No such variable in type context", :term bool}}}]))
+
+  (is (= (type-of-term {} '[[y ✳] [z y]] '(λ [x z] x))
+         '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x z] x),
+                :from {:msg "Not a correct type (super-type is not a sort)", :term x, :type z, :sort y}}]))
+
+  (is (= (type-of-term {} '[[y bool]] '(λ [x ✳] y))
+         '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x ✳] y),
+                :from {:msg "Cannot calculate type of variable.", :term y,
+                       :from {:msg "No such variable in type context", :term bool}}}]))
+
+  (is (= (type-of-term {} '[[y bool]] '(λ [x ✳] □))
+         '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x ✳] □),
+                :from {:msg "Kind has not type" :term □}}]))
+
+  (is (= (type-of-term {} '[[y bool]] '(λ [x ✳] ✳))
+         '[:ko {:msg "Not a valid codomain type in abstraction (cannot calculate super-type).",
+                :term (λ [x ✳] ✳), :codomain □,
+                :from {:msg "Cannot calculate codomain type of product.", :term □,
+                       :from {:msg "Kind has not type", :term □}}}]))
+  (is (= (type-of-term {} '[[w ✳] [y w] [z y]] '(λ [x ✳] z))
+         '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x ✳] z),
+                :from {:msg "Not a correct type (super-type is not a sort)", :term z, :type y, :sort w}}])))
+
+
