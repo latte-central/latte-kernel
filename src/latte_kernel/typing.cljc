@@ -267,6 +267,15 @@
                     [:ok res])))))))))
 
 ;;{
+;;
+;; ### The type of references
+;;
+;; A reference to a defined term in LaTTe is like a 'function call' in a
+;; programming language. As such, in order to type a reference
+;; one has to unfold the reference by the defined term.
+;; The type is then inferred from the unfolded term.
+;;
+;;
 ;;    D |- ref :: [x1 t1] [x2 t2] ... [xN tN] -> t
 ;;    E |- e1 :: t1   E, x1:t1 |- e2 :: t2
 ;;    ...
@@ -274,7 +283,104 @@
 ;; -------------------------------------------------------------------------------------
 ;;      D, E |- (ref e1 e2 ... eM)
 ;;              ::> (prod [xM+1 tM+1] ... (prod [xN tN] t [e1/x1, e2/x2, ...eM/xM]) ...)
+;;
 ;;}
+
+(declare type-of-refdef)
+(declare type-of-implicit)
+
+(defn type-of-ref [def-env ctx name args]
+  (let [[status ty]
+        (let [[status ddef] (defenv/fetch-definition def-env name)]
+          (cond
+            (= status :ko) [:ko ddef]
+            (not (defenv/latte-definition? ddef))
+            (throw (ex-info "Not a LaTTe definition (please report)." {:def ddef}))
+            (defenv/special? ddef)
+            (throw (ex-info "Special should not occur at typing time (please report)"
+                            {:special ddef :term (list* name args)}))
+            (defenv/notation? ddef)
+            (throw (ex-info "Notation should not occur at typing time (please report)"
+                            {:notation ddef :term (list* name args)}))
+            (and (defenv/theorem? ddef)
+                 (= (:proof ddef) false))
+            [:ko {:msg "Theorem has no proof." :thm-name (:name ddef)}]
+            (defenv/implicit? ddef)
+            (type-of-implicit def-env ctx ddef args)
+            (and (not (defenv/definition? ddef))
+                 (not (defenv/theorem? ddef)))
+            (throw (ex-info "Unsupported definitional entity, expecting a true definition or a theorem name"
+                            {:name name, :entity ddef}))
+            (> (count args) (:arity ddef))
+            [:ko {:msg "Too many arguments for definition." :term (list* name args) :arity (:arity ddef)}]
+            :else
+            (type-of-refdef def-env ctx name ddef args)))]
+    ;;(println "---------------------")
+    ;;(println "[type-of-ref] name=" name "args=" args)
+    ;;(clojure.pprint/pprint ty)
+    ;;(println "---------------------")
+    [status ty]))
+
+(declare prepare-argument-subst)
+(declare generalize-params)
+
+(defn type-of-refdef [def-env ctx name ddef args]
+  (let [[status, res] (prepare-argument-subst def-env ctx args (reverse (:params ddef)))]
+    (if (= status :ko)
+      res
+      (let [[params sub] res
+            expanded-term (stx/subst (:type ddef) sub)
+            typ (generalize-params params expanded-term)]
+        ;;(println "[type-of-refdef] typ = " typ)
+        [:ok typ]))))
+
+(defn prepare-argument-subst [def-env ctx args params]
+  (loop [args args, params params, sub {}]
+    ;; (println "args=" args "params=" params "sub=" sub)
+    (if (seq args)
+      (let [arg (first args)
+            ty (stx/subst (second (first params)) sub)]
+        ;; (println "arg=" arg "ty=" ty)
+        (if (not (type-check? def-env ctx arg ty))
+          [:ko {:msg "Wrong argument type"
+                :term (list* name args)
+                :arg arg
+                :expected-type ty}]
+          (recur (rest args) (rest params) (assoc sub (ffirst params) arg))))
+      ;; all args have been checked
+      [:ok [params sub]])))
+
+(defn generalize-params [params res-type]
+  (loop [params params, res res-type]
+    (if (seq params)
+      (recur (rest params) (list 'Π (first params) res))
+      res-type)))
+
+(declare type-of-args)
+
+(defn type-of-implicit [def-env ctx implicit-def args]
+  (let [[status, targs] (type-of-args def-env ctx args)]
+    (if (= status :ko)
+      targs
+      (let [[status, implicit-term]
+            (try (apply (:implicit-fn implicit-def) def-env ctx targs)
+                 (catch Exception exc
+                   [:ko (merge {:implicit (:name implicit-def)
+                                :msg (.getMessage exc)}
+                               (ex-data exc))]))]
+        (if (= status :ko)
+          implicit-term
+          ;; recursive typing of implicit-generated term
+          (type-of-term def-env ctx implicit-term))))))
+
+(defn type-of-args [def-env ctx args]
+  (loop [args args, targs []]
+    (if (seq args)
+      (let [[status typ] (type-of-term def-env ctx (first args))]
+        (if (= status :ko)
+          typ
+          (recur (rest args) (conj targs [(first args) typ]))))
+      [:ok targs])))
 
 (comment
 

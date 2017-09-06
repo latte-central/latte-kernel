@@ -166,7 +166,7 @@ only looked for in `def-env` and *not* in the current namespace. The flag is `fa
 ;;{
 ;; ## Specials
 ;;
-;; A *special* is a term expanded at typing-time.
+;; A *special* is a term expanded at normalization-time.
 ;; This is mostly used for proof automation.
 ;;}
 
@@ -176,6 +176,22 @@ only looked for in `def-env` and *not* in the current namespace. The flag is `fa
   "Is `v` a special?"
   [v]
   (instance? Special v))
+
+;;{
+;; ## Implicits
+;;
+;; An *implicit* is a term expanded at typing-time.
+;; This is mostly used for programmatically-generated
+;; terms, in particular to provide an underlying
+;; support for implicit arguments.
+;;}
+
+(defrecord Implicit [name implicit-fn])
+
+(defn implicit?
+  "Is `v` an implicit?"
+  [v]
+  (instance? Implicit v))
 
 
 ;;{
@@ -187,6 +203,7 @@ only looked for in `def-env` and *not* in the current namespace. The flag is `fa
 ;;  - an axiom statement
 ;;  - a new notation
 ;;  - a *special*
+;;  - an *implicit*
 ;;}
 
 (defn latte-definition?
@@ -196,4 +213,5 @@ only looked for in `def-env` and *not* in the current namespace. The flag is `fa
       (theorem? v)
       (axiom? v)
       (notation? v)
-      (special? v)))
+      (special? v)
+      (implicit? v)))
