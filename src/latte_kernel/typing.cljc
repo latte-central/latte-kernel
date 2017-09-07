@@ -286,6 +286,19 @@
 ;;
 ;;}
 
+;;{
+;; A reference is of the form `(ref e1 e2 ... eM)` where `ref` is a name and the `ei`'s are arbitrary expressions.
+;; It can be a reference to either:
+;;  - a defined term such as a parametric definition or an axiom
+;;  - a theorem, which is a particular case of a defined term
+;;  - an implicit
+;;
+;; Both the two first cases are handled by the function `type-of-refdef` below. The only difference
+;; is that a theorem is a defined term only if it has been demonstrated. Put in other terms, it
+;; is forbidden to reference a theorem with no-proof. The third case allows to perform arbibrary
+;; computations during the type synthesis phase, it is handled by the `type-of-implicit` function.
+;;}
+
 (declare type-of-refdef)
 (declare type-of-implicit)
 
@@ -321,18 +334,34 @@
     ;;(println "---------------------")
     [status ty]))
 
+;;{
+;; #### Typing defined terms
+;;
+;; The standard processing of a reference is to construct the lambda-term corresponding
+;; to the unfolding of a defined term. This is by substituting the parameters of the
+;; defined term by the arguments of the reference. LaTTe allows the partial unfolding
+;; of the defined terms, thus at the end we generalise for the remaining
+;; uninstantiated parameters (as lambda-abstractions).
+;;}
+
 (declare prepare-argument-subst)
 (declare generalize-params)
 
 (defn type-of-refdef [def-env ctx name ddef args]
-  (let [[status, res] (prepare-argument-subst def-env ctx args (reverse (:params ddef)))]
+  (let [[status, res] (prepare-argument-subst def-env ctx args (:params ddef))]
     (if (= status :ko)
       res
       (let [[params sub] res
             expanded-term (stx/subst (:type ddef) sub)
-            typ (generalize-params params expanded-term)]
+            typ (generalize-params (reverse params) expanded-term)]
         ;;(println "[type-of-refdef] typ = " typ)
         [:ok typ]))))
+
+;;{
+;; The function below realizes the substitution of the parameters by
+;; their corresponding argument. The substitution `sub` is represented
+;; as a map.
+;;}
 
 (defn prepare-argument-subst [def-env ctx args params]
   (loop [args args, params params, sub {}]
@@ -349,6 +378,10 @@
           (recur (rest args) (rest params) (assoc sub (ffirst params) arg))))
       ;; all args have been checked
       [:ok [params sub]])))
+
+;;{
+;; The following function generalizes the remaining uninstantiated parameters.
+;;}
 
 (defn generalize-params [params res-type]
   (loop [params params, res res-type]
