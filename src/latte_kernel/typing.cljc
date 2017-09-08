@@ -348,9 +348,9 @@
 (declare generalize-params)
 
 (defn type-of-refdef [def-env ctx name ddef args]
-  (let [[status, res] (prepare-argument-subst def-env ctx args (:params ddef))]
+  (let [[status, res] (prepare-argument-subst def-env ctx name args (:params ddef))]
     (if (= status :ko)
-      res
+      [:ko res]
       (let [[params sub] res
             expanded-term (stx/subst (:type ddef) sub)
             typ (generalize-params (reverse params) expanded-term)]
@@ -363,7 +363,7 @@
 ;; as a map.
 ;;}
 
-(defn prepare-argument-subst [def-env ctx args params]
+(defn prepare-argument-subst [def-env ctx name args params]
   (loop [args args, params params, sub {}]
     ;; (println "args=" args "params=" params "sub=" sub)
     (if (seq args)

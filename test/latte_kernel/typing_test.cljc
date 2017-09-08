@@ -2,7 +2,7 @@
 (ns latte-kernel.typing-test
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
-            [latte-kernel.defenv :refer [->Definition ->Theorem ->Implicit]]
+            [latte-kernel.defenv :as defenv]
             [latte-kernel.typing :refer :all]))
 
 (deftest test-type-of-term
@@ -93,3 +93,22 @@
 
 ;; (deftest test-type-of-refdef
 ;;   (let [eqdef ]))
+
+(deftest test-type-of-refdef
+
+  (is (= (type-of-term {'test (defenv/map->Definition
+                                '{:params [[x ✳] [y ✳]]
+                                  :type ✳
+                                  :arity 2})}
+                       '[[a ✳] [b ✳]]
+                       '(test a b))
+         '[:ok ✳]))
+
+  (is (= (type-of-term {'test (defenv/map->Definition
+                                '{:params [[x ✳] [y ✳]]
+                                  :type ✳
+                                  :arity 2})}
+                       '[[bool ✳] [a ✳] [b bool]]
+                       '(test a b))
+         '[:ko {:msg "Wrong argument type", :term (test b), :arg b, :expected-type ✳}])))
+
