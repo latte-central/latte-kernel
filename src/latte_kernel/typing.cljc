@@ -417,68 +417,6 @@
 
 (comment
 
-(defn type-of-ref [def-env ctx name args]
-  (let [[status ty]
-        (let [[status ddef] (defenv/fetch-definition def-env name)]
-          (cond
-            (= status :ko) [:ko ddef]
-            (not (defenv/latte-definition? ddef))
-            (throw (ex-info "Not a LaTTe definition (please report)." {:def ddef}))
-            (defenv/special? ddef)
-            (throw (ex-info "Special should not occur at typing time (please report)"
-                            {:special ddef :term (list* name args)}))
-            (defenv/notation? ddef)
-            (throw (ex-info "Notation should not occur at typing time (please report)"
-                            {:notation ddef :term (list* name args)}))
-            (and (defenv/theorem? ddef)
-                 (= (:proof ddef) false))
-            [:ko {:msg "Theorem has no proof." :thm-name (:name ddef)}]
-            (> (count args) (:arity ddef))
-            [:ko {:msg "Too many arguments for definition." :term (list* name args) :arity (:arity ddef)}]
-            :else
-            (loop [args args, params (:params ddef), sub {}]
-              ;; (println "args=" args "params=" params "sub=" sub)
-              (if (seq args)
-                (let [arg (first args)
-                      ty (stx/subst (second (first params)) sub)]
-                  ;; (println "arg=" arg "ty=" ty)
-                  (if (not (type-check? def-env ctx arg ty))
-                    [:ko {:msg "Wrong argument type"
-                          :term (list* name args)
-                          :arg arg
-                          :expected-type ty}]
-                    (recur (rest args) (rest params) (assoc sub (ffirst params) arg))))
-                ;; all args have been checked
-                (loop [params (reverse params), res (:type ddef)]
-                  (if (seq params)
-                    (recur (rest params) (list 'Π (first params) res))
-                    ;; all params have been handled
-                    (do
-                      ;;(println "[type-of-ref] res = " res " sub = " sub)
-                      [:ok (stx/subst res sub)])))))))]
-    ;;(println "---------------------")
-    ;;(println "[type-of-ref] name=" name "args=" args)
-    ;;(clojure.pprint/pprint ty)
-    ;;(println "---------------------")
-    [status ty]))
-
-(example
- (type-of-term {'test (defenv/map->Definition
-                        '{:params [[x ✳] [y ✳]]
-                          :type ✳
-                          :arity 2})}
-          '[[a ✳] [b ✳]]
-          '(test a b))
- => '[:ok ✳])
-
-(example
- (type-of-term {'test (defenv/map->Definition
-                        '{:params [[x ✳] [y ✳]]
-                          :type ✳
-                          :arity 2})}
-          '[[bool ✳] [a ✳] [b bool]]
-          '(test a b))
- => '[:ko {:msg "Wrong argument type", :term (test b), :arg b, :expected-type ✳}])
 
 (defn type-of
   ([t] (type-of {} [] t))
