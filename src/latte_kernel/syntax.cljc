@@ -76,7 +76,7 @@
        (= (count t) 2)))
 
 ;;{
-;;  - *references* to named definitions `(f e1 e2 ... eN)`
+;;  - *references* to named definitions `(f {X1 t1, ..., Xn tn} e1 e2 ... eN)`
 ;;}
 (defn ref?
   "Is `t` a reference?"

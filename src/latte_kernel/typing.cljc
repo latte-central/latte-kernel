@@ -396,7 +396,7 @@
     (if (= status :ko)
       targs
       (let [[status, implicit-term]
-            (try (apply (:implicit-fn implicit-def) def-env ctx targs)
+            (try [:ok, (apply (:implicit-fn implicit-def) def-env ctx targs)]
                  (catch Exception exc
                    [:ko (merge {:implicit (:name implicit-def)
                                 :msg (.getMessage exc)}
