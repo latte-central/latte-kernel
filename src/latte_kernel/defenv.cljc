@@ -32,6 +32,14 @@
   [v]
   (instance? Definition v))
 
+(defn register-definition
+  ([def-env rdef] (register-definition def-env rdef false))
+  ([def-env rdef local?]
+   (let [[global-defs local-defs] def-env]
+     (if local?
+       [global-defs (assoc local-defs (:name rdef) rdef)]
+       [(assoc global-defs (:name rdef) rdef) local-defs]))))
+
 ;;{
 ;; Definitions are searched by *name*, which can be:
 ;;   - directly a Clojure or Clojurescript *var*
@@ -51,25 +59,28 @@
   In the Clojure (not Clojurescript) version the definition is also sought in the current namespace.
 
   If the optional argument `local-only?` is set to `true` then the definition is
-only looked for in `def-env` and *not* in the current namespace. The flag is `false` by 
-  default. For clojurescript the flag is without any effet."
+ looked for in `def-env` and only for definition tagged \"local\". In any case the current namespace
+  is not considered. In Clojurescript the namespace is not considered anyways. The flag is `false` by default."
   ([def-env dname] (fetch-definition def-env dname false))
   ([def-env dname local-only?]
-   ;; (println "[fetch-definition] dname=" dname)
-   (cond
-     (symbol? dname) (if-let [ldef (get def-env dname)]
-                       [:ok ldef]
-                       #?(:cjj (if local-only?
-                                 [:ko {:msg "No such (local) definition" :def dname}]
-                                 (if-let [dnamevar (resolve dname)]
-                                   (recur def-env dnamevar)
-                                   [:ko {:msg "No such definition" :def dname}]))
-                          :cljs [:ko {:msg "No such definition" :def dname}]))
-     (var? dname) (let [gdef @dname]
-                    ;;(println "[fetch-definition] " gdef)
-                    [:ok gdef])
-     :else (throw (ex-info "Cannot fetch definition (please report)"
-                           {:dname dname})))))
+   (let [[global-defs local-defs] def-env]
+     ;; (println "[fetch-definition] dname=" dname)
+     (cond
+       (symbol? dname) (if-let [ldef (get local-defs dname)]
+                         [:ok ldef]
+                         #?(:cjj (if local-only?
+                                   [:ko {:msg "No such (local) definition" :def dname}]
+                                   (if-let [dnamevar (resolve dname)]
+                                     (recur def-env dnamevar)
+                                     [:ko {:msg "No such definition" :def dname}]))
+                            :cljs (if-let [gdef (get global-defs dname)]
+                                    [:ok gdef]
+                                    [:ko {:msg "No such (global) definition" :def dname}])))
+       (var? dname) (let [gdef @dname]
+                      ;;(println "[fetch-definition] " gdef)
+                      [:ok gdef])
+       :else (throw (ex-info "Cannot fetch definition (please report)"
+                             {:dname dname}))))))
 
 (defn registered-definition?
   "Does `dname` corresponds to the name of a registered definition
