@@ -145,7 +145,8 @@ by LaTTe."
 (defn arrow-kw?
   "Arrow type?"
   [t]
-  (= t '⟶))
+  (or (= t '⟶)
+      (= t '==>)))
 
 (defn exists-kw?
   "Existential?"
