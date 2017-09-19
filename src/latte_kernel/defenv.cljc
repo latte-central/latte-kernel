@@ -32,6 +32,10 @@
   [v]
   (instance? Definition v))
 
+(def empty-env [{} {}])
+
+(defn mkenv [env] [env {}])
+
 (defn register-definition
   ([def-env rdef] (register-definition def-env rdef false))
   ([def-env rdef local?]
@@ -68,11 +72,13 @@
      (cond
        (symbol? dname) (if-let [ldef (get local-defs dname)]
                          [:ok ldef]
-                         #?(:cjj (if local-only?
+                         #?(:clj (if local-only?
                                    [:ko {:msg "No such (local) definition" :def dname}]
-                                   (if-let [dnamevar (resolve dname)]
-                                     (recur def-env dnamevar)
-                                     [:ko {:msg "No such definition" :def dname}]))
+                                   (if-let [gdef (get global-defs dname)]
+                                     [:ok gdef]
+                                     (if-let [dnamevar (resolve dname)]
+                                       (recur def-env dnamevar local-only?)
+                                       [:ko {:msg "No such (global) definition" :def dname}])))
                             :cljs (if-let [gdef (get global-defs dname)]
                                     [:ok gdef]
                                     [:ko {:msg "No such (global) definition" :def dname}])))
@@ -102,11 +108,18 @@
     (do
       (when (not (symbol? dname))
         (throw (ex-info "Value to qualify should be a var or a symbol (please report)" {:dname dname :type (type dname)})))
-      (if-let [_ (get def-env dname)]
-        dname
-        #?(:clj (resolve dname)
-           :cljs (throw (ex-info "Cannot qualify symbol: not a known definition"
-                                 {:symbol dname})))))))
+      (let [[global-defs local-defs] def-env]
+        (if-let [_ (get local-defs dname)]
+          dname
+          (if-let [_ (get global-defs dname)]
+            dname
+            #?(:clj (let [res-dname (resolve dname)]
+                      (if (nil? res-dname)
+                        (throw (ex-info "Cannot qualify symbol: not a known definition"
+                                        {:symbol dname}))
+                        res-dname))
+               :cljs (throw (ex-info "Cannot qualify symbol: not a known definition"
+                                     {:symbol dname})))))))))
 
 ;;{
 ;; ## Theorem

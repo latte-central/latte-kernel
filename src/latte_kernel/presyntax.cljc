@@ -23,7 +23,7 @@ by LaTTe."
 ;;}
 
 (def +reserved-symbols+
-  '#{□ ✳ λ Π ⟶ ∃ ∀})
+  '#{□ ✳ λ Π ⟶ ∃ ∀ lambda forall exists})
 
 ;;{
 ;; The symbols above are well explained in the
@@ -132,13 +132,15 @@ by LaTTe."
 
 (defn lambda-kw?
   "Lambda abstraction?"
-  [t] (= t 'λ))
+  [t] (or (= t 'λ)
+          (= t 'lambda)))
 
 (defn product-kw?
   "Product abstraction?"
   [t]
   (or (= t 'Π)
-      (= t '∀)))
+      (= t '∀)
+      (= t 'forall)))
 
 (defn arrow-kw?
   "Arrow type?"
@@ -148,7 +150,8 @@ by LaTTe."
 (defn exists-kw?
   "Existential?"
   [t]
-  (= t '∃))
+  (or (= t '∃)
+      (= t 'exists)))
 
 (declare parse-lambda-term
          parse-product-term
