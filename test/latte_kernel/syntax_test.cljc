@@ -8,7 +8,7 @@
   (is (= (term-reduce {} 42 '(λ [x t] (test x y z)))
          42))
 
-  (is (= (term-reduce {:var (fn [v vs] (conj vs v))} #{} '(λ [x t] (test x y z)))
+  (is (= (term-reduce {:var (fn [vs v] (conj vs v))} #{} '(λ [x t] (test x y z)))
          '#{x y z t})))
 
 (deftest test-free-vars

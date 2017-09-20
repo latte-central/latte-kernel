@@ -129,14 +129,14 @@
                 (type-fn init)
                 init)
     (variable? t) (if-let [var-fn (get red-funs :var)]
-                    (var-fn t init)
+                    (var-fn init t)
                     init)
     (binder? t) (let [[_ [x ty] body] t
                       bind-kind (if (lambda? t) :lambda :prod)
                       ty-val (term-reduce red-funs init ty)
                       body-val (term-reduce red-funs ty-val body)]
                   (if-let [binder-fn (get red-funs bind-kind)]
-                    (binder-fn x body-val)
+                    (binder-fn body-val x)
                     body-val))
     (app? t) (let [[t1 t2] t
                    val1 (term-reduce red-funs init t1)
@@ -154,7 +154,7 @@
                    args-val (reduce (fn [val arg]
                                       (term-reduce red-funs val arg)) init args)]
                (if-let [ref-fn (get red-funs :ref)]
-                 (ref-fn dname args-val)
+                 (ref-fn args-val dname)
                  args-val))
     :else (throw (ex-info "Cannot term reduce: unknown (sub-)term" {:term t}))))
 

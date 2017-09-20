@@ -57,3 +57,14 @@
   (is (= (local-defs-with-free-occurrence (second (first state6)) 'x)
          #{'<b>})))
 
+state6[[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [], :arity 0, :parsed-term [(<a>) x], :type B}}] ([x A] [f (Π [⇧ A] B)] [B ✳] [A ✳])]
+
+(deftest test-ref-uses-in-term
+  (is (= (ref-uses-in-term (:parsed-term (second (defenv/fetch-definition (first state6) '<a>))))
+         #{}))
+  
+  (is (= (ref-uses-in-term (:parsed-term (second (defenv/fetch-definition (first state6) '<b>))))
+         '#{<a>})))
+
+
+

@@ -76,6 +76,6 @@
               discharge-defs)) #{} local-defs))
 
 
-(defn term-use-ref? [t def-name]
-  )
+(defn ref-uses-in-term [t]
+  (stx/term-reduce {:ref conj} #{} t))
 
