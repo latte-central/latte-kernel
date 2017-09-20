@@ -30,6 +30,33 @@
 
   (is (= ctx4 '([x A] [f (Π [⇧ A] B)] [B ✳] [A ✳]))))
 
+(def state5 (second (elab-have defenv/empty-env ctx4 '<a> (second (parse/parse-term defenv/empty-env '(==> A B))) 'f {})))
+
+(def state6 (second (elab-have (first state5) (second state5) '<b> 'B (second (parse/parse-term (first state5) '(<a> x))) {})))
+
+
+(deftest test-elab-have
+  (let [[def-env5 ctx5] state5]
+    (is (= ctx5 ctx4))
+
+    (is (defenv/registered-definition? def-env5 '<a>))
+
+    (is (= (second(defenv/fetch-definition def-env5 '<a> true))
+           '#latte_kernel.defenv.Definition{:name <a>, :params [], :arity 0, :parsed-term f, :type (Π [⇧ A] B)})))
+
+  (let [[def-env6 ctx6] state6]
+    (is (= ctx6 ctx4))
+
+    (is (defenv/registered-definition? def-env6 '<a>))
+    (is (defenv/registered-definition? def-env6 '<b>))
+
+    (is (= (second(defenv/fetch-definition def-env6 '<b> true))
+           '#latte_kernel.defenv.Definition{:name <b>, :params [], :arity 0, :parsed-term [(<a>) x], :type B}))))
+
+
+
+
+
 
 
 
