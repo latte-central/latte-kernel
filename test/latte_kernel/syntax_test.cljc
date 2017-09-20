@@ -4,6 +4,13 @@
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
             [latte-kernel.syntax :refer :all]))
 
+(deftest test-term-reduce
+  (is (= (term-reduce {} 42 '(λ [x t] (test x y z)))
+         42))
+
+  (is (= (term-reduce {:var (fn [v vs] (conj vs v))} #{} '(λ [x t] (test x y z)))
+         '#{x y z t})))
+
 (deftest test-free-vars
   (is (= (free-vars 'x)
          #{'x}))

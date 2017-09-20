@@ -114,6 +114,51 @@
 ;;}
 
 ;;{
+;; ## Term reducer
+;;
+;; A reducer for terms.
+;;
+;;}
+
+(defn term-reduce [red-funs init t]
+  (cond
+    (kind? t) (if-let [kind-fn (get red-funs :kind)]
+                (kind-fn init)
+                init)
+    (type? t) (if-let [type-fn (get red-funs :type)]
+                (type-fn init)
+                init)
+    (variable? t) (if-let [var-fn (get red-funs :var)]
+                    (var-fn t init)
+                    init)
+    (binder? t) (let [[_ [x ty] body] t
+                      bind-kind (if (lambda? t) :lambda :prod)
+                      ty-val (term-reduce red-funs init ty)
+                      body-val (term-reduce red-funs ty-val body)]
+                  (if-let [binder-fn (get red-funs bind-kind)]
+                    (binder-fn x body-val)
+                    body-val))
+    (app? t) (let [[t1 t2] t
+                   val1 (term-reduce red-funs init t1)
+                   val2 (term-reduce red-funs val1 t2)]
+               (if-let [app-fn (get red-funs :app)]
+                 (app-fn val2)
+                 val2))
+    (ascription? t) (let [[t1 t2] t
+                          val1 (term-reduce red-funs init t1)
+                          val2 (term-reduce red-funs val1 t2)]
+                      (if-let [asc-fn (get red-funs :ascribe)]
+                        (asc-fn val2)
+                        val2))
+    (ref? t) (let [[dname & args] t
+                   args-val (reduce (fn [val arg]
+                                      (term-reduce red-funs val arg)) init args)]
+               (if-let [ref-fn (get red-funs :ref)]
+                 (ref-fn dname args-val)
+                 args-val))
+    :else (throw (ex-info "Cannot term reduce: unknown (sub-)term" {:term t}))))
+
+;;{
 ;; ## Free and bound variables
 ;;
 ;; In `(lambda [x t] [x y])` there is one *bound occurrence* of
@@ -307,5 +352,4 @@ Names generated fresh along the substitution cannot be members of `forbid`.
 (defn alpha-eq? [t1 t2]
   (= (alpha-norm t1)
      (alpha-norm t2)))
-
 

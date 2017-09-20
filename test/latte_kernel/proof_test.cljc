@@ -53,11 +53,7 @@
     (is (= (second(defenv/fetch-definition def-env6 '<b> true))
            '#latte_kernel.defenv.Definition{:name <b>, :params [], :arity 0, :parsed-term [(<a>) x], :type B}))))
 
-
-
-
-
-
-
-
+(deftest test-local-defs-with-free-occurrence
+  (is (= (local-defs-with-free-occurrence (second (first state6)) 'x)
+         #{'<b>})))
 

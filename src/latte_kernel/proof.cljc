@@ -2,6 +2,7 @@
   "The proof elaborator and checker."
   (:require [latte-kernel.defenv :as defenv]
             [latte-kernel.typing :as typing]
+            [latte-kernel.syntax :as stx]
             [latte-kernel.norm :as norm]))
 
 ;;{
@@ -60,7 +61,21 @@
             [:ok [(defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty) true) ctx]]))))))
 
 
+;;{
+;; ## Variable discharge
+;;
+;; This is the most complex kind of proof step, at least if
+;; efficiency is a concern (which it is for proof checking)
+;;
+;;}
+
+(defn local-defs-with-free-occurrence [local-defs discharge-var]
+  (reduce (fn [discharge-defs [dname, local-def]]
+            (if (contains? (stx/free-vars (:parsed-term local-def)) discharge-var)
+              (conj discharge-defs dname)
+              discharge-defs)) #{} local-defs))
 
 
-
+(defn term-use-ref? [t def-name]
+  )
 
