@@ -30,8 +30,8 @@
 ;; We begin by the simplest proof statement.
 ;;}
 
-(defn elab-declare [def-env ctx v ty meta]
-  [:ok [def-env, (cons [v ty] ctx)]])
+(defn elab-declare [def-env ctx var-deps def-uses v ty meta]
+  [:ok [def-env, (cons [v ty] ctx), (cons [v #{}] var-deps), def-uses]])
 
 
 ;;{
@@ -39,7 +39,10 @@
 ;;
 ;;}
 
-(defn elab-have [def-env ctx name ty term meta]
+(declare update-var-deps)
+(declare update-def-uses)
+
+(defn elab-have [def-env ctx var-deps def-uses name ty term meta]
   (let [[status, term-type] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
       [:ko [{:msg "Have step elaboration failed: cannot synthetize term type."
@@ -57,9 +60,36 @@
         (if (= status :ko)
           [:ko [rec-ty, meta]]
           (if (= name '_)
-            [:ok [def-env ctx]]
-            [:ok [(defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty) true) ctx]]))))))
+            [:ok [def-env ctx var-deps def-uses]]
+            (let [def-env' (defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty) true)
+                  var-deps' (-> var-deps
+                                (update-var-deps name term)
+                                (update-var-deps name rec-ty))
+                  def-uses' (cons [name #{}] (update-def-uses def-uses name term))]
+                [:ok [def-env' ctx var-deps' def-uses']])))))))
 
+(defn update-var-deps [var-deps name term]
+  (let [tvars (stx/free-vars term)]
+    (loop [vdeps var-deps, res []]
+      (if (seq vdeps)
+        (let [[v deps] (first vdeps)]
+          (recur (rest vdeps) (conj res [v (if (contains? tvars v)
+                                             (conj deps name)
+                                             deps)])))
+        res))))
+
+(defn ref-uses-in-term [t]
+  (stx/term-reduce {:ref conj} #{} t))
+
+(defn update-def-uses [def-uses name term]
+  (let [term-uses (ref-uses-in-term term)]
+    (loop [def-uses def-uses, res []]
+      (if (seq def-uses)
+        (let [[def-name uses] (first def-uses)]
+          (recur (rest def-uses) (conj res [def-name (if (contains? term-uses def-name)
+                                                      (conj uses name)
+                                                      uses)])))
+        res))))
 
 ;;{
 ;; ## Variable discharge
@@ -76,6 +106,5 @@
               discharge-defs)) #{} local-defs))
 
 
-(defn ref-uses-in-term [t]
-  (stx/term-reduce {:ref conj} #{} t))
+
 

@@ -6,31 +6,74 @@
             [latte-kernel.defenv :as defenv]
             [latte-kernel.proof :refer :all]))
 
-(def ctx1 (let [[_ [_ ctx1]] (elab-declare defenv/empty-env [] 'A '✳ {})]
+(def ctx1 (let [[_ [_ ctx1]] (elab-declare defenv/empty-env [] [] {} 'A '✳ {})]
             ctx1))
 
-(def ctx2 (let [[_ [_ ctx2]] (elab-declare defenv/empty-env ctx1 'B '✳ {})]
+(def vdeps1 (let [[_ [_ _ vdeps1]] (elab-declare defenv/empty-env [] [] {} 'A '✳ {})]
+             vdeps1))
+
+(def ctx2 (let [[_ [_ ctx2]] (elab-declare defenv/empty-env ctx1 vdeps1 {} 'B '✳ {})]
             ctx2))
 
-(def ctx3 (let [[_ [_ ctx3]] (elab-declare defenv/empty-env ctx2 'f (second (parse/parse-term defenv/empty-env '(==> A B))) {})]
+(def vdeps2 (let [[_ [_ _ vdeps2]] (elab-declare defenv/empty-env ctx1 vdeps1 {} 'B '✳ {})]
+              vdeps2))
+
+(def ctx3 (let [[_ [_ ctx3]] (elab-declare defenv/empty-env ctx2 vdeps2 {}
+                                           'f (second (parse/parse-term defenv/empty-env '(==> A B))) {})]
             ctx3))
 
-(def ctx4 (let [[_ [_ ctx4]] (elab-declare defenv/empty-env ctx3 'x 'A {})]
+(def vdeps3 (let [[_ [_ _ vdeps3]] (elab-declare defenv/empty-env ctx2 vdeps2 {}
+                                           'f (second (parse/parse-term defenv/empty-env '(==> A B))) {})]
+            vdeps3))
+
+(def ctx4 (let [[_ [_ ctx4]] (elab-declare defenv/empty-env ctx3 vdeps3 {} 'x 'A {})]
             ctx4))
 
-(deftest test-elab-declare
-  (is (= (elab-declare defenv/empty-env [] 'A '✳ {})
-         '[:ok [[{} {}] ([A ✳])]]))
+(def vdeps4 (let [[_ [_ _ vdeps4]] (elab-declare defenv/empty-env ctx3 vdeps3 {} 'x 'A {})]
+              vdeps4))
 
+(deftest test-elab-declare
+  ;; Step 0:
+  ;; local-defs={}   ctx=[]    var-deps=[]    def-uses={} 
+  
+  (is (= (elab-declare defenv/empty-env [] [] {} 'A '✳ {})
+         '[:ok [[{} {}] ([A ✳]) ([A #{}]) {}]]))
+
+  ;; Step 1: [:declare A *]
+  ;; local-defs={}   ctx=[[A *]]   var-deps=[[A #{}]]    def-uses={}
+  
   (is (= ctx1 '([A ✳])))
 
+  (is (= vdeps1 '([A #{}])))
+  
+  ;; Step 2: [:declare B *]
+  ;; local-defs={}   ctx=[[B *] [A *]]   var-deps=[[B #{}] [A #{}]]    def-uses={} 
   (is (= ctx2 '([B ✳] [A ✳])))
-
+  (is (= vdeps2 '([B #{}] [A #{}])))
+  
+  ;; Step 3: [:declare f (==> A B)]
+  ;; local-defs={}   ctx=[[f (==> A B)] [B *] [A *]]   var-deps=[[f #{}][B #{}] [A #{}]]  def-uses={} 
   (is (= ctx3 '([f (Π [⇧ A] B)] [B ✳] [A ✳])))
+  (is (= vdeps3 '([f #{}] [B #{}] [A #{}])))
 
-  (is (= ctx4 '([x A] [f (Π [⇧ A] B)] [B ✳] [A ✳]))))
+  ;; Step 4: [:declare x A]
+  ;; local-defs={}   ctx=[[x A] [f (==> A B)] [B *] [A *]]   var-deps=[[x #{}][f #{}][B #{}] [A #{}]]  def-uses={}
+  (is (= ctx4 '([x A] [f (Π [⇧ A] B)] [B ✳] [A ✳])))
+  (is (= vdeps4 '([x #{}] [f #{}] [B #{}] [A #{}]))))
 
-(def state5 (second (elab-have defenv/empty-env ctx4 '<a> (second (parse/parse-term defenv/empty-env '(==> A B))) 'f {})))
+
+(deftest test-update-var-deps
+  (is (= (update-var-deps vdeps4 '<a> 'f)
+         '[[x #{}] [f #{<a>}] [B #{}] [A #{}]]))
+
+  (is (= (-> vdeps4
+             (update-var-deps '<a> 'f)
+             (update-var-deps '<a> (second (parse/parse-term defenv/empty-env '(==> A B)))))
+         '[[x #{}] [f #{<a>}] [B #{<a>}] [A #{<a>}]]))
+
+  )
+
+(def state5 (second (elab-have defenv/empty-env ctx4 vdeps4 {} '<a> (second (parse/parse-term defenv/empty-env '(==> A B))) 'f {})))
 
 (def state6 (second (elab-have (first state5) (second state5) '<b> 'B (second (parse/parse-term (first state5) '(<a> x))) {})))
 
@@ -69,33 +112,9 @@
 ;;{
 ;; An example (low-level) proof script
 
-;; Step 0:
 
-;; local-defs={}   ctx=[]    var-deps=[]    def-uses={} 
 
-;; Step 1 :
 
-;; [:declare A *]
-
-;; local-defs={}   ctx=[[A *]]   var-deps=[[A #{}]]    def-uses={} 
-
-;; Step 2 :
-
-;; [:declare B *]
-
-;; local-defs={}   ctx=[[B *] [A *]]   var-deps=[[B #{}] [A #{}]]    def-uses={} 
-
-;; Step 3 :
-
-;; [:declare f (==> A B)]
-
-;; local-defs={}   ctx=[[f (==> A B)] [B *] [A *]]   var-deps=[[f #{}][B #{}] [A #{}]]  def-uses={} 
-
-;; Step 4 :
-
-;; [:declare x A]
-
-;; local-defs={}   ctx=[[x A] [f (==> A B)] [B *] [A *]]   var-deps=[[x #{}][f #{}][B #{}] [A #{}]]  def-uses={}
 
 ;; Step 5 :
 
