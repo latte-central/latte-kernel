@@ -66,3 +66,95 @@
 
 
 
+;;{
+;; An example (low-level) proof script
+
+;; Step 0:
+
+;; local-defs={}   ctx=[]    var-deps=[]    def-uses={} 
+
+;; Step 1 :
+
+;; [:declare A *]
+
+;; local-defs={}   ctx=[[A *]]   var-deps=[[A #{}]]    def-uses={} 
+
+;; Step 2 :
+
+;; [:declare B *]
+
+;; local-defs={}   ctx=[[B *] [A *]]   var-deps=[[B #{}] [A #{}]]    def-uses={} 
+
+;; Step 3 :
+
+;; [:declare f (==> A B)]
+
+;; local-defs={}   ctx=[[f (==> A B)] [B *] [A *]]   var-deps=[[f #{}][B #{}] [A #{}]]  def-uses={} 
+
+;; Step 4 :
+
+;; [:declare x A]
+
+;; local-defs={}   ctx=[[x A] [f (==> A B)] [B *] [A *]]   var-deps=[[x #{}][f #{}][B #{}] [A #{}]]  def-uses={}
+
+;; Step 5 :
+
+;; [:have <a> (==> A B) f]
+
+;; local-defs={<a>:=f::(==> A B)}
+;; ctx=[[x A] [f (==> A B)] [B *] [A *]]
+;; var-deps=[[x #{}][f #{<a>}][B #{<a>}] [A #{<a>}]]  def-uses={<a> #{}}
+
+;; Step 6 :
+
+;; [:have <b> B (<a> x)]
+
+;; local-defs={<a>:=f::(==> A B)
+;;             <b>:=(<a> x)::B}
+;; ctx=[[x A] [f (==> A B)] [B *] [A *]]
+;; var-deps=[[x #{<b>}][f #{<a>}][B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
+
+;; Step 7 :
+
+;; [:discharge x]
+
+;; local-defs={<a>:=f::(==> A B)
+;;             <b>(x::A):=(<a> x)::B}
+;; ctx=[[f (==> A B)] [B *] [A *]]
+;; var-deps=[[f #{<a>}][B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
+
+;; Step 8 :
+
+;; [:discharge f]
+
+;; local-defs={<a>(f::(==> A B)):=f::(==> (==> A B) (==> A B))
+;;             <b>(f::(==> A B), x::A):=((<a> f) x)::B}
+;; ctx=[[B *] [A *]]
+;; var-deps=[[B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
+
+;; Step 9 :
+
+;; [:discharge B]
+
+;; local-defs={<a>(B::*, f::(==> A B)):=f::(forall [B *] (==> (==> A B) (==> A B)))
+;;             <b>(B::*, f::(==> A B), x::A):=(forall [B *] ((<a> B f) x))::(==> B B)}
+;; ctx=[A *]]
+;; var-deps=[[A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
+
+;; Step 10 :
+
+;; [:discharge A]
+
+;; local-defs={<a>(A::*, B::*, f::(==> A B)):=f::(forall [A B *] (==> (==> A B) (==> A B)))
+;;             <b>(A::*, B::*, f::(==> A B), x::A):=(forall [A B *] ((<a> A B f) x))::(==> B B)}
+;; ctx=[A *]]
+;; var-deps=[[A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
+
+;; Step 11 :
+
+;; [:qed <a>]
+
+;; <a>::(forall [A B *] (==> (==> A B) (==> A B)))
+
+
+;;}
