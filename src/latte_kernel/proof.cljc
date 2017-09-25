@@ -72,7 +72,10 @@
                     var-deps' (-> var-deps
                                   (update-var-deps name term)
                                   (update-var-deps name rec-ty))
-                    def-uses' (assoc (update-def-uses def-uses name term) name #{})]
+                    def-uses'(-> def-uses
+                                 (update-def-uses name term)
+                                 (update-def-uses name rec-ty)
+                                 (assoc name #{}))]
                 [:ok [def-env' ctx var-deps' def-uses']]))))))))
 
 (defn update-var-deps [var-deps name term]
