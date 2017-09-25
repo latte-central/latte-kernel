@@ -99,6 +99,11 @@
          '[[<a> #{<b>}]])))
 
 (deftest test-elab-have
+  ;; Step 5 : [:have <a> (==> A B) f]
+  ;; local-defs={<a>:=f::(==> A B)}
+  ;; ctx=[[x A] [f (==> A B)] [B *] [A *]]
+  ;; var-deps=[[x #{}][f #{<a>}][B #{<a>}] [A #{<a>}]]  def-uses={<a> #{}}
+  
   (is (= ctx5 ctx4))
 
   (is (defenv/registered-definition? def-env5 '<a>))
@@ -106,38 +111,44 @@
   (is (= (second(defenv/fetch-definition def-env5 '<a> true))
          '#latte_kernel.defenv.Definition{:name <a>, :params [], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
 
+  (is (= vdeps5
+         '[[x #{}] [f #{<a>}] [B #{<a>}] [A #{<a>}]]))
+
+  (is (= dfuses5
+         '([<a> #{}])))
+  
+  ;; Step 6 : [:have <b> B (<a> x)]
+  ;; local-defs={<a>:=f::(==> A B)
+  ;;             <b>:=(<a> x)::B}
+  ;; ctx=[[x A] [f (==> A B)] [B *] [A *]]
+  ;; var-deps=[[x #{<b>}][f #{<a>}][B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
   (is (= ctx6 ctx5))
 
   (is (defenv/registered-definition? def-env6 '<a>))
   (is (defenv/registered-definition? def-env6 '<b>))
 
   (is (= (second(defenv/fetch-definition def-env6 '<b> true))
-         '#latte_kernel.defenv.Definition{:name <b>, :params [], :arity 0, :parsed-term [(<a>) x], :type B})))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [], :arity 0, :parsed-term [(<a>) x], :type B}))
+
+  (is (= vdeps6
+         '[[x #{<b>}] [f #{<a>}] [B #{<a> <b>}] [A #{<a>}]]))
+
+  (is (= dfuses6
+         '([<b> #{}] [<a> #{<b>}])))
+
+  )
+
+
+(deftest test-abstract-local-defs
+  (is (= (:params (second (defenv/fetch-definition (abstract-local-defs def-env6 (second (first vdeps6)) 'x 'A) '<b>)))
+         '[[x A]])))
+
+
 
 
 ;;{
 ;; An example (low-level) proof script
 
-
-
-
-
-;; Step 5 :
-
-;; [:have <a> (==> A B) f]
-
-;; local-defs={<a>:=f::(==> A B)}
-;; ctx=[[x A] [f (==> A B)] [B *] [A *]]
-;; var-deps=[[x #{}][f #{<a>}][B #{<a>}] [A #{<a>}]]  def-uses={<a> #{}}
-
-;; Step 6 :
-
-;; [:have <b> B (<a> x)]
-
-;; local-defs={<a>:=f::(==> A B)
-;;             <b>:=(<a> x)::B}
-;; ctx=[[x A] [f (==> A B)] [B *] [A *]]
-;; var-deps=[[x #{<b>}][f #{<a>}][B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
 
 ;; Step 7 :
 

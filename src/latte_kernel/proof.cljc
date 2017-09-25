@@ -1,6 +1,7 @@
 (ns latte-kernel.proof
   "The proof elaborator and checker."
-  (:require [latte-kernel.defenv :as defenv]
+  (:require [latte-kernel.utils :as u]
+            [latte-kernel.defenv :as defenv]
             [latte-kernel.typing :as typing]
             [latte-kernel.syntax :as stx]
             [latte-kernel.norm :as norm]))
@@ -45,9 +46,10 @@
 (defn elab-have [def-env ctx var-deps def-uses name ty term meta]
   (let [[status, term-type] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
-      [:ko [{:msg "Have step elaboration failed: cannot synthetize term type."
-             :have-name name
-             :from term-type}, meta]]
+      [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
+            :have-name name
+            :from term-type
+            :meta meta}]
       ;; we have the type here
       (let [[status, rec-ty] (if (= ty '_)
                                 [:ok term-type]
@@ -55,18 +57,23 @@
                                   [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
                                         :have-name name
                                         :expected-type ty
-                                        :synthetized-type term-type}]
+                                        :synthetized-type term-type
+                                        :meta meta}]
                                   [:ok term-type]))]
         (if (= status :ko)
           [:ko [rec-ty, meta]]
           (if (= name '_)
             [:ok [def-env ctx var-deps def-uses]]
-            (let [def-env' (defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty) true)
-                  var-deps' (-> var-deps
-                                (update-var-deps name term)
-                                (update-var-deps name rec-ty))
-                  def-uses' (cons [name #{}] (update-def-uses def-uses name term))]
-                [:ok [def-env' ctx var-deps' def-uses']])))))))
+            (if (defenv/registered-definition? def-env name true)
+              [:ko {:msg "Have step elaboration failed: local definition already registered"
+                    :have-name name
+                    :meta meta}]
+              (let [def-env' (defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty) true)
+                    var-deps' (-> var-deps
+                                  (update-var-deps name term)
+                                  (update-var-deps name rec-ty))
+                    def-uses' (cons [name #{}] (update-def-uses def-uses name term))]
+                [:ok [def-env' ctx var-deps' def-uses']]))))))))
 
 (defn update-var-deps [var-deps name term]
   (let [tvars (stx/free-vars term)]
@@ -99,7 +106,25 @@
 ;;
 ;;}
 
+(defn elab-discharge [def-env ctx var-deps def-uses name meta]
+  (when (empty? ctx)
+    (throw (ex-info "Context is empty (please report)." {:disacharge-name name
+                                                         :meta meta})))
+  (let [[x ty] (first ctx)]
+    (when (not= x name)
+      (throw (ex-info "Incorrect discharge name." {:discharge-name name
+                                                   :var x
+                                                   :meta meta})))
+    ))
 
 
 
+
+(defn abstract-local-defs [def-env deps x ty]
+  (reduce (fn [def-env def-name]
+            (let [[status, ddef] (defenv/fetch-definition def-env def-name true)]
+              (when (= status :ko)
+                (throw (ex-info "Local definition not found (please report)" {:def-name def-name})))
+              (defenv/register-definition def-env (update ddef :params (fn [params] (u/vcons [x ty] params))) true)))
+          def-env deps))
 
