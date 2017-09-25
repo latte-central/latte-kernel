@@ -109,7 +109,8 @@
 ;;
 ;;}
 
-(declare abstract-local-defs)
+(declare abstract-local-def)
+(declare abstract-local-calls)
 
 (defn elab-discharge [def-env ctx var-deps def-uses name meta]
   (when (empty? ctx)
@@ -120,18 +121,57 @@
       (throw (ex-info "Incorrect discharge name." {:discharge-name name
                                                    :var x
                                                    :meta meta})))
-    ))
+    (let [[x' xdeps] (first var-deps)]
+      (when (not= x' x)
+        (throw (ex-info "Incorrect discharge name." {:discharge-name name
+                                                     :var x'
+                                                     :meta meta})))
+      (loop [def-env def-env, abstracted-deps #{}, deps xdeps]
+        (if (seq deps)
+          (let [def-env' (if (contains? abstracted-deps (first deps))
+                           def-env
+                           (abstract-local-def def-env (first deps) x ty))
+                def-env'' (abstract-local-calls def-env' (first deps) abstracted-deps x)
+                deps' (into (get def-uses (first deps) #{}) (rest  deps))]
+            (recur def-env'' (conj abstracted-deps (first deps)) deps'))
+          [def-env (rest ctx) (rest var-deps) def-uses])))))
 
+(defn abstract-local-def [def-env def-name x ty]
+  (let [[status, ddef] (defenv/fetch-definition def-env def-name true)]
+    (when (= status :ko)
+      (throw (ex-info "Local definition not found (please report)" {:def-name def-name})))
+    (defenv/register-definition def-env (update ddef :params (fn [params] (u/vcons [x ty] params))) true)))
 
+(declare abstract-local-calls)
+(declare gen-local-calls)
 
+(defn abstract-local-calls [def-env ref abs-defs x]
+  (let [[status, ddef] (defenv/fetch-definition def-env ref true)]
+    (when (= status :ko)
+      (throw (ex-info "Local definition not found (please report)" {:def-name ref})))
+    (defenv/register-definition def-env (-> ddef
+                                            ;; (update :params (fn [params] (u/vcons [x ty] params)))
+                                            (update :parsed-term (fn [t] (gen-local-calls t abs-defs x)))) true)))
 
-(defn abstract-local-defs [def-env deps x ty]
-  (reduce (fn [def-env def-name]
-            (let [[status, ddef] (defenv/fetch-definition def-env def-name true)]
-              (when (= status :ko)
-                (throw (ex-info "Local definition not found (please report)" {:def-name def-name})))
-              (defenv/register-definition def-env (update ddef :params (fn [params] (u/vcons [x ty] params))) true)))
-          def-env deps))
-
-
-
+(defn gen-local-calls [t abs-defs x]
+  (cond
+    (stx/ref? t) (let [[ref & args] t
+                       args' (map #(gen-local-calls % ref x) args)]
+                   (cons ref (if (contains? abs-defs ref)
+                               (cons x args')
+                               args')))
+    (stx/binder? t) (let [[_ [x ty] body] t
+                          ty' (gen-local-calls ty abs-defs x)
+                          body' (gen-local-calls body abs-defs x)]
+                      (if (stx/lambda? t)
+                        (list 'λ [x ty'] body')
+                        (list 'Π [x ty'] body')))
+    (stx/app? t) (let [[t1 t2] t
+                       t1' (gen-local-calls t1 abs-defs x)
+                       t2' (gen-local-calls t2 abs-defs x)]
+                   [t1' t2'])
+    (stx/ascription? t) (let [[e t] t
+                              e' (gen-local-calls e abs-defs x)
+                              t' (gen-local-calls t abs-defs x)]
+                          (list :stx/ascribe e' t'))
+    :else t))

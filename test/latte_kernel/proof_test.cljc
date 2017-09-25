@@ -140,51 +140,130 @@
 
 
 (deftest test-abstract-local-defs
-  (is (= (:params (second (defenv/fetch-definition (abstract-local-defs def-env6 (second (first vdeps6)) 'x 'A) '<b>)))
+  (is (= (:params (second (defenv/fetch-definition (abstract-local-def def-env6 '<b> 'x 'A) '<b>)))
          '[[x A]])))
 
+(deftest test-gen-local-calls
+  (is (= (gen-local-calls (second (parse/parse-term def-env5 '[(<a>) x])) '#{<a>} 'f)
+         '[(<a> f) x])))
 
 
+(let [state7 (elab-discharge def-env6 ctx6 vdeps6 dfuses6 'x {})
+      [def-env7 ctx7 vdeps7 dfuses7] state7]
+  (def def-env7 def-env7)
+  (def ctx7 ctx7)
+  (def vdeps7 vdeps7)
+  (def dfuses7 dfuses7))
+
+(let [state8 (elab-discharge def-env7 ctx7 vdeps7 dfuses7 'f {})
+      [def-env8 ctx8 vdeps8 dfuses8] state8]
+  (def def-env8 def-env8)
+  (def ctx8 ctx8)
+  (def vdeps8 vdeps8)
+  (def dfuses8 dfuses8))
+
+(let [state9 (elab-discharge def-env8 ctx8 vdeps8 dfuses8 'B {})
+      [def-env9 ctx9 vdeps9 dfuses9] state9]
+  (def def-env9 def-env9)
+  (def ctx9 ctx9)
+  (def vdeps9 vdeps9)
+  (def dfuses9 dfuses9))
+
+(let [state10 (elab-discharge def-env9 ctx9 vdeps9 dfuses9 'A {})
+      [def-env10 ctx10 vdeps10 dfuses10] state10]
+  (def def-env10 def-env10)
+  (def ctx10 ctx10)
+  (def vdeps10 vdeps10)
+  (def dfuses10 dfuses10))
+
+(deftest test-elab-discharge
+  ;; Step 7 : [:discharge x]
+  ;; local-defs={<a>:=f::(==> A B)
+  ;;             <b>(x::A):=(<a> x)::B}
+  ;; ctx=[[f (==> A B)] [B *] [A *]]
+  ;; var-deps=[[f #{<a>}][B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
+  (is (= ctx7
+         '([f (Π [⇧ A] B)] [B ✳] [A ✳])))
+  
+  (is (= (second (defenv/fetch-definition def-env7 '<a> true))
+         '#latte_kernel.defenv.Definition{:name <a>, :params [], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
+ 
+  (is (= (second (defenv/fetch-definition def-env7 '<b> true))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [[x A]], :arity 0, :parsed-term [(<a>) x], :type B}))
+
+  (is (= vdeps7
+         '([f #{<a>}] [B #{<a> <b>}] [A #{<a>}])))
+
+  (is (= dfuses7
+         '{<a> #{<b>}, <b> #{}}))
+
+
+  ;; Step 8 : [:discharge f]
+  ;; local-defs={<a>(f::(==> A B)):=f::(==> (==> A B) (==> A B))
+  ;;             <b>(f::(==> A B), x::A):=((<a> f) x)::B}
+  ;; ctx=[[B *] [A *]]
+  ;; var-deps=[[B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
+  (is (= ctx8
+         '([B ✳] [A ✳])))
+  
+  (is (= (second (defenv/fetch-definition def-env8 '<a> true))
+         '#latte_kernel.defenv.Definition{:name <a>, :params [[f (Π [⇧ A] B)]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
+ 
+  (is (= (second (defenv/fetch-definition def-env8 '<b> true))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [[f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> f) x], :type B}))
+
+  (is (= vdeps8
+         '([B #{<a> <b>}] [A #{<a>}])))
+
+  (is (= dfuses8
+         '{<a> #{<b>}, <b> #{}}))
+
+
+  ;; Step 9 : [:discharge B]
+  ;; local-defs={<a>(B::*, f::(==> A B)):=f::(forall [B *] (==> (==> A B) (==> A B)))
+  ;;             <b>(B::*, f::(==> A B), x::A):=(forall [B *] ((<a> B f) x))::(==> B B)}
+  ;; ctx=[A *]]
+  ;; var-deps=[[A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
+  (is (= ctx9
+         '([A ✳])))
+  
+  (is (= (second (defenv/fetch-definition def-env9 '<a> true))
+         '#latte_kernel.defenv.Definition{:name <a>, :params [[B ✳] [f (Π [⇧ A] B)]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
+ 
+  (is (= (second (defenv/fetch-definition def-env9 '<b> true))
+         #latte_kernel.defenv.Definition{:name <b>, :params [[B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> B f) x], :type B}))
+
+  (is (= vdeps9
+         '([A #{<a>}])))
+
+  (is (= dfuses9
+         '{<a> #{<b>}, <b> #{}}))
+
+  ;; Step 10 : [:discharge A]
+  ;; local-defs={<a>(A::*, B::*, f::(==> A B)):=f::(forall [A B *] (==> (==> A B) (==> A B)))
+  ;;             <b>(A::*, B::*, f::(==> A B), x::A):=(forall [A B *] ((<a> A B f) x))::(==> B B)}
+  ;; ctx=[A *]]
+  ;; var-deps=[[A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
+  (is (= ctx10
+         '()))
+  
+  (is (= (second (defenv/fetch-definition def-env10 '<a> true))
+         '#latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
+ 
+  (is (= (second (defenv/fetch-definition def-env10 '<b> true))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f) x], :type B}))
+
+  (is (= vdeps10
+         '()))
+
+  (is (= dfuses10
+         '{<a> #{<b>}, <b> #{}}))
+  
+  )
 
 ;;{
 ;; An example (low-level) proof script
 
-
-;; Step 7 :
-
-;; [:discharge x]
-
-;; local-defs={<a>:=f::(==> A B)
-;;             <b>(x::A):=(<a> x)::B}
-;; ctx=[[f (==> A B)] [B *] [A *]]
-;; var-deps=[[f #{<a>}][B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
-
-;; Step 8 :
-
-;; [:discharge f]
-
-;; local-defs={<a>(f::(==> A B)):=f::(==> (==> A B) (==> A B))
-;;             <b>(f::(==> A B), x::A):=((<a> f) x)::B}
-;; ctx=[[B *] [A *]]
-;; var-deps=[[B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
-
-;; Step 9 :
-
-;; [:discharge B]
-
-;; local-defs={<a>(B::*, f::(==> A B)):=f::(forall [B *] (==> (==> A B) (==> A B)))
-;;             <b>(B::*, f::(==> A B), x::A):=(forall [B *] ((<a> B f) x))::(==> B B)}
-;; ctx=[A *]]
-;; var-deps=[[A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
-
-;; Step 10 :
-
-;; [:discharge A]
-
-;; local-defs={<a>(A::*, B::*, f::(==> A B)):=f::(forall [A B *] (==> (==> A B) (==> A B)))
-;;             <b>(A::*, B::*, f::(==> A B), x::A):=(forall [A B *] ((<a> A B f) x))::(==> B B)}
-;; ctx=[A *]]
-;; var-deps=[[A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
 
 ;; Step 11 :
 
