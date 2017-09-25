@@ -73,40 +73,46 @@
 
   )
 
-(def state5 (second (elab-have defenv/empty-env ctx4 vdeps4 {} '<a> (second (parse/parse-term defenv/empty-env '(==> A B))) 'f {})))
+(let [state5 (second (elab-have defenv/empty-env ctx4 vdeps4 {} '<a> (second (parse/parse-term defenv/empty-env '(==> A B))) 'f {}))
+      [def-env5 ctx5 vdeps5 dfuses5] state5]
+  (def def-env5 def-env5)
+  (def ctx5 ctx5)
+  (def vdeps5 vdeps5)
+  (def dfuses5 dfuses5))
 
-(def state6 (second (elab-have (first state5) (second state5) '<b> 'B (second (parse/parse-term (first state5) '(<a> x))) {})))
-
-
-(deftest test-elab-have
-  (let [[def-env5 ctx5] state5]
-    (is (= ctx5 ctx4))
-
-    (is (defenv/registered-definition? def-env5 '<a>))
-
-    (is (= (second(defenv/fetch-definition def-env5 '<a> true))
-           '#latte_kernel.defenv.Definition{:name <a>, :params [], :arity 0, :parsed-term f, :type (Π [⇧ A] B)})))
-
-  (let [[def-env6 ctx6] state6]
-    (is (= ctx6 ctx4))
-
-    (is (defenv/registered-definition? def-env6 '<a>))
-    (is (defenv/registered-definition? def-env6 '<b>))
-
-    (is (= (second(defenv/fetch-definition def-env6 '<b> true))
-           '#latte_kernel.defenv.Definition{:name <b>, :params [], :arity 0, :parsed-term [(<a>) x], :type B}))))
-
-(deftest test-local-defs-with-free-occurrence
-  (is (= (local-defs-with-free-occurrence (second (first state6)) 'x)
-         #{'<b>})))
+(let [state6 (second (elab-have def-env5 ctx5 vdeps5 dfuses5 '<b> 'B (second (parse/parse-term def-env5 '(<a> x))) {}))
+      [def-env6 ctx6 vdeps6 dfuses6] state6]
+  (def def-env6 def-env6)
+  (def ctx6 ctx6)
+  (def vdeps6 vdeps6)
+  (def dfuses6 dfuses6))
 
 (deftest test-ref-uses-in-term
-  (is (= (ref-uses-in-term (:parsed-term (second (defenv/fetch-definition (first state6) '<a>))))
+  (is (= (ref-uses-in-term (:parsed-term (second (defenv/fetch-definition def-env6 '<a>))))
          #{}))
   
-  (is (= (ref-uses-in-term (:parsed-term (second (defenv/fetch-definition (first state6) '<b>))))
+  (is (= (ref-uses-in-term (:parsed-term (second (defenv/fetch-definition def-env6 '<b>))))
          '#{<a>})))
 
+(deftest test-update-def-uses
+  (is (= (update-def-uses dfuses5 '<b> (:parsed-term (second (defenv/fetch-definition def-env6 '<b>))))
+         '[[<a> #{<b>}]])))
+
+(deftest test-elab-have
+  (is (= ctx5 ctx4))
+
+  (is (defenv/registered-definition? def-env5 '<a>))
+
+  (is (= (second(defenv/fetch-definition def-env5 '<a> true))
+         '#latte_kernel.defenv.Definition{:name <a>, :params [], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
+
+  (is (= ctx6 ctx5))
+
+  (is (defenv/registered-definition? def-env6 '<a>))
+  (is (defenv/registered-definition? def-env6 '<b>))
+
+  (is (= (second(defenv/fetch-definition def-env6 '<b> true))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [], :arity 0, :parsed-term [(<a>) x], :type B})))
 
 
 ;;{

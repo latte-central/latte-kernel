@@ -50,13 +50,13 @@
              :from term-type}, meta]]
       ;; we have the type here
       (let [[status, rec-ty] (if (= ty '_)
-                                [:ok ty]
+                                [:ok term-type]
                                 (if (not (norm/beta-eq? def-env ctx term-type ty))
                                   [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
                                         :have-name name
                                         :expected-type ty
                                         :synthetized-type term-type}]
-                                  [:ok ty]))]
+                                  [:ok term-type]))]
         (if (= status :ko)
           [:ko [rec-ty, meta]]
           (if (= name '_)
@@ -99,11 +99,6 @@
 ;;
 ;;}
 
-(defn local-defs-with-free-occurrence [local-defs discharge-var]
-  (reduce (fn [discharge-defs [dname, local-def]]
-            (if (contains? (stx/free-vars (:parsed-term local-def)) discharge-var)
-              (conj discharge-defs dname)
-              discharge-defs)) #{} local-defs))
 
 
 
