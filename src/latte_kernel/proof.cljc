@@ -72,7 +72,7 @@
                     var-deps' (-> var-deps
                                   (update-var-deps name term)
                                   (update-var-deps name rec-ty))
-                    def-uses' (cons [name #{}] (update-def-uses def-uses name term))]
+                    def-uses' (assoc (update-def-uses def-uses name term) name #{})]
                 [:ok [def-env' ctx var-deps' def-uses']]))))))))
 
 (defn update-var-deps [var-deps name term]
@@ -90,12 +90,12 @@
 
 (defn update-def-uses [def-uses name term]
   (let [term-uses (ref-uses-in-term term)]
-    (loop [def-uses def-uses, res []]
+    (loop [def-uses def-uses, res {}]
       (if (seq def-uses)
         (let [[def-name uses] (first def-uses)]
-          (recur (rest def-uses) (conj res [def-name (if (contains? term-uses def-name)
-                                                      (conj uses name)
-                                                      uses)])))
+          (recur (rest def-uses) (assoc res def-name (if (contains? term-uses def-name)
+                                                       (conj uses name)
+                                                       uses))))
         res))))
 
 ;;{
@@ -105,6 +105,8 @@
 ;; efficiency is a concern (which it is for proof checking)
 ;;
 ;;}
+
+(declare abstract-local-defs)
 
 (defn elab-discharge [def-env ctx var-deps def-uses name meta]
   (when (empty? ctx)
@@ -127,4 +129,6 @@
                 (throw (ex-info "Local definition not found (please report)" {:def-name def-name})))
               (defenv/register-definition def-env (update ddef :params (fn [params] (u/vcons [x ty] params))) true)))
           def-env deps))
+
+
 

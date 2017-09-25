@@ -96,7 +96,7 @@
 
 (deftest test-update-def-uses
   (is (= (update-def-uses dfuses5 '<b> (:parsed-term (second (defenv/fetch-definition def-env6 '<b>))))
-         '[[<a> #{<b>}]])))
+         '{<a> #{<b>}})))
 
 (deftest test-elab-have
   ;; Step 5 : [:have <a> (==> A B) f]
@@ -115,7 +115,7 @@
          '[[x #{}] [f #{<a>}] [B #{<a>}] [A #{<a>}]]))
 
   (is (= dfuses5
-         '([<a> #{}])))
+         '{<a> #{}}))
   
   ;; Step 6 : [:have <b> B (<a> x)]
   ;; local-defs={<a>:=f::(==> A B)
@@ -134,7 +134,7 @@
          '[[x #{<b>}] [f #{<a>}] [B #{<a> <b>}] [A #{<a>}]]))
 
   (is (= dfuses6
-         '([<b> #{}] [<a> #{<b>}])))
+         '{<a> #{<b>}, <b> #{}}))
 
   )
 
