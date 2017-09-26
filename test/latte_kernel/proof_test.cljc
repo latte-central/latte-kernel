@@ -261,6 +261,11 @@
   
   )
 
+
+(deftest test-elab-qed
+  (is (= (elab-qed def-env10 ctx10 '(<a>)
+                   (second (parse/parse-term def-env10 '(forall [A B :type] (==> (==> A B) (==> A B))))) {}))))
+
 ;;{
 ;; An example (low-level) proof script
 

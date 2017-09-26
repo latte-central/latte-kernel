@@ -93,7 +93,6 @@
 
 
 (deftest test-type-of-refdef
-
   (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
                                                 :type ✳
@@ -101,6 +100,14 @@
                        '[[a ✳] [b ✳]]
                        '(test a b))
          '[:ok ✳]))
+
+    (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
+                                              '{:params [[x ✳] [y ✳]]
+                                                :type ✳
+                                                :arity 2})})
+                       '[[a ✳] [b ✳]]
+                       '(test a))
+         '[:ok ✳])) ;; WRONG!
 
   (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
@@ -110,7 +117,7 @@
                        '(test a b))
          '[:ko {:msg "Wrong argument type", :term (test b), :arg b, :expected-type ✳}])))
 
-(deftest test-type-of-refdef
+(deftest test-type-of-refdef-implicit
   (let [fake-eq (defenv/map->Definition
                   '{:params [[T ✳] [x T] [y T]]
                     :type (forall [P (==> T :type)]

@@ -175,3 +175,27 @@
                               t' (gen-local-calls t abs-defs x)]
                           (list :stx/ascribe e' t'))
     :else t))
+
+;;{
+;; ## Proof checking
+;;
+;; All proofs must terminate by a `:qed` action that
+;; consists in submitting a term and a type.
+;; The type of the term and the submitted type must
+;; corresponds, i.e. be equal.
+;;}
+
+(defn elab-qed [def-env ctx term type meta]
+  (let [[status, proof-type] (typing/type-of-term def-env ctx term)]
+    (if (= status :ko)
+      [:ko {:msg "Qed step failed: cannot infer term type."
+            :cause proof-type
+            :meta meta}]
+      (if (not (norm/beta-eq? def-env ctx type proof-type))
+        [:ko {:msg "Qed step failed: proof type mismatch."
+              :type type
+              :proof-type proof-type
+              :meta meta}]
+        [:ok proof-type]))))
+
+
