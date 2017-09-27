@@ -387,7 +387,7 @@
   (loop [params params, res res-type]
     (if (seq params)
       (recur (rest params) (list 'Π (first params) res))
-      res-type)))
+      res)))
 
 (declare type-of-args)
 

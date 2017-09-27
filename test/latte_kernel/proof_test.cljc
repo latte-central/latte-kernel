@@ -264,7 +264,8 @@
 
 (deftest test-elab-qed
   (is (= (elab-qed def-env10 ctx10 '(<a>)
-                   (second (parse/parse-term def-env10 '(forall [A B :type] (==> (==> A B) (==> A B))))) {}))))
+                   (second (parse/parse-term def-env10 '(forall [A B :type] (==> (==> A B) (==> A B))))) {})
+         '[:ok (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))])))
 
 ;;{
 ;; An example (low-level) proof script

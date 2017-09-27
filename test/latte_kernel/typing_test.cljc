@@ -107,7 +107,7 @@
                                                 :arity 2})})
                        '[[a ✳] [b ✳]]
                        '(test a))
-         '[:ok ✳])) ;; WRONG!
+           '[:ok (Π [y ✳] ✳)]))
 
   (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
