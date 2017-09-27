@@ -263,19 +263,26 @@
 
 
 (deftest test-elab-qed
+
+  ;; Step 11 :
+  ;; [:qed <a> (forall [A B *] (==> (==> A B) (==> A B)))]
+  
   (is (= (elab-qed def-env10 ctx10 '(<a>)
                    (second (parse/parse-term def-env10 '(forall [A B :type] (==> (==> A B) (==> A B))))) {})
          '[:ok (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))])))
 
-;;{
-;; An example (low-level) proof script
 
-
-;; Step 11 :
-
-;; [:qed <a>]
-
-;; <a>::(forall [A B *] (==> (==> A B) (==> A B)))
-
-
-;;}
+(deftest test-run-proof
+  (is (= (run-proof defenv/empty-env []
+                    '[[:declare A :type {}]
+                      [:declare B :type {}]
+                      [:declare f (==> A B) {}]
+                      [:declare x A {}]
+                      [:have <a> (==> A B) f {}]
+                      [:have <b> B (<a> x) {}]
+                      [:discharge x {}]
+                      [:discharge f {}]
+                      [:discharge B {}]
+                      [:discharge A {}]
+                      [:qed <a> (forall [A B :type] (==> (==> A B) (==> A B))) {}]])
+         '[:ok (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))])))

@@ -4,6 +4,7 @@
             [latte-kernel.defenv :as defenv]
             [latte-kernel.typing :as typing]
             [latte-kernel.syntax :as stx]
+            [latte-kernel.presyntax :as parse]
             [latte-kernel.norm :as norm]))
 
 ;;{
@@ -197,5 +198,102 @@
               :proof-type proof-type
               :meta meta}]
         [:ok proof-type]))))
+
+
+;;{
+;; ## Proof running
+;;
+;; The proof runner simply iterates over the proof steps
+;; and dispatch to the adequate elaboration function.
+;;
+;; All the parsing issues are managed by the proof runner. 
+;;}
+
+(defn print-state [msg def-env ctx var-deps def-uses]
+  (println msg)
+  (println "  def-env=" def-env)
+  (println "  ctx=" ctx)
+  (println "  var-deps=" var-deps)
+  (println "  def-uses=" def-uses))
+
+(defn run-proof [def-env ctx script]
+  (loop [script script, def-env def-env, ctx ctx, var-deps [], def-uses {}]
+    (if (seq script)
+      (let [[step & args] (first script)]
+        (case step
+          :declare (let [[v ty-expr meta] args
+                         [status ty] (parse/parse-term def-env ty-expr)]
+                     (if (= status :ko)
+                       [:ko {:msg "Proof failed at declare step: cannot parse type expression."
+                             :var v
+                             :type-expr ty-expr
+                             :meta meta
+                             :cause ty}]
+                       (let [[status res] (elab-declare def-env ctx var-deps def-uses v ty meta)]
+                         (if (= status :ko)
+                           [:ko res]
+                           (let [[def-env' ctx' var-deps' def-uses'] res]
+                             ;; (print-state (str "* Declare step: " (first script))
+                             ;;              def-env' ctx' var-deps' def-uses')
+                             (recur (rest script) def-env' ctx' var-deps' def-uses'))))))
+          :have (let [[name ty-expr term-expr meta] args
+                      [status-ty ty] (if (= ty-expr '_)
+                                       [:ok ty-expr]
+                                       (parse/parse-term def-env ty-expr))
+                      [status-term term] (parse/parse-term def-env term-expr)]
+                  (cond
+                    (= status-ty :ko)
+                    [:ko {:msg "Proof failed at have step: cannot parse type expression."
+                          :type-expr ty-expr
+                          :meta meta
+                          :cause ty}]
+                    (= status-term :ko)
+                    [:ko {:msg "Proof failed at have step: cannot parse term expression."
+                          :term-expr term-expr
+                          :meta meta
+                          :cause term}]
+                    :else
+                    (let [[status res] (elab-have def-env ctx var-deps def-uses name ty term meta)]
+                         (if (= status :ko)
+                           [:ko res]
+                           (let [[def-env' ctx' var-deps' def-uses'] res]
+                             ;; (print-state (str "* Have step: " (first script))
+                             ;;              def-env' ctx' var-deps' def-uses')
+                             (recur (rest script) def-env' ctx' var-deps' def-uses'))))))
+          :discharge (let [[v meta] args
+                           [def-env' ctx' var-deps' def-uses'] (elab-discharge def-env ctx var-deps def-uses v meta)]
+                       ;; (print-state (str "* Discharge step: " (first script))
+                       ;;              def-env' ctx' var-deps' def-uses')
+                       (recur (rest script) def-env' ctx' var-deps' def-uses'))
+          :qed (let [[term-expr ty-expr meta] args
+                     [status-term term] (parse/parse-term def-env term-expr)
+                     [status-ty ty] (if (= ty-expr '_)
+                                      [:ok ty-expr]
+                                      (parse/parse-term def-env ty-expr))]
+                 (cond
+                   (= status-term :ko)
+                    [:ko {:msg "Proof failed at qed step: cannot parse term expression."
+                          :term-expr term-expr
+                          :meta meta
+                          :cause term}]
+                    (= status-ty :ko)
+                   [:ko {:msg "Proof failed at qed step: cannot parse type expression."
+                         :type-expr ty-expr
+                         :meta meta
+                         :cause ty}]
+                    :else
+                    (let [[status proof-type] (elab-qed def-env ctx term ty meta)]
+                         (if (= status :ko)
+                           [:ko proof-type]
+                           (if (seq (rest script))
+                             (throw (ex-info "Wrong proof script: more steps after qed."
+                                             {:script script
+                                              :meta meta}))
+                             [:ok proof-type])))))
+          ;; else
+          (throw (ex-info "Unknown step kind in proof script."
+                          {:step (first script)}))))
+      ;; end of proof script
+      (throw (ex-info "Proof script not terminated by a Qed step (please report)." {})))))
 
 
