@@ -91,7 +91,7 @@ by LaTTe."
 
 (defn parse
   "Parse term `t` in definitional environment `def-env` (empty by default)."
-  ([t] (parse {} t))
+  ([t] (parse defenv/empty-env t))
   ([def-env t] (let [[status t'] (parse-term def-env t)]
                  (if (= status :ko)
                    (throw (ex-info "Parse error" t'))

@@ -91,6 +91,7 @@
 (defn registered-definition?
   "Does `dname` corresponds to the name of a registered definition
   in `def-env` (or the current namespace)?"
+  ([dname] (registered-definition? empty-env dname false))
   ([def-env dname] (registered-definition? def-env dname false))
   ([def-env dname local?]
    (let [[status _] (fetch-definition def-env dname local?)]
