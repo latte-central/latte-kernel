@@ -415,12 +415,9 @@
           (recur (rest args) (conj targs [(first args) typ]))))
       [:ok targs])))
 
-(comment
-
-
 (defn type-of
-  ([t] (type-of {} [] t))
-  ([ctx t] (type-of {} ctx t))
+  ([t] (type-of defenv/empty-env [] t))
+  ([ctx t] (type-of defenv/empty-env ctx t))
   ([def-env ctx t]
    (let [[status ty] (type-of-term def-env ctx t)]
      (if (= status :ko)
@@ -428,11 +425,11 @@
        ty))))
 
 (defn proper-type?
-  ([t] (proper-type? {} [] t))
-  ([ctx t] (proper-type? {} ctx t))
+  ([t] (proper-type? defenv/empty-env [] t))
+  ([ctx t] (proper-type? defenv/empty-env ctx t))
   ([def-env ctx t]
    (let [ty (type-of def-env ctx t)]
      (let [sort (norm/normalize def-env ctx ty)]
        (stx/sort? sort)))))
 
-)
+
