@@ -41,3 +41,15 @@ Returns 0 in clojurescript."
   #?(:clj (System/nanoTime)
      :cljs 0))
 
+(defn zip
+  "Zip a sequence of even-numbered elements to a sequence of pairs,
+i.e. (zip '(x1 y2 x2 y2 ...)) = ([x1 y1] [x2 y2] ...)"
+  [s]
+  (if (seq s)
+    (if (seq (rest s))
+      (lazy-seq (cons [(first s) (first (rest s))] (zip (rest (rest s)))))
+      (throw (ex-info "Cannot zip sequence with odd number of elements." {:seq s})))
+    s))
+
+
+

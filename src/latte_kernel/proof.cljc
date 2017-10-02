@@ -297,6 +297,31 @@
       [:ko {:msg "Proof incomplete."} ])))
 
 
-
+(defn compile-proof
+  [proof-type proof]
+  (if (seq proof)
+    (do (when (not (seq (first proof)))
+          (throw (ex-info "Compilation failed: malformed proof step." {:step (first proof)})))
+        (concat 
+         (cond
+           (= (ffirst proof) :assume)
+           (let [[_ meta params & body] (first proof)
+                 params (u/zip params)
+                 proof-body (compile-proof proof-type body)]
+             (concat (map (fn [[x ty]]
+                            [:declare x ty meta]) params)
+                     proof-body
+                     (map (fn [[x _]]
+                            [:discharge x meta]) (reverse params))))
+           (= (ffirst proof) :have)
+           (list (first proof))
+           (= (ffirst proof) :qed)
+           (let [[_ term meta] (first proof)]
+             (list [:qed term proof-type meta]))
+           :else
+           (throw (ex-info "Compilation failed: unsupported proof step." {:step (first proof)})))
+         (compile-proof proof-type (rest proof))))
+    ;; the end
+    (list)))
 
 
