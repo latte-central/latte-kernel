@@ -294,6 +294,9 @@
           (throw (ex-info "Unknown step kind in proof script."
                           {:step (first script)}))))
       ;; end of proof script
-      (throw (ex-info "Proof script not terminated by a Qed step (please report)." {})))))
+      [:ko {:msg "Proof incomplete."} ])))
+
+
+
 
 
