@@ -321,6 +321,21 @@
                                       [:have <a> (==> A B) f {:line 2}]
                                       [:have <b> B (<a> x) {:line 3}]]
                                      [:qed <a> {:line 4}]]))
-         '[:ok (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))])))
+         '[:ok (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))])
+
+      (= (check-proof defenv/empty-env [] 'my-thm
+                      '(forall [A B :type] (==> (==> A B) (==> A B)))
+                      :script
+                      '[[:assume {:line 1}
+                         [A :type
+                          B :type
+                          f (==> A B)
+                          x A]
+                         [:have <a> (==> A B) f {:line 2}]
+                         [:have <b> B (<a> x) {:line 3}]]
+                        [:qed <a> {:line 4}]])
+         [:ok true])))
+
+
 
 

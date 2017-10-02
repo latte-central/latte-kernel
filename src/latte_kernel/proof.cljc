@@ -324,4 +324,26 @@
     ;; the end
     (list)))
 
-
+(defn check-proof
+  [def-env ctx thm-name thm-type method steps]
+  (case method
+    :term (let [[status proof-term] (parse/parse-term def-env steps)]
+            (if (= status :ko)
+              [:ko {:msg "Cannot parse proof term."
+                    :term steps
+                    :error proof-term}]
+              (let [[status proof-type] (typing/type-of-term def-env ctx proof-term)]
+                (if (= status :ko)
+                  [:ko {:msg "Cannot infer proof type."
+                        :term proof-term
+                        :error proof-type}]
+                  (if (not (= (norm/beta-eq? def-env ctx proof-type thm-type)))
+                    [:ko {:msg "Theorem type and proof type do not match."
+                          :thm-type thm-type
+                          :proof-type proof-type}]
+                    [:ok true])))))
+    :script (let [proof (compile-proof thm-type steps)
+                  [status infos] (run-proof def-env ctx proof)]
+              (if (= status :ko)
+                [status infos]
+                [:ok true]))))
