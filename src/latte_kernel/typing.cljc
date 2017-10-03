@@ -402,7 +402,7 @@
                                 :msg (.getMessage exc)}
                                (ex-data exc))]))]
         (if (= status :ko)
-          implicit-term
+          [:ko implicit-term]
           ;; recursive typing of implicit-generated term
           (type-of-term def-env ctx implicit-term))))))
 

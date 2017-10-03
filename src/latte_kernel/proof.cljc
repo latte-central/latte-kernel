@@ -216,86 +216,96 @@
   (println "  var-deps=" var-deps)
   (println "  def-uses=" def-uses))
 
+(defn run-proof-step [def-env ctx var-deps def-uses step args] 
+  (case step
+    :declare
+    (let [[v ty-expr meta] args
+          [status ty] (parse/parse-term def-env ty-expr)]
+      (if (= status :ko)
+        [:ko {:msg "Proof failed at declare step: cannot parse type expression."
+              :var v
+              :type-expr ty-expr
+              :meta meta
+              :cause ty}]
+        (let [[status res] (elab-declare def-env ctx var-deps def-uses v ty meta)]
+          (if (= status :ko)
+            [:ko res]
+            (let [[def-env' ctx' var-deps' def-uses'] res]
+              ;; (print-state (str "* Declare step: " (first script))
+              ;;              def-env' ctx' var-deps' def-uses')
+              [:cont [def-env' ctx' var-deps' def-uses']])))))
+    :have
+    (let [[name ty-expr term-expr meta] args
+          [status-ty ty] (if (= ty-expr '_)
+                           [:ok ty-expr]
+                           (parse/parse-term def-env ty-expr))
+          [status-term term] (parse/parse-term def-env term-expr)]
+      (cond
+        (= status-ty :ko)
+        [:ko {:msg "Proof failed at have step: cannot parse type expression."
+              :type-expr ty-expr
+              :meta meta
+              :cause ty}]
+        (= status-term :ko)
+        [:ko {:msg "Proof failed at have step: cannot parse term expression."
+              :term-expr term-expr
+              :meta meta
+              :cause term}]
+        :else
+        (let [[status res] (elab-have def-env ctx var-deps def-uses name ty term meta)]
+          (if (= status :ko)
+            [:ko res]
+            (let [[def-env' ctx' var-deps' def-uses'] res]
+              ;; (print-state (str "* Have step: " (first script))
+              ;;              def-env' ctx' var-deps' def-uses')
+              [:cont [def-env' ctx' var-deps' def-uses']])))))
+    :discharge
+    (let [[v meta] args
+          [def-env' ctx' var-deps' def-uses'] (elab-discharge def-env ctx var-deps def-uses v meta)]
+      ;; (print-state (str "* Discharge step: " (first script))
+      ;;              def-env' ctx' var-deps' def-uses')
+      [:cont [def-env' ctx' var-deps' def-uses']])
+    :qed
+    (let [[term-expr ty-expr meta] args
+          [status-term term] (parse/parse-term def-env term-expr)
+          [status-ty ty] (if (= ty-expr '_)
+                           [:ok ty-expr]
+                           (parse/parse-term def-env ty-expr))]
+      (cond
+        (= status-term :ko)
+        [:ko {:msg "Proof failed at qed step: cannot parse term expression."
+              :term-expr term-expr
+              :meta meta
+              :cause term}]
+        (= status-ty :ko)
+        [:ko {:msg "Proof failed at qed step: cannot parse type expression."
+              :type-expr ty-expr
+              :meta meta
+              :cause ty}]
+        :else
+        (elab-qed def-env ctx term ty meta)))
+    ;; else
+    (throw (ex-info "Unknown step kind in proof script."
+                    {:step step
+                     :args args}))))
+
 (defn run-proof [def-env ctx script]
   (loop [script script, def-env def-env, ctx ctx, var-deps [], def-uses {}]
     (if (seq script)
-      (let [[step & args] (first script)]
-        (case step
-          :declare (let [[v ty-expr meta] args
-                         [status ty] (parse/parse-term def-env ty-expr)]
-                     (if (= status :ko)
-                       [:ko {:msg "Proof failed at declare step: cannot parse type expression."
-                             :var v
-                             :type-expr ty-expr
-                             :meta meta
-                             :cause ty}]
-                       (let [[status res] (elab-declare def-env ctx var-deps def-uses v ty meta)]
-                         (if (= status :ko)
-                           [:ko res]
-                           (let [[def-env' ctx' var-deps' def-uses'] res]
-                             ;; (print-state (str "* Declare step: " (first script))
-                             ;;              def-env' ctx' var-deps' def-uses')
-                             (recur (rest script) def-env' ctx' var-deps' def-uses'))))))
-          :have (let [[name ty-expr term-expr meta] args
-                      [status-ty ty] (if (= ty-expr '_)
-                                       [:ok ty-expr]
-                                       (parse/parse-term def-env ty-expr))
-                      [status-term term] (parse/parse-term def-env term-expr)]
-                  (cond
-                    (= status-ty :ko)
-                    [:ko {:msg "Proof failed at have step: cannot parse type expression."
-                          :type-expr ty-expr
-                          :meta meta
-                          :cause ty}]
-                    (= status-term :ko)
-                    [:ko {:msg "Proof failed at have step: cannot parse term expression."
-                          :term-expr term-expr
-                          :meta meta
-                          :cause term}]
-                    :else
-                    (let [[status res] (elab-have def-env ctx var-deps def-uses name ty term meta)]
-                         (if (= status :ko)
-                           [:ko res]
-                           (let [[def-env' ctx' var-deps' def-uses'] res]
-                             ;; (print-state (str "* Have step: " (first script))
-                             ;;              def-env' ctx' var-deps' def-uses')
-                             (recur (rest script) def-env' ctx' var-deps' def-uses'))))))
-          :discharge (let [[v meta] args
-                           [def-env' ctx' var-deps' def-uses'] (elab-discharge def-env ctx var-deps def-uses v meta)]
-                       ;; (print-state (str "* Discharge step: " (first script))
-                       ;;              def-env' ctx' var-deps' def-uses')
-                       (recur (rest script) def-env' ctx' var-deps' def-uses'))
-          :qed (let [[term-expr ty-expr meta] args
-                     [status-term term] (parse/parse-term def-env term-expr)
-                     [status-ty ty] (if (= ty-expr '_)
-                                      [:ok ty-expr]
-                                      (parse/parse-term def-env ty-expr))]
-                 (cond
-                   (= status-term :ko)
-                    [:ko {:msg "Proof failed at qed step: cannot parse term expression."
-                          :term-expr term-expr
-                          :meta meta
-                          :cause term}]
-                    (= status-ty :ko)
-                   [:ko {:msg "Proof failed at qed step: cannot parse type expression."
-                         :type-expr ty-expr
-                         :meta meta
-                         :cause ty}]
-                    :else
-                    (let [[status proof-type] (elab-qed def-env ctx term ty meta)]
-                         (if (= status :ko)
-                           [:ko proof-type]
-                           (if (seq (rest script))
-                             (throw (ex-info "Wrong proof script: more steps after qed."
-                                             {:script script
-                                              :meta meta}))
-                             [:ok proof-type])))))
-          ;; else
-          (throw (ex-info "Unknown step kind in proof script."
-                          {:step (first script)}))))
+      (let [[step & args] (first script)
+            [status res] (run-proof-step def-env ctx var-deps def-uses step args)]
+        (case status
+          :ok (if (seq (rest script))
+                (throw (ex-info "Wrong proof script: proof steps after qed."
+                                {:script script
+                                 :meta meta}))
+                [:ok res])
+          :ko [:ko res]
+          ;; else (continue)
+          (let [[def-env' ctx' var-deps' def-uses'] res]
+            (recur (rest script) def-env' ctx' var-deps' def-uses'))))
       ;; end of proof script
-      [:ko {:msg "Proof incomplete."} ])))
-
+      [:ko {:msg "Proof incomplete."}])))
 
 (defn compile-proof
   [proof-type proof]
@@ -327,21 +337,22 @@
 (defn check-proof
   [def-env ctx thm-name thm-type method steps]
   (case method
-    :term (let [[status proof-term] (parse/parse-term def-env steps)]
-            (if (= status :ko)
-              [:ko {:msg "Cannot parse proof term."
-                    :term steps
-                    :error proof-term}]
-              (let [[status proof-type] (typing/type-of-term def-env ctx proof-term)]
-                (if (= status :ko)
-                  [:ko {:msg "Cannot infer proof type."
-                        :term proof-term
-                        :error proof-type}]
-                  (if (not (= (norm/beta-eq? def-env ctx proof-type thm-type)))
-                    [:ko {:msg "Theorem type and proof type do not match."
-                          :thm-type thm-type
-                          :proof-type proof-type}]
-                    [:ok true])))))
+    :term (let [term (first steps)]
+            (let [[status proof-term] (parse/parse-term def-env term)]
+              (if (= status :ko)
+                [:ko {:msg "Cannot parse proof term."
+                      :term term
+                      :error proof-term}]
+                (let [[status proof-type] (typing/type-of-term def-env ctx proof-term)]
+                  (if (= status :ko)
+                    [:ko {:msg "Cannot infer proof type."
+                          :term proof-term
+                          :error proof-type}]
+                    (if (not (= (norm/beta-eq? def-env ctx proof-type thm-type)))
+                      [:ko {:msg "Theorem type and proof type do not match."
+                            :thm-type thm-type
+                            :proof-type proof-type}]
+                      [:ok true]))))))
     :script (let [proof (compile-proof thm-type steps)
                   [status infos] (run-proof def-env ctx proof)]
               (if (= status :ko)
