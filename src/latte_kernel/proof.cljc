@@ -186,27 +186,22 @@
 ;; corresponds, i.e. be equal.
 ;;}
 
-(defn elab-qed [def-env ctx term type meta]
+(defn elab-qed [def-env ctx term meta]
   (let [[status, proof-type] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
       [:ko {:msg "Qed step failed: cannot infer term type."
             :cause proof-type
             :meta meta}]
-      (if (not (norm/beta-eq? def-env ctx type proof-type))
-        [:ko {:msg "Qed step failed: proof type mismatch."
-              :type type
-              :proof-type proof-type
-              :meta meta}]
-        [:ok proof-type]))))
+      [:ok [term proof-type]])))
 
 
 ;;{
-;; ## Proof running
+;; ## Proof elabortation
 ;;
-;; The proof runner simply iterates over the proof steps
+;; The proof elaborator simply iterates over the proof steps
 ;; and dispatch to the adequate elaboration function.
 ;;
-;; All the parsing issues are managed by the proof runner. 
+;; All the parsing issues are managed by the elaborator. 
 ;;}
 
 (defn print-state [msg def-env ctx var-deps def-uses]
@@ -216,7 +211,7 @@
   (println "  var-deps=" var-deps)
   (println "  def-uses=" def-uses))
 
-(defn run-proof-step [def-env ctx var-deps def-uses step args] 
+(defn elab-proof-step [def-env ctx var-deps def-uses step args] 
   (case step
     :declare
     (let [[v ty-expr meta] args
@@ -266,34 +261,24 @@
       ;;              def-env' ctx' var-deps' def-uses')
       [:cont [def-env' ctx' var-deps' def-uses']])
     :qed
-    (let [[term-expr ty-expr meta] args
-          [status-term term] (parse/parse-term def-env term-expr)
-          [status-ty ty] (if (= ty-expr '_)
-                           [:ok ty-expr]
-                           (parse/parse-term def-env ty-expr))]
-      (cond
-        (= status-term :ko)
+    (let [[term-expr meta] args
+          [status-term term] (parse/parse-term def-env term-expr)]
+      (if (= status-term :ko)
         [:ko {:msg "Proof failed at qed step: cannot parse term expression."
               :term-expr term-expr
               :meta meta
               :cause term}]
-        (= status-ty :ko)
-        [:ko {:msg "Proof failed at qed step: cannot parse type expression."
-              :type-expr ty-expr
-              :meta meta
-              :cause ty}]
-        :else
-        (elab-qed def-env ctx term ty meta)))
+        (elab-qed def-env ctx term meta)))
     ;; else
     (throw (ex-info "Unknown step kind in proof script."
                     {:step step
                      :args args}))))
 
-(defn run-proof [def-env ctx script]
+(defn elab-proof [def-env ctx script]
   (loop [script script, def-env def-env, ctx ctx, var-deps [], def-uses {}]
     (if (seq script)
       (let [[step & args] (first script)
-            [status res] (run-proof-step def-env ctx var-deps def-uses step args)]
+            [status res] (elab-proof-step def-env ctx var-deps def-uses step args)]
         (case status
           :ok (if (seq (rest script))
                 (throw (ex-info "Wrong proof script: proof steps after qed."
@@ -308,7 +293,7 @@
       [:ko {:msg "Proof incomplete."}])))
 
 (defn compile-proof
-  [proof-type proof]
+  [proof]
   (if (seq proof)
     (do (when (not (seq (first proof)))
           (throw (ex-info "Compilation failed: malformed proof step." {:step (first proof)})))
@@ -317,7 +302,7 @@
            (= (ffirst proof) :assume)
            (let [[_ meta params & body] (first proof)
                  params (u/zip params)
-                 proof-body (compile-proof proof-type body)]
+                 proof-body (compile-proof body)]
              (concat (map (fn [[x ty]]
                             [:declare x ty meta]) params)
                      proof-body
@@ -326,35 +311,40 @@
            (= (ffirst proof) :have)
            (list (first proof))
            (= (ffirst proof) :qed)
-           (let [[_ term meta] (first proof)]
-             (list [:qed term proof-type meta]))
+           (list (first proof))
            :else
            (throw (ex-info "Compilation failed: unsupported proof step." {:step (first proof)})))
-         (compile-proof proof-type (rest proof))))
+         (compile-proof (rest proof))))
     ;; the end
     (list)))
 
 (defn check-proof
   [def-env ctx thm-name thm-type method steps]
-  (case method
-    :term (let [term (first steps)]
-            (let [[status proof-term] (parse/parse-term def-env term)]
-              (if (= status :ko)
-                [:ko {:msg "Cannot parse proof term."
-                      :term term
-                      :error proof-term}]
-                (let [[status proof-type] (typing/type-of-term def-env ctx proof-term)]
-                  (if (= status :ko)
-                    [:ko {:msg "Cannot infer proof type."
-                          :term proof-term
-                          :error proof-type}]
-                    (if (not (= (norm/beta-eq? def-env ctx proof-type thm-type)))
-                      [:ko {:msg "Theorem type and proof type do not match."
-                            :thm-type thm-type
-                            :proof-type proof-type}]
-                      [:ok true]))))))
-    :script (let [proof (compile-proof thm-type steps)
-                  [status infos] (run-proof def-env ctx proof)]
-              (if (= status :ko)
-                [status infos]
-                [:ok true]))))
+  (let [[status res]
+        (case method
+          :term (let [term (first steps)]
+                  (let [[status proof-term] (parse/parse-term def-env term)]
+                    (if (= status :ko)
+                      [:ko {:msg "Cannot parse proof term."
+                            :term term
+                            :error proof-term}]
+                      (let [[status proof-type] (typing/type-of-term def-env ctx proof-term)]
+                        (if (= status :ko)
+                          [:ko {:msg "Cannot infer proof type."
+                                :term proof-term
+                                :error proof-type}]
+                          [:ok [proof-term proof-type]])))))
+          :script (let [proof (compile-proof steps)]
+                    (elab-proof def-env ctx proof))
+          ;; else
+          (throw (ex-info "No such proof method" {:method method})))]
+    ;; let body
+    (if (= status :ko)
+      [status res]
+      (let [[proof-term proof-type] res]
+        (if (not (= (norm/beta-eq? def-env ctx proof-type thm-type)))
+          [:ko {:msg "Theorem type and proof type do not match."
+                :thm-type thm-type
+                :proof-type proof-type}]
+          [:ok [proof-term proof-type]])))))
+

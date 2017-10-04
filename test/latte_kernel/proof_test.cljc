@@ -267,29 +267,27 @@
   ;; Step 11 :
   ;; [:qed <a> (forall [A B *] (==> (==> A B) (==> A B)))]
   
-  (is (= (elab-qed def-env10 ctx10 '(<a>)
-                   (second (parse/parse-term def-env10 '(forall [A B :type] (==> (==> A B) (==> A B))))) {})
-         '[:ok (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))])))
+  (is (= (elab-qed def-env10 ctx10 '(<a>) {})
+         '[:ok [(<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))]])))
 
 
-(deftest test-run-proof
-  (is (= (run-proof defenv/empty-env []
-                    '[[:declare A :type {}]
-                      [:declare B :type {}]
-                      [:declare f (==> A B) {}]
-                      [:declare x A {}]
-                      [:have <a> (==> A B) f {}]
-                      [:have <b> B (<a> x) {}]
-                      [:discharge x {}]
-                      [:discharge f {}]
-                      [:discharge B {}]
-                      [:discharge A {}]
-                      [:qed <a> (forall [A B :type] (==> (==> A B) (==> A B))) {}]])
-         '[:ok (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))])))
+(deftest test-elab-proof
+  (is (= (elab-proof defenv/empty-env []
+                     '[[:declare A :type {}]
+                       [:declare B :type {}]
+                       [:declare f (==> A B) {}]
+                       [:declare x A {}]
+                       [:have <a> (==> A B) f {}]
+                       [:have <b> B (<a> x) {}]
+                       [:discharge x {}]
+                       [:discharge f {}]
+                       [:discharge B {}]
+                       [:discharge A {}]
+                       [:qed <a> {}]])
+         '[:ok [(<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))]])))
 
 (deftest test-compile-proof
-  (is (= (compile-proof '(forall [A B :type] (==> (==> A B) (==> A B)))
-                        '[[:assume {:line 1}
+  (is (= (compile-proof '[[:assume {:line 1}
                            [A :type
                             B :type
                             f (==> A B)
@@ -308,12 +306,11 @@
            [:discharge f {:line 1}]
            [:discharge B {:line 1}]
            [:discharge A {:line 1}]
-           [:qed <a> (forall [A B :type] (==> (==> A B) (==> A B))) {:line 4}]))))
+           [:qed <a> {:line 4}]))))
 
 (deftest test-proof
-  (is (= (run-proof defenv/empty-env []
-                    (compile-proof '(forall [A B :type] (==> (==> A B) (==> A B)))
-                                   '[[:assume {:line 1}
+  (is (= (elab-proof defenv/empty-env []
+                    (compile-proof '[[:assume {:line 1}
                                       [A :type
                                        B :type
                                        f (==> A B)
@@ -321,9 +318,9 @@
                                       [:have <a> (==> A B) f {:line 2}]
                                       [:have <b> B (<a> x) {:line 3}]]
                                      [:qed <a> {:line 4}]]))
-         '[:ok (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))])
+         '[:ok [(<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))]]))
 
-      (= (check-proof defenv/empty-env [] 'my-thm
+  (is (= (check-proof defenv/empty-env [] 'my-thm
                       '(forall [A B :type] (==> (==> A B) (==> A B)))
                       :script
                       '[[:assume {:line 1}
@@ -334,7 +331,7 @@
                          [:have <a> (==> A B) f {:line 2}]
                          [:have <b> B (<a> x) {:line 3}]]
                         [:qed <a> {:line 4}]])
-         [:ok true])))
+         '[:ok [(<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [⇧ A] B))))]])))
 
 
 
