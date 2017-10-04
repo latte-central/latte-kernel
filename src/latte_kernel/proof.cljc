@@ -84,9 +84,12 @@
     (loop [vdeps var-deps, res []]
       (if (seq vdeps)
         (let [[v deps] (first vdeps)]
-          (recur (rest vdeps) (conj res [v (if (contains? tvars v)
-                                             (conj deps name)
-                                             deps)])))
+          ;; (recur (rest vdeps) (conj res [v (if (contains? tvars v)
+          ;;                                    (conj deps name)
+          ;;                                    deps)]))
+          ;; ^^^ old version ^^^
+          (recur (rest vdeps) (conj res [v (conj deps name)]))
+          )
         res))))
 
 (defn ref-uses-in-term [t]
@@ -299,6 +302,8 @@
           (throw (ex-info "Compilation failed: malformed proof step." {:step (first proof)})))
         (concat 
          (cond
+           (string? (first proof))
+           (list)
            (= (ffirst proof) :assume)
            (let [[_ meta params & body] (first proof)
                  params (u/zip params)
