@@ -5,7 +5,8 @@
             [latte-kernel.typing :as typing]
             [latte-kernel.syntax :as stx]
             [latte-kernel.presyntax :as parse]
-            [latte-kernel.norm :as norm]))
+            [latte-kernel.norm :as norm]
+            [clojure.pprint :as pp]))
 
 ;;{
 ;; # The Proof checker
@@ -198,6 +199,22 @@
       [:ok [term proof-type]])))
 
 
+(defn elab-print [def-env ctx term meta]
+  (println "============================")
+  (let [[term' _] (norm/delta-step def-env term)]
+    (pp/pprint term'))
+  (println "============================"))
+
+(defn elab-print-type [def-env ctx term meta]
+  (println "============================")
+  (let [[status ty] (typing/type-of-term def-env ctx term)]
+    (when (= status :ko)
+      (throw (ex-info "Cannot type term for print-type."
+                      {:term term})))
+    (print "type of: ") (pp/pprint term)
+    (pp/pprint ty))
+  (println "============================"))
+
 ;;{
 ;; ## Proof elabortation
 ;;
@@ -272,6 +289,26 @@
               :meta meta
               :cause term}]
         (elab-qed def-env ctx term meta)))
+    :print
+    (let [[term-expr meta] args
+          [status-term term] (parse/parse-term def-env term-expr)]
+      (if (= status-term :ko)
+        [:ko {:msg "Proof failed at print step: cannot parse term expression."
+              :term-expr term-expr
+              :meta meta
+              :cause term}]
+        (do (elab-print def-env ctx term meta)
+            [:cont [def-env ctx var-deps def-uses]])))
+    :print-type
+    (let [[term-expr meta] args
+          [status-term term] (parse/parse-term def-env term-expr)]
+      (if (= status-term :ko)
+        [:ko {:msg "Proof failed at print-type step: cannot parse term expression."
+              :term-expr term-expr
+              :meta meta
+              :cause term}]
+        (do (elab-print-type def-env ctx term meta)
+            [:cont [def-env ctx var-deps def-uses]])))
     ;; else
     (throw (ex-info "Unknown step kind in proof script."
                     {:step step
@@ -313,9 +350,7 @@
                      proof-body
                      (map (fn [[x _]]
                             [:discharge x meta]) (reverse params))))
-           (= (ffirst proof) :have)
-           (list (first proof))
-           (= (ffirst proof) :qed)
+           (contains? #{:have :qed :print :print-type} (ffirst proof))
            (list (first proof))
            :else
            (throw (ex-info "Compilation failed: unsupported proof step." {:step (first proof)})))
