@@ -351,3 +351,6 @@ by LaTTe."
       (if (= status :ko)
         [:ko {:msg "Parse error in operand of application" :term t :from ts}]
         [:ok (left-binarize ts)]))))
+
+
+

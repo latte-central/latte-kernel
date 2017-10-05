@@ -51,5 +51,6 @@ i.e. (zip '(x1 y2 x2 y2 ...)) = ([x1 y1] [x2 y2] ...)"
       (throw (ex-info "Cannot zip sequence with odd number of elements." {:seq s})))
     s))
 
-
-
+(defn vremove [pred v]
+  "Remove all elements recognizing `pred` in vector `v`."
+  (into [] (remove pred v)))
