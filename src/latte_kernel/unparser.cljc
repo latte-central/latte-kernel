@@ -12,7 +12,7 @@
   ([ident unparser] (register-unparser! :user ident unparser))
   ([category ident unparser]
    (when (get (:unparsers @+unparser-registry+) ident)
-     (throw (ex-info "Unparser already registered." {:ident ident})))
+     (unregister-unparser! ident))
    (when (not (contains? #{:fundamental :standard :user} category))
      (throw (ex-info "Wrong unparser category." {:category category})))
    (swap! +unparser-registry+ (fn [registry]

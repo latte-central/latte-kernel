@@ -6,6 +6,7 @@
             [latte-kernel.syntax :as stx]
             [latte-kernel.presyntax :as parse]
             [latte-kernel.norm :as norm]
+            [latte-kernel.unparser :as unparser]
             [clojure.pprint :as pp]))
 
 ;;{
@@ -202,7 +203,7 @@
 (defn elab-print [def-env ctx term meta]
   (println "============================")
   (let [[term' _] (norm/delta-step def-env term)]
-    (pp/pprint term'))
+    (pp/pprint (unparser/unparse term')))
   (println "============================"))
 
 (defn elab-print-type [def-env ctx term meta]
@@ -212,7 +213,7 @@
       (throw (ex-info "Cannot type term for print-type."
                       {:term term})))
     (print "type of: ") (pp/pprint term)
-    (pp/pprint ty))
+    (pp/pprint (unparser/unparse ty)))
   (println "============================"))
 
 ;;{
