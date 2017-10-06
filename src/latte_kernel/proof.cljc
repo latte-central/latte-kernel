@@ -119,6 +119,7 @@
 (declare abstract-local-calls)
 
 (defn elab-discharge [def-env ctx var-deps def-uses name meta]
+  ;; (println "[elab-discharge] name=" name)
   (when (empty? ctx)
     (throw (ex-info "Context is empty (please report)." {:disacharge-name name
                                                          :meta meta})))
@@ -162,7 +163,7 @@
 (defn gen-local-calls [t abs-defs x]
   (cond
     (stx/ref? t) (let [[ref & args] t
-                       args' (map #(gen-local-calls % ref x) args)]
+                       args' (map #(gen-local-calls % abs-defs x) args)]
                    (cons ref (if (contains? abs-defs ref)
                                (cons x args')
                                args')))
