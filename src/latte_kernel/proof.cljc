@@ -73,7 +73,7 @@
                     :meta meta}]
               (let [def-env' (defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty) true)
                     var-deps' (-> var-deps
-                                  (update-var-deps name term)
+                                  ;; (update-var-deps name term)
                                   (update-var-deps name rec-ty))
                     def-uses'(-> def-uses
                                  (update-def-uses name term)
