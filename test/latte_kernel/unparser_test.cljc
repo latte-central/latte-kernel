@@ -9,7 +9,12 @@
 
 (deftest test-prod-impl-unparser
   (is (= (prod-impl-unparser (second (parse/parse-term defenv/empty-env '(==> A B))))
-         '[(==> A B) true])))
+         '[(==> A B) true]))
+
+  (is (= (prod-impl-unparser '(Π [⇧ A] (==> B C D)))
+         '[(==> A B C D) true])))
+
+
 
 
 

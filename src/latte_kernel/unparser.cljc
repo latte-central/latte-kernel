@@ -8,6 +8,8 @@
                                 :unparsers {}}))
 
 
+(declare unregister-unparser!)
+
 (defn register-unparser!
   ([ident unparser] (register-unparser! :user ident unparser))
   ([category ident unparser]
@@ -89,7 +91,11 @@
   (if (stx/prod? term)
     (let [[_ [x A] B] term]
       (if (not (contains? (stx/free-vars B) x))
-        [(list '==> A B) true]
+        (if (and (sequential? B)
+                 (not-empty B)
+                 (= (first B) '==>))
+          [(list* '==> A (rest B)) true]
+          [(list '==> A B) true])
         [term false]))
     [term false]))
 
