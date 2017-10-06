@@ -117,19 +117,22 @@
                        '(test a b))
          '[:ko {:msg "Wrong argument type", :term (test b), :arg b, :expected-type ✳}])))
 
-(deftest test-type-of-refdef-implicit
-  (let [fake-eq (defenv/map->Definition
+(def fake-eq (defenv/map->Definition
                   '{:params [[T ✳] [x T] [y T]]
                     :type (forall [P (==> T :type)]
                                   (==> (P x) (P y)))  ;; it's fake ! Use of ==> instead of <=> to spare one def
-                    :arity 3 })
-        eq-implicit (defenv/map->Implicit
+                    :arity 3 }))
+
+(def eq-implicit (defenv/map->Implicit
                       {:implicit-fn (fn [def-env ctx [x T] [y U]]
-                                      (list 'equal% T x y))})]
-    (is (= (type-of-term (defenv/mkenv {'equal% fake-eq
-                                        'equal eq-implicit})
-                         '[[U ✳] [a U] [b U]]
-                         '(equal a b))
-           '[:ok (forall [P (==> U :type)]
-                         (==> (P a) (P b)))])))) 
+                                      (list 'equal% T x y))}))
+
+(deftest test-type-of-refdef-implicit
+
+  (is (= (type-of-term (defenv/mkenv {'equal% fake-eq
+                                      'equal eq-implicit})
+                       '[[U ✳] [a U] [b U]]
+                       '(equal a b))
+         '[:ok (forall [P (==> U :type)]
+                       (==> (P a) (P b)))]))) 
 

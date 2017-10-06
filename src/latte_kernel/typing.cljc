@@ -58,6 +58,8 @@
 ;; The following function is the main entry point for type inference.
 ;;}
 
+(declare unfold-implicit)
+
 (defn type-of-term
   "Infer the type of term `t` in definitional environment `def-env` 
   and type context `ctx`.
@@ -91,7 +93,20 @@
     ;;(println "[type-of-term] t=" t)
     ;;(clojure.pprint/pprint ty)
     ;;(println "--------------------")
-    [status ty]))
+    (cond
+      (= status :ko) [status ty]
+      (stx/ref? ty)
+      (let [[status' ddef] (defenv/fetch-definition def-env (first ty))]
+        (if (and (= status' :ok)
+                 (defenv/implicit? ddef))
+          (let [[status'' implicit-term] (unfold-implicit def-env ctx ddef (rest ty))]
+            (if (= status'' :ok)
+              [:ok implicit-term]
+              (throw (ex-info "Cannot unfold implicit (please report)" {:implicit ty
+                                                                        :error implicit-term}))))
+          [status ty]))
+      :else
+      [status ty])))
 
 ;;{
 ;; Type-checking is a derived form of type inference. Given a term `t`
@@ -147,10 +162,12 @@
   "Infer the type of variable `x` in context `ctx`."
   [def-env ctx x]
   (if-let [ty (ctx-fetch ctx x)]
-    (let [[status sort] (let [ty' (norm/normalize def-env ctx ty)]
-                          (if (stx/kind? ty')
-                            [:ok ty']
-                            (type-of-term def-env ctx ty)))]
+    (let [[status sort] ;;; XXX : cannot normalize first
+                        ;;; (if there is some implicit ...)
+          ;;(let [ty' (norm/normalize def-env ctx ty)]
+          (if (stx/kind? ty)
+            [:ok ty]
+            (type-of-term def-env ctx ty))]
       (if (= status :ko)
         [:ko {:msg "Cannot calculate type of variable." :term x :from sort}]
         (if (stx/sort? sort)
@@ -391,20 +408,23 @@
 
 (declare type-of-args)
 
-(defn type-of-implicit [def-env ctx implicit-def args]
+(defn unfold-implicit [def-env ctx implicit-def args]
   (let [[status, targs] (type-of-args def-env ctx args)]
     (if (= status :ko)
-      targs
-      (let [[status, implicit-term]
-            (try [:ok, (apply (:implicit-fn implicit-def) def-env ctx targs)]
-                 (catch Exception exc
-                   [:ko (merge {:implicit (:name implicit-def)
-                                :msg (.getMessage exc)}
-                               (ex-data exc))]))]
-        (if (= status :ko)
-          [:ko implicit-term]
-          ;; recursive typing of implicit-generated term
-          (type-of-term def-env ctx implicit-term))))))
+      [:ko targs]    
+      (try [:ok, (apply (:implicit-fn implicit-def) def-env ctx targs)]
+           (catch Exception exc
+             [:ko (merge {:implicit (:name implicit-def)
+                          :msg (.getMessage exc)}
+                         (ex-data exc))])))))
+
+(defn type-of-implicit [def-env ctx implicit-def args]
+  (let [[status, implicit-term] (unfold-implicit def-env ctx implicit-def args)]
+    ;; (println "implicit-term=" implicit-term)
+    (if (= status :ko)
+      [:ko implicit-term]
+      ;; recursive typing of implicit-generated term
+      (type-of-term def-env ctx implicit-term))))
 
 (defn type-of-args [def-env ctx args]
   (loop [args args, targs []]
