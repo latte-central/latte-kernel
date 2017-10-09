@@ -55,14 +55,15 @@
             :meta meta}]
       ;; we have the type here
       (let [[status, rec-ty] (if (= ty '_)
-                                [:ok term-type]
-                                (if (not (norm/beta-eq? def-env ctx term-type ty))
-                                  [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
-                                        :have-name name
-                                        :expected-type ty
-                                        :synthetized-type term-type
-                                        :meta meta}]
-                                  [:ok term-type]))]
+                               [:ok term-type]
+                               (let [[status, have-type] (typing/rebuild-type def-env ctx ty)]
+                                 (if (not (norm/beta-eq? def-env ctx term-type ty))
+                                   [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
+                                         :have-name name
+                                         :expected-type ty
+                                         :synthetized-type term-type
+                                         :meta meta}]
+                                   [:ok term-type])))]
         (if (= status :ko)
           [:ko [rec-ty, meta]]
           (if (= name '_)
