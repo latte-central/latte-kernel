@@ -338,7 +338,8 @@
             (defenv/implicit? ddef)
             (type-of-implicit def-env ctx ddef args)
             (and (not (defenv/definition? ddef))
-                 (not (defenv/theorem? ddef)))
+                 (not (defenv/theorem? ddef))
+                 (not (defenv/axiom? ddef)))
             (throw (ex-info "Unsupported definitional entity, expecting a true definition or a theorem name"
                             {:name name, :entity ddef}))
             (> (count args) (:arity ddef))
