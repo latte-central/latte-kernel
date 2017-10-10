@@ -57,12 +57,19 @@
       (let [[status, rec-ty] (if (= ty '_)
                                [:ok term-type]
                                (let [[status, have-type] (typing/rebuild-type def-env ctx ty)]
-                                 (if (not (norm/beta-eq? def-env ctx term-type ty))
+                                 (cond
+                                   (= status :ko)
+                                   [:ko {:msg "Have step elaboration failed: cannot rebuild have-type."
+                                         :have-name name
+                                         :have-type ty
+                                         :error have-type}]
+                                   (not (norm/beta-eq? def-env ctx term-type have-type))
                                    [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
                                          :have-name name
-                                         :expected-type ty
+                                         :expected-type ty ;; or have-type ?
                                          :synthetized-type term-type
                                          :meta meta}]
+                                   :else
                                    [:ok term-type])))]
         (if (= status :ko)
           [:ko [rec-ty, meta]]

@@ -436,19 +436,9 @@
       [:ok targs])))
 
 
-(declare invent-fresh-var)
-
 (defn rebuild-type [def-env ctx ty]
-  (let [vfresh (invent-fresh-var ctx)]
+  (let [vfresh (gensym "fresh")]
     (type-of-term def-env (cons [vfresh ty] ctx) vfresh)))
-
-(defn invent-fresh-var
-  ([ctx] (invent-fresh-var ctx "_fresh_" 1))
-  ([ctx prefix index]
-   (let [candidate (symbol (str prefix index))])
-   (if (contains? (into #{} (map first ctx)) )
-     (recur ctx prefix (int index))
-     )))
 
 (defn type-of
   ([t] (type-of defenv/empty-env [] t))

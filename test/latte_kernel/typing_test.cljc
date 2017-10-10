@@ -136,3 +136,10 @@
          '[:ok (forall [P (==> U :type)]
                        (==> (P a) (P b)))]))) 
 
+(deftest test-rebuild-type
+  (is (= (rebuild-type defenv/empty-env '[[bool ✳] [t bool] [y bool]]
+                       '(Π [x bool] bool))
+         '[:ok (Π [x bool] bool)])))
+
+
+
