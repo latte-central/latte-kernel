@@ -396,7 +396,7 @@
     (if (= status :ko)
       [status res]
       (let [[proof-term proof-type] res]
-        (if (not (= (norm/beta-eq? def-env ctx proof-type thm-type)))
+        (if (not (norm/beta-eq? def-env ctx proof-type thm-type))
           [:ko {:msg "Theorem type and proof type do not match."
                 :thm-type thm-type
                 :proof-type proof-type}]
