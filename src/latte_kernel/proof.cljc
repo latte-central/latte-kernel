@@ -72,7 +72,7 @@
                                    :else
                                    [:ok term-type])))]
         (if (= status :ko)
-          [:ko [rec-ty, meta]]
+          [:ko (assoc rec-ty :meta meta)]
           (if (= name '_)
             [:ok [def-env ctx var-deps def-uses]]
             (if (defenv/registered-definition? def-env name true)
