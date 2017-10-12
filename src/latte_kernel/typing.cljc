@@ -401,7 +401,7 @@ that implicits can be erased."
             targ (second (first targs))
             ty (stx/subst (second (first params)) sub)]
         ;; (println "arg=" arg "ty=" ty)
-        (if (not (norm/beta-eq? def-env ctx targ ty))
+        (if (not (type-check? def-env ctx arg ty))
           [:ko {:msg "Wrong argument type"
                 :term (list* name args)
                 :arg arg
@@ -436,7 +436,7 @@ that implicits can be erased."
   (let [[status, implicit-term, args'] (unfold-implicit def-env ctx implicit-def args)]
     ;; (println "implicit-term=" implicit-term)
     (if (= status :ko)
-      [:ko implicit-term]
+      [:ko implicit-term nil]
       ;; recursive typing of implicit-generated term
       (type-of-term def-env ctx implicit-term))))
 
