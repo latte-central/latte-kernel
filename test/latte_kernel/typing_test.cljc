@@ -103,10 +103,10 @@
                        :from {:msg "Kind has not type", :term □}}}
            nil]))
   (is (= (type-of-term defenv/empty-env '[[w ✳] [y w] [z y]] '(λ [x ✳] z))
-         [:ko {:msg "Cannot calculate codomain type of abstraction.",
-               :term (λ [x ✳] z),
-               :from {:msg "Not a correct type (super-type is not a sort)", :term z, :type y, :sort w}}
-          nil])))
+         '[:ko {:msg "Cannot calculate codomain type of abstraction.",
+                :term (λ [x ✳] z),
+                :from {:msg "Not a correct type (super-type is not a sort)", :term z, :type y, :sort w}}
+           nil])))
 
 (deftest test-type-of-app
   (is (= (type-of-term defenv/empty-env '[[bool ✳] [y bool]]
@@ -129,7 +129,7 @@
                                                 :arity 2})})
                        '[[a ✳] [b ✳]]
                        '(test a))
-           '[:ok (Π [x ✳] ✳) (test a)]))
+           '[:ok (Π [y ✳] ✳) (test a)]))
 
   (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
@@ -157,7 +157,7 @@
                                       'equal eq-implicit})
                        '[[U ✳] [a U] [b U]]
                        '(equal a b))
-         '[:ok (Π [x (Π [x U] ✳)] (Π [x [P a]] [P b])) (equal% U a b)]))) 
+         '[:ok (Π [P (Π [⇧ U] ✳)] (Π [⇧' [P a]] [P b])) (equal% U a b)]))) 
 
 (deftest test-rebuild-type
   (is (= (rebuild-type defenv/empty-env '[[bool ✳] [t bool] [y bool]]

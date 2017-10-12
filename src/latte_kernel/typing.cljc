@@ -194,7 +194,7 @@ that implicits can be erased."
                 ;; (println "sort2' = " sort2' " sort? " (stx/sort? sort2'))
                 (if (not (stx/sort? sort2'))
                   [:ko {:msg "Not a valid codomain type in product (not a sort)" :term B' :type sort2} nil]
-                  [:ok sort2 (list 'Π ['x A'] B')])))))))))
+                  [:ok sort2 (list 'Π [x A'] B')])))))))))
 
 
 ;;{
