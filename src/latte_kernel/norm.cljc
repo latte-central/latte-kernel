@@ -235,38 +235,38 @@ potentially rewritten version of `t` and `red?` is `true`
      (let [[name & args] t
            [status sdef]  (defenv/fetch-definition def-env name local?)]
        ;; (println "[delta-reduction] term=" t "def=" sdef)
-       (if (= status :ko)
-         [t false] ;; No error?  or (throw (ex-info "No such definition" {:term t :def-name name}))
-         (if (> (count args) (:arity sdef))
-           (throw (ex-info "Too many arguments to instantiate definition."
-                           {:term t :def-name name :nb-params (count (:arity sdef)) :nb-args (count args)}))
-           (cond
-            (definition? sdef)
-            ;; unfolding a defined term
-            (if (:parsed-term sdef)
-              [(instantiate-def (:params sdef) (:parsed-term sdef) args) true]
-              (throw (ex-info "Cannot unfold term reference (please report)"
-                              {:term t :def sdef})))
-            (theorem? sdef)
-            (if (:proof sdef)
-              ;; unfolding works but yields very big terms
-              ;; having a proof is like a certicate and thus
-              ;; the theorem can now be considered as an abstraction, like
-              ;; an axiom but with a proof...
-              ;; [(instantiate-def (:params sdef) (:proof sdef) args) true]
-              [t false]
-              (throw (ex-info "Cannot use theorem with no proof." {:term t :theorem sdef})))
-            (axiom? sdef) [t false]
-            (special? sdef)
-            (throw (ex-info "Specials must not exist at delta-reduction time (please report)"
-                            {:term t :special sdef}))
-            ;; XXX: before that, specials were handled by delta-reduction
-            ;; (if (< (count args) (:arity sdef))
-            ;;   (throw (ex-info "Not enough argument for special definition." { :term t :arity (:arity sdef)}))
-            ;;   (let [term (apply (:special-fn sdef) def-env ctx args)]
-            ;;     [term true]))
-            :else (throw (ex-info "Not a Latte definition (please report)."
-                                  {:term t :def sdef})))))))))
+       (cond
+         (= status :ko) [t false] ;; No error?  or (throw (ex-info "No such definition" {:term t :def-name name}))
+         (defenv/implicit? sdef) (throw (ex-info "Cannot delta-reduce an implicit (please report)." {:term t}))
+         (> (count args) (:arity sdef))
+         (throw (ex-info "Too many arguments to instantiate definition."
+                         {:term t :def-name name :nb-params (count (:arity sdef)) :nb-args (count args)}))
+         (definition? sdef)
+         ;; unfolding a defined term
+         (if (:parsed-term sdef)
+           [(instantiate-def (:params sdef) (:parsed-term sdef) args) true]
+           (throw (ex-info "Cannot unfold term reference (please report)"
+                           {:term t :def sdef})))
+         (theorem? sdef)
+         (if (:proof sdef)
+           ;; unfolding works but yields very big terms
+           ;; having a proof is like a certicate and thus
+           ;; the theorem can now be considered as an abstraction, like
+           ;; an axiom but with a proof...
+           ;; [(instantiate-def (:params sdef) (:proof sdef) args) true]
+           [t false]
+           (throw (ex-info "Cannot use theorem with no proof." {:term t :theorem sdef})))
+         (axiom? sdef) [t false]
+         (special? sdef)
+         (throw (ex-info "Specials must not exist at delta-reduction time (please report)"
+                         {:term t :special sdef}))
+         ;; XXX: before that, specials were handled by delta-reduction
+         ;; (if (< (count args) (:arity sdef))
+         ;;   (throw (ex-info "Not enough argument for special definition." { :term t :arity (:arity sdef)}))
+         ;;   (let [term (apply (:special-fn sdef) def-env ctx args)]
+         ;;     [term true]))
+         :else (throw (ex-info "Not a Latte definition (please report)."
+                               {:term t :def sdef})))))))
 
 ;;{
 ;; ### Delta-reduction strategy

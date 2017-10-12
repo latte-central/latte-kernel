@@ -436,7 +436,6 @@
           (recur (rest args) (conj targs [(first args) typ]))))
       [:ok targs])))
 
-
 (defn rebuild-type [def-env ctx ty]
   (let [vfresh (gensym "fresh")]
     (type-of-term def-env (cons [vfresh ty] ctx) vfresh)))

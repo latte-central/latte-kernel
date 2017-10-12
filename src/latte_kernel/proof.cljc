@@ -35,7 +35,10 @@
 ;;}
 
 (defn elab-declare [def-env ctx var-deps def-uses v ty meta]
-  [:ok [def-env, (cons [v ty] ctx), (cons [v #{}] var-deps), def-uses]])
+  (let [[status, ty'] (typing/rebuild-type def-env ctx ty)]
+    (if (= status :ko)
+      [:ko ty']
+      [:ok [def-env, (cons [v ty'] ctx), (cons [v #{}] var-deps), def-uses]])))
 
 
 ;;{
@@ -396,9 +399,15 @@
     (if (= status :ko)
       [status res]
       (let [[proof-term proof-type] res]
-        (if (not (norm/beta-eq? def-env ctx proof-type thm-type))
-          [:ko {:msg "Theorem type and proof type do not match."
-                :thm-type thm-type
-                :proof-type proof-type}]
-          [:ok [proof-term proof-type]])))))
+        (let [[status thm-type'] (typing/rebuild-type def-env ctx thm-type)]
+          (if (= status :ko)
+            (throw (ex-info "Cannot rebuild theorem type." {:thm-type thm-type
+                                                            :error thm-type'})))
+          (if (not (norm/beta-eq? def-env ctx proof-type thm-type'))
+            [:ko {:msg "Theorem type and proof type do not match."
+                  :thm-type thm-type'
+                  :proof-type proof-type}]
+            [:ok [proof-term proof-type]]))))))
+
+
 
