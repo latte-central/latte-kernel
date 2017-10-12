@@ -50,7 +50,7 @@
 (declare update-def-uses)
 
 (defn elab-have [def-env ctx var-deps def-uses name ty term meta]
-  (let [[status, term-type] (typing/type-of-term def-env ctx term)]
+  (let [[status, term-type, term'] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
       [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
             :have-name name
@@ -139,7 +139,7 @@
       (throw (ex-info "Incorrect discharge name." {:discharge-name name
                                                    :var x
                                                    :meta meta})))
-    (let [[status ty] (typing/type-of-term def-env ctx x)]
+    (let [[status ty _] (typing/type-of-term def-env ctx x)]
       (when (= status :ko)
         (throw (ex-info "Cannot recompute type of context variable." {:variable x
                                                                       :error ty})))
@@ -208,7 +208,7 @@
 ;;}
 
 (defn elab-qed [def-env ctx term meta]
-  (let [[status, proof-type] (typing/type-of-term def-env ctx term)]
+  (let [[status, proof-type, _] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
       [:ko {:msg "Qed step failed: cannot infer term type."
             :cause proof-type
@@ -224,7 +224,7 @@
 
 (defn elab-print-type [def-env ctx term meta]
   (println "============================")
-  (let [[status ty] (typing/type-of-term def-env ctx term)]
+  (let [[status ty _] (typing/type-of-term def-env ctx term)]
     (when (= status :ko)
       (throw (ex-info "Cannot type term for print-type."
                       {:term term})))
@@ -385,7 +385,7 @@
                       [:ko {:msg "Cannot parse proof term."
                             :term term
                             :error proof-term}]
-                      (let [[status proof-type] (typing/type-of-term def-env ctx proof-term)]
+                      (let [[status proof-type _] (typing/type-of-term def-env ctx proof-term)]
                         (if (= status :ko)
                           [:ko {:msg "Cannot infer proof type."
                                 :term proof-term

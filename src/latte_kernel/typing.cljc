@@ -63,13 +63,14 @@
 (defn type-of-term
   "Infer the type of term `t` in definitional environment `def-env` 
   and type context `ctx`.
-  The returned value is of the form `[:ok <type>]` if the inferred
-  type is `<type>`, or `[:ko <info>]` in case of failure, with `<info>`
- an error map."
+  The returned value is of the form `[:ok <type> t']` if the inferred
+  type is `<type>`, or `[:ko <info> nil]` in case of failure, with `<info>`
+ an error map.  The term `t'` returned is the rewrite of the term so
+that implicits can be erased."
   [def-env ctx t]
-  (let [[status ty]
+  (let [[status ty t']
         (cond
-          (stx/kind? t) [:ko {:msg "Kind has not type" :term t}]
+          (stx/kind? t) [:ko {:msg "Kind has not type" :term t} nil]
           (stx/type? t) (type-of-type)
           (stx/variable? t) (type-of-var def-env ctx t)
           ;; binders (lambda, prod)
@@ -93,20 +94,7 @@
     ;;(println "[type-of-term] t=" t)
     ;;(clojure.pprint/pprint ty)
     ;;(println "--------------------")
-    (cond
-      (= status :ko) [status ty]
-      (stx/ref? ty)
-      (let [[status' ddef] (defenv/fetch-definition def-env (first ty))]
-        (if (and (= status' :ok)
-                 (defenv/implicit? ddef))
-          (let [[status'' implicit-term] (unfold-implicit def-env ctx ddef (rest ty))]
-            (if (= status'' :ok)
-              [:ok implicit-term]
-              (throw (ex-info "Cannot unfold implicit (please report)" {:implicit ty
-                                                                        :error implicit-term}))))
-          [status ty]))
-      :else
-      [status ty])))
+    [status ty t']))
 
 ;;{
 ;; Type-checking is a derived form of type inference. Given a term `t`
@@ -120,7 +108,7 @@
   [def-env ctx term type]
   ;;(println "[type-check?] term=" term "type=" type)
   ;;(println "    ctx=" ctx)
-  (let [[status type'] (type-of-term def-env ctx term)]
+  (let [[status type' _] (type-of-term def-env ctx term)]
     ;;(println "  ==> " status "type'=" type' "vs. type=" type)
     (if (= status :ok)
       (norm/beta-eq? def-env ctx type type')
@@ -143,7 +131,7 @@
 (defn type-of-type
   "Return type type of `:type`."
   []
-  [:ok '□])
+  [:ok '□ '✳])
 
 ;;{
 ;;
@@ -162,18 +150,18 @@
   "Infer the type of variable `x` in context `ctx`."
   [def-env ctx x]
   (if-let [ty (ctx-fetch ctx x)]
-    (let [[status sort] ;;; XXX : cannot normalize first
+    (let [[status sort ty'] ;;; XXX : cannot normalize first
                         ;;; (if there is some implicit ...)
           ;;(let [ty' (norm/normalize def-env ctx ty)]
           (if (stx/kind? ty)
-            [:ok ty]
+            [:ok ty ty]
             (type-of-term def-env ctx ty))]
       (if (= status :ko)
-        [:ko {:msg "Cannot calculate type of variable." :term x :from sort}]
+        [:ko {:msg "Cannot calculate type of variable." :term x :from sort} nil]
         (if (stx/sort? sort)
-          [:ok ty]
-          [:ko {:msg "Not a correct type (super-type is not a sort)" :term x :type ty :sort sort}])))
-    [:ko {:msg "No such variable in type context" :term x}]))
+          [:ok ty' x]
+          [:ko {:msg "Not a correct type (super-type is not a sort)" :term x :type ty' :sort sort} nil])))
+    [:ko {:msg "No such variable in type context" :term x} nil]))
 
 
 ;;{
@@ -192,21 +180,21 @@
   "Infer the type of a product with bound variable `x` of
   type `A` in body `B`."
   [def-env ctx x A B]
-  (let [[status sort1] (type-of-term def-env ctx A)]
+  (let [[status sort1 A'] (type-of-term def-env ctx A)]
     (if (= status :ko)
-      [:ko {:msg "Cannot calculate domain type of product." :term A :from sort1}]
+      [:ko {:msg "Cannot calculate domain type of product." :term A :from sort1} nil]
       (let [sort1' (norm/normalize def-env ctx sort1)]
         (if (not (stx/sort? sort1'))
-          [:ko {:msg "Not a valid domain type in product (super-type not a sort)" :term A :type sort1}]
-          (let [ctx' (ctx-put ctx x A)
-                [status sort2] (type-of-term def-env ctx' B)]
+          [:ko {:msg "Not a valid domain type in product (super-type not a sort)" :term A' :type sort1}]
+          (let [ctx' (ctx-put ctx x A')
+                [status sort2 B'] (type-of-term def-env ctx' B)]
             (if (= status :ko)
-              [:ko {:msg "Cannot calculate codomain type of product." :term B :from sort2}]
+              [:ko {:msg "Cannot calculate codomain type of product." :term B :from sort2} nil]
               (let [sort2' (norm/normalize def-env ctx sort2)]
                 ;; (println "sort2' = " sort2' " sort? " (stx/sort? sort2'))
                 (if (not (stx/sort? sort2'))
-                  [:ko {:msg "Not a valid codomain type in product (not a sort)" :term B :type sort2}]
-                  [:ok sort2])))))))))
+                  [:ko {:msg "Not a valid codomain type in product (not a sort)" :term B' :type sort2} nil]
+                  [:ok sort2 (list 'Π ['x A'] B')])))))))))
 
 
 ;;{
@@ -227,23 +215,27 @@
   "Infer the type of an  with bound variable `x` of
   type `A` in body `B`."
   [def-env ctx x A t]
-  (let [ctx' (ctx-put ctx x A)
-        [status B] (type-of-term def-env ctx' t)]
+  (let [[status err A'] (type-of-term def-env ctx A)]
     (if (= status :ko)
-      [:ko {:msg "Cannot calculate codomain type of abstraction."
-            :term (list 'λ [x A] t) :from B}]
-      (let [tprod (list 'Π [x A] B)
-            [status sort] (type-of-term def-env ctx tprod)]
-        (if (= status :ko)
-          [:ko {:msg "Not a valid codomain type in abstraction (cannot calculate super-type)."
-                :term (list 'λ [x A] t)
-                :codomain B :from sort}]
-          (if (not (stx/sort? (norm/normalize def-env ctx sort)))
-            [:ko {:msg "Not a valid codomain type in abstraction (super-type not a sort)."
-                  :term (list 'λ [x A] t)
-                  :codomain B
-                  :type sort}]
-            [:ok tprod]))))))
+      [:ko {:msg "Cannot calculate domain type of abstraction."
+            :term (list 'λ [x A] t) :from err} nil])
+    (let [ctx' (ctx-put ctx x A')
+          [status B t'] (type-of-term def-env ctx' t)]
+      (if (= status :ko)
+        [:ko {:msg "Cannot calculate codomain type of abstraction."
+              :term (list 'λ [x A'] t) :from B} nil]
+        (let [tprod (list 'Π [x A'] B)
+              [status sort tprod'] (type-of-term def-env ctx tprod)]
+          (if (= status :ko)
+            [:ko {:msg "Not a valid codomain type in abstraction (cannot calculate super-type)."
+                  :term (list 'λ [x A'] t')
+                  :codomain B :from sort} nil]
+            (if (not (stx/sort? (norm/normalize def-env ctx sort)))
+              [:ko {:msg "Not a valid codomain type in abstraction (super-type not a sort)."
+                    :term (list 'λ [x A'] t')
+                    :codomain B
+                    :type sort}]
+              [:ok tprod (list 'λ [x A'] t')])))))))
 
 
 ;;{
@@ -264,24 +256,28 @@
   "Infer the type of an application with operator `rator` and
   operand `rand`."
   [def-env ctx rator rand]
-  (let [[status trator] (type-of-term def-env ctx rator)]
+  (let [[status trator rator'] (type-of-term def-env ctx rator)]
     (if (= status :ko)
       [:ko {:msg "Cannot calculate operator (left-hand) type in application."
-            :term [rator rand] :from trator}]
-      (let [trator' (norm/normalize def-env ctx trator)]
-        (if (not (stx/prod? trator'))
-          [:ko {:msg "Not a product type for operator (left-hand) in application." :term [rator rand] :operator-type trator}]
-          (let [[_ [x A] B] trator']
-            ;; (println "[type-of-app] trator'=" trator')
-            (if (not (type-check? def-env ctx rand A))
-              [:ko {:msg "Cannot apply: type domain mismatch" :term [rator rand] :domain A :operand rand}]
-              (do ;;(println "[type-of-app] subst...")
+            :term [rator rand] :from trator} nil]
+      (let [[status trand rand'] (type-of-term def-env ctx rand)]
+        (if (= status :ko)
+          [:ko {:msg "Cannot calculate operand (right-hand) type in application."
+                :term [rator' rand] :from trand} nil])
+        (let [trator' (norm/normalize def-env ctx trator)]
+          (if (not (stx/prod? trator'))
+            [:ko {:msg "Not a product type for operator (left-hand) in application." :term [rator' rand'] :operator-type trator}]
+            (let [[_ [x A] B] trator']
+              ;; (println "[type-of-app] trator'=" trator')
+              (if (not (type-check? def-env ctx rand' A))
+                [:ko {:msg "Cannot apply: type domain mismatch" :term [rator' rand'] :domain A :operand rand'}]
+                (do ;;(println "[type-of-app] subst...")
                   ;;(println "    B = " B)
                   ;;(println "    x = " x)
                   ;;(println "    rand = " rand)
-                  (let [res (stx/subst B x rand)]
+                  (let [res (stx/subst B x rand')]
                     ;;(println "   ===> " res)
-                    [:ok res])))))))))
+                    [:ok res [rator' rand']]))))))))))
 
 ;;{
 ;;
@@ -320,7 +316,7 @@
 (declare type-of-implicit)
 
 (defn type-of-ref [def-env ctx name args]
-  (let [[status ty]
+  (let [[status ty nref]
         (let [[status ddef] (defenv/fetch-definition def-env name)]
           (cond
             (= status :ko) [:ko ddef]
@@ -334,7 +330,7 @@
                             {:notation ddef :term (list* name args)}))
             (and (defenv/theorem? ddef)
                  (= (:proof ddef) false))
-            [:ko {:msg "Theorem has no proof." :thm-name (:name ddef)}]
+            [:ko {:msg "Theorem has no proof." :thm-name (:name ddef)} nil]
             (defenv/implicit? ddef)
             (type-of-implicit def-env ctx ddef args)
             (and (not (defenv/definition? ddef))
@@ -350,7 +346,7 @@
     ;;(println "[type-of-ref] name=" name "args=" args)
     ;;(clojure.pprint/pprint ty)
     ;;(println "---------------------")
-    [status ty]))
+    [status ty nref]))
 
 ;;{
 ;; #### Typing defined terms
@@ -362,18 +358,34 @@
 ;; uninstantiated parameters (as lambda-abstractions).
 ;;}
 
+(declare type-of-args)
 (declare prepare-argument-subst)
 (declare generalize-params)
 
 (defn type-of-refdef [def-env ctx name ddef args]
-  (let [[status, res] (prepare-argument-subst def-env ctx name args (:params ddef))]
+  (let [[status, targs, args'] (type-of-args def-env ctx args)]
     (if (= status :ko)
-      [:ko res]
-      (let [[params sub] res
-            expanded-term (stx/subst (:type ddef) sub)
-            typ (generalize-params (reverse params) expanded-term)]
-        ;;(println "[type-of-refdef] typ = " typ)
-        [:ok typ]))))
+      [:ko targs nil]
+      (let [[status, res] (prepare-argument-subst def-env ctx name args' targs (:params ddef))]
+        (if (= status :ko)
+          [:ko res]
+          (let [[params sub] res
+                expanded-term (stx/subst (:type ddef) sub)
+                typ (generalize-params (reverse params) expanded-term)]
+            (let [[status err typ'] (type-of-term def-env ctx typ)]
+              (if (= status :ko)
+                [:ko err nil]
+                [:ok typ' (list* name args')]))))))))
+
+
+(defn type-of-args [def-env ctx args]
+  (loop [args args, targs [], args' []]
+    (if (seq args)
+      (let [[status typ arg'] (type-of-term def-env ctx (first args))]
+        (if (= status :ko)
+          typ
+          (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
+      [:ok targs args'])))
 
 ;;{
 ;; The function below realizes the substitution of the parameters by
@@ -381,19 +393,21 @@
 ;; as a map.
 ;;}
 
-(defn prepare-argument-subst [def-env ctx name args params]
-  (loop [args args, params params, sub {}]
+(defn prepare-argument-subst [def-env ctx name args targs params]
+  (loop [args args, targs targs, params params, sub {}]
     ;; (println "args=" args "params=" params "sub=" sub)
     (if (seq args)
       (let [arg (first args)
+            targ (second (first targs))
             ty (stx/subst (second (first params)) sub)]
         ;; (println "arg=" arg "ty=" ty)
-        (if (not (type-check? def-env ctx arg ty))
+        (if (not (norm/beta-eq? def-env ctx targ ty))
           [:ko {:msg "Wrong argument type"
                 :term (list* name args)
                 :arg arg
+                :arg-type targ
                 :expected-type ty}]
-          (recur (rest args) (rest params) (assoc sub (ffirst params) arg))))
+          (recur (rest args) (rest targs) (rest params) (assoc sub (ffirst params) arg))))
       ;; all args have been checked
       [:ok [params sub]])))
 
@@ -407,44 +421,35 @@
       (recur (rest params) (list 'Π (first params) res))
       res)))
 
-(declare type-of-args)
 
 (defn unfold-implicit [def-env ctx implicit-def args]
-  (let [[status, targs] (type-of-args def-env ctx args)]
+  (let [[status, targs, args'] (type-of-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs]    
-      (try [:ok, (apply (:implicit-fn implicit-def) def-env ctx targs)]
+      (try [:ok, (apply (:implicit-fn implicit-def) def-env ctx targs), args']
            (catch Exception exc
              [:ko (merge {:implicit (:name implicit-def)
                           :msg (.getMessage exc)}
-                         (ex-data exc))])))))
+                         (ex-data exc)) nil])))))
 
 (defn type-of-implicit [def-env ctx implicit-def args]
-  (let [[status, implicit-term] (unfold-implicit def-env ctx implicit-def args)]
+  (let [[status, implicit-term, args'] (unfold-implicit def-env ctx implicit-def args)]
     ;; (println "implicit-term=" implicit-term)
     (if (= status :ko)
       [:ko implicit-term]
       ;; recursive typing of implicit-generated term
       (type-of-term def-env ctx implicit-term))))
 
-(defn type-of-args [def-env ctx args]
-  (loop [args args, targs []]
-    (if (seq args)
-      (let [[status typ] (type-of-term def-env ctx (first args))]
-        (if (= status :ko)
-          typ
-          (recur (rest args) (conj targs [(first args) typ]))))
-      [:ok targs])))
-
 (defn rebuild-type [def-env ctx ty]
   (let [vfresh (gensym "fresh")]
-    (type-of-term def-env (cons [vfresh ty] ctx) vfresh)))
+    (let [[status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
+      [status ty'])))
 
 (defn type-of
   ([t] (type-of defenv/empty-env [] t))
   ([ctx t] (type-of defenv/empty-env ctx t))
   ([def-env ctx t]
-   (let [[status ty] (type-of-term def-env ctx t)]
+   (let [[status ty t'] (type-of-term def-env ctx t)]
      (if (= status :ko)
        (throw (ex-info "Type checking error" ty))
        ty))))
