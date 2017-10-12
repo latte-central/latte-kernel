@@ -319,9 +319,9 @@
                                       [:have <b> B (<a> x) {:line 3}]]
                                      [:qed <a> {:line 4}]]))
          '[:ok [(<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]]))
-
+  
   (is (= (check-proof defenv/empty-env [] 'my-thm
-                      '(forall [A B :type] (==> (==> A B) (==> A B)))
+                      (second (parse/parse-term defenv/empty-env '(forall [A B :type] (==> (==> A B) (==> A A B)))))
                       :script
                       '[[:assume {:line 1}
                          [A :type
