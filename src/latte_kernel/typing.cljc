@@ -383,7 +383,7 @@ that implicits can be erased."
     (if (seq args)
       (let [[status typ arg'] (type-of-term def-env ctx (first args))]
         (if (= status :ko)
-          typ
+          [:ko typ nil]
           (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
       [:ok targs args'])))
 
