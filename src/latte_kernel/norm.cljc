@@ -2,7 +2,7 @@
   "Normalization and beta-equivalence."
   (:require [latte-kernel.utils :as utils :refer [vconcat]]
             [latte-kernel.syntax :as stx]
-            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom? special?]]))
+            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]))
 
 
 ;;{
@@ -223,12 +223,18 @@ potentially rewritten version of `t` and `red?` is `true`
 ;; raised if one tries to reduce with a yet unproven theorem.
 ;;}
 
+;; This is to solve a *real* (and rare) use case for circular dependency
+(def +unfold-implict+ (atom nil))
+(defn, install-unfold-implicit! [unfold-fn]
+  (swap! +unfold-implict+ (fn [_]
+                            unfold-fn)))
+
 (defn delta-reduction
-  "Apply a strategy of delta-reduction in definitional environment `def-env` and
+  "Apply a strategy of delta-reduction in definitional environment `def-env`, context `ctx` and
   term `t`. If the flag `local?` is `true` the definition in only looked for
   in `def-env`. By default it is also looked for in the current namespace (in Clojure only).²"
-  ([def-env t] (delta-reduction def-env t false))
-  ([def-env t local?]
+  ([def-env ctx t] (delta-reduction def-env ctx t false))
+  ([def-env ctx t local?]
    ;; (println "[delta-reduction] t=" t)
    (if (not (stx/ref? t))
      (throw (ex-info "Cannot delta-reduce: not a reference term (please report)." {:term t}))
@@ -237,7 +243,12 @@ potentially rewritten version of `t` and `red?` is `true`
        ;; (println "[delta-reduction] term=" t "def=" sdef)
        (cond
          (= status :ko) [t false] ;; No error?  or (throw (ex-info "No such definition" {:term t :def-name name}))
-         (defenv/implicit? sdef) (throw (ex-info "Cannot delta-reduce an implicit (please report)." {:term t}))
+         (defenv/implicit? sdef)
+         ;; (throw (ex-info "Cannot delta-reduce an implicit (please report)." {:term t}))
+         (let [[status, implicit-term, _] (@+unfold-implict+ def-env ctx sdef args)]
+           (if (= status :ko)
+             (throw (ex-info "Cannot delta-reduce implicit term." implicit-term))
+             [implicit-term true]))
          (> (count args) (:arity sdef))
          (throw (ex-info "Too many arguments to instantiate definition."
                          {:term t :def-name name :nb-params (count (:arity sdef)) :nb-args (count args)}))
@@ -257,9 +268,6 @@ potentially rewritten version of `t` and `red?` is `true`
            [t false]
            (throw (ex-info "Cannot use theorem with no proof." {:term t :theorem sdef})))
          (axiom? sdef) [t false]
-         (special? sdef)
-         (throw (ex-info "Specials must not exist at delta-reduction time (please report)"
-                         {:term t :special sdef}))
          ;; XXX: before that, specials were handled by delta-reduction
          ;; (if (< (count args) (:arity sdef))
          ;;   (throw (ex-info "Not enough argument for special definition." { :term t :arity (:arity sdef)}))
@@ -283,163 +291,60 @@ potentially rewritten version of `t` and `red?` is `true`
  environment `def-env`. If the optional flag `local?` is `true` only the
   local environment is used, otherwise (the default case) the definitions
   are also searched in the current namespace (in Clojure only)."
-  ([def-env t] (delta-step def-env t false))
-  ([def-env t local?]
+  ([def-env ctx t] (delta-step def-env ctx t false))
+  ([def-env ctx t local?]
    ;; (println "[delta-step] t=" t)
    (cond
      ;; binder
      (stx/binder? t)
      (let [[binder [x ty] body] t
            ;; 1) try reduction in binding type
-           [ty' red1?] (delta-step def-env ty local?)
+           [ty' red1?] (delta-step def-env ctx ty local?)
            ;; 2) also try reduction in body
-           [body' red2?] (delta-step def-env body local?)]
+           [body' red2?] (delta-step def-env (cons [x ty'] ctx) body local?)]
        [(list binder [x ty'] body') (or red1? red2?)])
      ;; application
      (stx/app? t)
      (let [[left right] t
            ;; 1) try left reduction
-           [left' lred?] (delta-step def-env left local?)
+           [left' lred?] (delta-step def-env ctx left local?)
            ;; 2) also try right reduction
-           [right' rred?] (delta-step def-env right local?)]
+           [right' rred?] (delta-step def-env ctx right local?)]
        [[left' right'] (or lred? rred?)])
      ;; reference
      (stx/ref? t)
      (let [[def-name & args] t
-           [args' red1?] (delta-step-args def-env args local?)
+           [args' red1?] (delta-step-args def-env ctx args local?)
            t' (if red1? (list* def-name args') t)
-           [t'' red2?] (delta-reduction def-env t' local?)]
+           [t'' red2?] (delta-reduction def-env ctx t' local?)]
        [t'' (or red1? red2?)])
      ;; ascription
      (stx/ascription? t)
      (let [[_ ty term] t
-           [ty' tyred?] (delta-step def-env ty local?)
-           [term' termred?] (delta-step def-env term local?)]
+           [ty' tyred?] (delta-step def-env ctx ty local?)
+           [term' termred?] (delta-step def-env ctx term local?)]
        [(list :latte-kernel.syntax/ascribe ty' term') (or tyred? termred?)])
      ;; other cases
      :else [t false])))
 
 (defn delta-step-args
   "Applies the delta-reduction on the terms `ts`."
-  [def-env ts local?]
+  [def-env ctx ts local?]
   (loop [ts ts, ts' [], red? false]
     (if (seq ts)
-      (let [[t' red-1?] (delta-step def-env (first ts) local?)]
+      (let [[t' red-1?] (delta-step def-env ctx (first ts) local?)]
         (recur (rest ts) (conj ts' t') (or red? red-1?)))
-      [ts' red?])))
-
-
-;;{
-;; ## Reduction of specials
-;;
-;; The *specials* represent the place where one can benefit of the
-;; full power of the host language, namely Clojure or Clojurescript,
-;; to generate a term.
-;; Because of the complex interactions between the normalization and
-;; the type inference processes, there are strong restrictions imposed
-;; on the rewrite engine for specials. The main restriction is that
-;; a special must be removed before any further normalization using
-;; the beta or delta rules.
-;;
-;; The rule of *special-reduction* (could be named *sigma-reduction*) is
-;; basically calling the Clojure(script) function attached to the
-;; special.
-;;}
-
-(defn special-reduction
-  "Expand the term `t` as a special reference. If it is not
-  a special it is not reduced. The function returns a pair `[t' red?]`
-  with `t'` the expanded special, and `red?` is `true` iff an actual
-  rewrite took place."
-  [def-env ctx t]
-  ;; (println "[special-reduction] t=" t)
-  (if (not (stx/ref? t))
-    (throw (ex-info "Cannot special-reduce: not a reference term." {:term t}))
-    (let [[name & args] t
-          [status sdef] (defenv/fetch-definition def-env name)]
-      (if (= status :ko)
-        [t false] ;; No error?  or (throw (ex-info "No such definition" {:term t :def-name name}))
-        (if (special? sdef)
-          (do
-            ;; (println "[special-reduction] sdef=" sdef)
-            (let [term (apply (:special-fn sdef) def-env ctx args)]
-              [term true])) ;;)
-          [t false])))))
-
-;;{
-;; ### The special-reduction strategy
-;;
-;; Once again we use the bottom-up "parallel" strategy of
-;; reduction we used for both the beta and delta reduction cases.
-;;}
-
-(declare special-step-args)
-
-(defn special-step
-  "Applies the strategy of *special-reduction* on term `t` with definitional
-  environment `def-env` and context `ctx`."
-  [def-env ctx t]
-  ;; (println "[delta-step] t=" t)
-  (cond
-    ;; binder
-    (stx/binder? t)
-    (let [[binder [x ty] body] t]
-      ;; 1) try reduction in binding type
-      (let [[ty' red1?] (special-step def-env ctx ty)
-            ;; 2) try reduction in body
-            [body' red2?] (special-step def-env ctx body)]
-        [(list binder [x ty'] body') (or red1? red2?)]))
-    ;; application
-    (stx/app? t)
-    (let [[left right] t
-          ;; 1) try left reduction
-          [left' lred?] (special-step def-env ctx left)
-          ;; 2) try right reduction
-          [right' rred?] (special-step def-env ctx right)]
-      [[left' right'] (or lred? rred?)])
-    ;; reference
-    (stx/ref? t)
-    (let [[def-name & args] t
-          [args' red1?] (special-step-args def-env ctx args)
-          t' (if red1? (list* def-name args') t)
-          [t'' red2?] (special-reduction def-env ctx t')]
-      [t'' (or red1? red2?)])
-    ;; ascription
-    (stx/ascription? t)
-    (let [[_ ty term] t
-          [ty' tyred?] (special-step def-env ctx ty)
-          [term' termred?] (special-step def-env ctx term)]
-      [(list :latte-kernel.syntax/ascribe ty' term') (or tyred? termred?)])
-    ;; other cases
-    :else [t false]))
-
-(defn special-step-args
-  "Applies the delta-reduction on the terms `ts`."
-  [def-env ctx ts]
-  (loop [ts ts, ts' [], red? false]
-    (if (seq ts)
-      (let [[t' red1?] (special-step def-env ctx (first ts))]
-        (recur (rest ts) (conj ts' t') (or red? red1?)))
       [ts' red?])))
 
 ;;{
 ;; ## Normalization
 ;;
 ;; We finally define a few normalization functions:
-;;   - normalize specials only: [[special-normalize]]
 ;;   - normalize using beta-reduction only: [[beta-normalize]]
 ;;   - normalize using delta-reduction only: [[delta-normalize]]
 ;;   - normalize using delta-reduction with the local environment only: [[delta-normalize-local]]
 ;;   - generic normalization: [[beta-delta-special-normalize]]
 ;;}
-
-(defn special-normalize
-  "Normalize term `t` for special-reduction."
-  [def-env ctx t]
-  (let [[t' red?] (special-step def-env ctx t)]
-    (if red?
-      (recur def-env ctx t')
-      t')))
 
 (defn beta-normalize
   "Normalize term `t` for beta-reduction."
@@ -451,27 +356,26 @@ potentially rewritten version of `t` and `red?` is `true`
 
 (defn delta-normalize
   "Normalize term `t` for delta-reduction."
-  [def-env t]
-  (let [[t' red?] (delta-step def-env t)]
+  [def-env ctx t]
+  (let [[t' red?] (delta-step def-env ctx t)]
     (if red?
-      (recur def-env t')
+      (recur def-env ctx t')
       t')))
 
 (defn delta-normalize-local
   "Normalize term `t` for delta-reduction using only
   environment `def-env` (and *not* the current namespace)."
-  [def-env t]
-  (let [[t' red?] (delta-step def-env t true)]
+  [def-env ctx t]
+  (let [[t' red?] (delta-step def-env ctx t true)]
     (if red?
-      (recur def-env t')
+      (recur def-env ctx t')
       t')))
 
 ;;{
 ;; The heart of the general normalization process is
 ;; the following function. It orders the strategies
 ;; in the following way:
-;;   1. apply special-reduction first,
-;;   2. then apply delta-reduction
+;;   1. apply delta-reduction first
 ;;   3. then apply beta-reduction
 ;;   4. try again the whole process if the term was rewritten
 ;;      or just return the result.
@@ -490,24 +394,20 @@ potentially rewritten version of `t` and `red?` is `true`
 ;; conservative in this part of the kernel.
 ;;}
 
-(defn beta-delta-special-normalize
+(defn beta-delta-normalize
   "Apply the general normalization strategy of LaTTe on term `t`.
   The result is defined as *the normal form* of `t`."
   [def-env ctx t]
-  ;;(println "[beta-delta-special-normalize]: t=" t)
-  (let [[t' spec-red?] (special-step def-env ctx t)]
-    (if spec-red?
-      (do ;;(println "  [special] t ==> " t')
-          (recur def-env ctx t'))
-      (let [[t' delta-red?] (delta-step def-env t)]
-        (if delta-red?
-          (do ;;(println "  [delta] t ==> " t')
-              (recur def-env ctx t'))
-          (let [[t' beta-red?] (beta-step t)]
-            (if beta-red?
-              (do ;;(println "  [beta] t ==> " t')
-                  (recur def-env ctx t'))
-              t')))))))
+  ;;(println "[beta-delta-normalize]: t=" t)
+  (let [[t' delta-red?] (delta-step def-env ctx t)]
+    (if delta-red?
+      (do ;;(println "  [delta] t ==> " t')
+        (recur def-env ctx t'))
+      (let [[t' beta-red?] (beta-step t)]
+        (if beta-red?
+          (do ;;(println "  [beta] t ==> " t')
+            (recur def-env ctx t'))
+          t')))))
 
 ;;{
 ;; The following is the main user-level function for normalization.
@@ -518,7 +418,7 @@ potentially rewritten version of `t` and `red?` is `true`
   The result is *the normal form* of `t`."
   ([t] (normalize {} [] t))
   ([def-env t] (normalize def-env [] t))
-  ([def-env ctx t] (beta-delta-special-normalize def-env ctx t)))
+  ([def-env ctx t] (beta-delta-normalize def-env ctx t)))
 
 ;;{
 ;; ## Beta-equivalence

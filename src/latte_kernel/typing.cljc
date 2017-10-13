@@ -432,6 +432,9 @@ that implicits can be erased."
                           :msg (.getMessage exc)}
                          (ex-data exc)) nil])))))
 
+;; circular dependency hack
+(norm/install-unfold-implicit! unfold-implicit)
+
 (defn type-of-implicit [def-env ctx implicit-def args]
   (let [[status, implicit-term, args'] (unfold-implicit def-env ctx implicit-def args)]
     ;; (println "implicit-term=" implicit-term)
