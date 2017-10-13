@@ -53,6 +53,7 @@
                                                    :arity 3
                                                    :params [[x ✳] [y □] [z ✳]]
                                                    :parsed-term [y (λ [t ✳] [x [z t]])]})})
+                          []
                           '(test [a b] c [t (λ [t] t)]))
          '[[c (λ [t' ✳] [[a b] [[t (λ [t] t)] t']])] true]))
 
@@ -61,6 +62,7 @@
                                                    :arity 3
                                                    :params [[x ✳] [y □] [z ✳]]
                                                    :proof [y (λ [t ✳] [x [z t]])]})})
+                          []
                           '(test [a b] c [t (λ [t] t)]))
          '[(test [a b] c [t (λ [t] t)]) false]))
  
@@ -68,6 +70,7 @@
                                                  '{:arity 3
                                                    :tag :axiom
                                                    :params [[x ✳] [y □] [z ✳]]})})
+                          []
                           '(test [a b] c [t (λ [t] t)]))
          '[(test [a b] c [t (λ [t] t)]) false]))
 
@@ -76,11 +79,12 @@
                                                    :tag :definition
                                                    :params [[x ✳] [y □] [z ✳]]
                                                    :parsed-term [y (λ [t ✳] [x [z t]])]})})
+                          []
                           '(test [a b] c))
          '[(λ [z ✳] [c (λ [t ✳] [[a b] [z t]])]) true])))
 
 (deftest test-delta-step
-  (is (= (delta-step {} 'x)
+  (is (= (delta-step {} [] 'x)
          '[x false]))
       
   (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
@@ -88,6 +92,7 @@
                                               :tag :definition
                                               :params [[x ✳]]
                                               :parsed-term [x x]})})
+                     []
                      '[y (test [t t])])
          '[[y [[t t] [t t]]] true]))
 
@@ -96,6 +101,7 @@
                                               :tag :definition
                                               :params [[x ✳] [y ✳]]
                                               :parsed-term [x [y x]]})})
+                     []
                      '[y (test [t t] u)])
          '[[y [[t t] [u [t t]]]] true])))
 
