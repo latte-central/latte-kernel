@@ -219,7 +219,7 @@
 
 (defn elab-print [def-env ctx term meta]
   (println "============================")
-  (let [[term' _] (norm/delta-step def-env term)]
+  (let [[term' _] (norm/delta-step def-env ctx term)]
     (pp/pprint (unparser/unparse term')))
   (println "============================"))
 
