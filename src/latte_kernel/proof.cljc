@@ -73,7 +73,8 @@
                                          :synthetized-type term-type
                                          :meta meta}]
                                    :else
-                                   [:ok term-type])))]
+                                   ;; [:ok term-type] ;; XXX: the have-type is mode "declarative" (?)
+                                   [:ok have-type])))]
         (if (= status :ko)
           [:ko (assoc rec-ty :meta meta)]
           (if (= name '_)
