@@ -214,7 +214,7 @@
       [:ko {:msg "Qed step failed: cannot infer term type."
             :cause proof-type
             :meta meta}]
-      [:ok [term proof-type]])))
+      [:ok [def-env term proof-type]])))
 
 
 (defn elab-print [def-env ctx term meta]
@@ -391,7 +391,7 @@
                           [:ko {:msg "Cannot infer proof type."
                                 :term proof-term
                                 :error proof-type}]
-                          [:ok [proof-term proof-type]])))))
+                          [:ok [def-env proof-term proof-type]])))))
           :script (let [proof (compile-proof steps)]
                     (elab-proof def-env ctx proof))
           ;; else
@@ -399,12 +399,12 @@
     ;; let body
     (if (= status :ko)
       [status res]
-      (let [[proof-term proof-type] res]
-        (let [[status thm-type'] (typing/rebuild-type def-env ctx thm-type)]
+      (let [[def-env' proof-term proof-type] res]
+        (let [[status thm-type'] (typing/rebuild-type def-env' ctx thm-type)]
           (if (= status :ko)
             (throw (ex-info "Cannot rebuild theorem type." {:thm-type thm-type
                                                             :error thm-type'})))
-          (if (not (norm/beta-eq? def-env ctx proof-type thm-type'))
+          (if (not (norm/beta-eq? def-env' ctx proof-type thm-type'))
             [:ko {:msg "Theorem type and proof type do not match."
                   :thm-type thm-type'
                   :proof-type proof-type}]

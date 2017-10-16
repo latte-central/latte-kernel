@@ -268,7 +268,7 @@
   ;; [:qed <a> (forall [A B *] (==> (==> A B) (==> A B)))]
   
   (is (= (elab-qed def-env10 ctx10 '(<a>) {})
-         '[:ok [(<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
+         '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
 
 
 (deftest test-elab-proof
@@ -284,7 +284,7 @@
                        [:discharge B {}]
                        [:discharge A {}]
                        [:qed <a> {}]])
-         '[:ok [(<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
+         '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
 
 (deftest test-compile-proof
   (is (= (compile-proof '[[:assume {:line 1}
@@ -318,7 +318,7 @@
                                       [:have <a> (==> A B) f {:line 2}]
                                       [:have <b> B (<a> x) {:line 3}]]
                                      [:qed <a> {:line 4}]]))
-         '[:ok [(<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]]))
+         '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]]))
   
   (is (= (check-proof defenv/empty-env [] 'my-thm
                       (second (parse/parse-term defenv/empty-env '(forall [A B :type] (==> (==> A B) (==> A A B)))))

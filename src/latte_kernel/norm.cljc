@@ -242,7 +242,8 @@ potentially rewritten version of `t` and `red?` is `true`
            [status sdef]  (defenv/fetch-definition def-env name local?)]
        ;; (println "[delta-reduction] term=" t "def=" sdef)
        (cond
-         (= status :ko) [t false] ;; No error?  or (throw (ex-info "No such definition" {:term t :def-name name}))
+         (= status :ko) ;; [t false] ;; No error?
+         (throw (ex-info "No such definition" {:term t :def-name name}))
          (defenv/implicit? sdef)
          ;; (throw (ex-info "Cannot delta-reduce an implicit (please report)." {:term t}))
          (let [[status, implicit-term, _] (@+unfold-implict+ def-env ctx sdef args)]
