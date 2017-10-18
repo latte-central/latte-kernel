@@ -369,10 +369,12 @@ that implicits can be erased."
           (let [[params sub] res
                 expanded-term (stx/subst (:type ddef) sub)
                 typ (generalize-params (reverse params) expanded-term)]
-            (let [[status err typ'] (type-of-term def-env ctx typ)]
-              (if (= status :ko)
-                [:ko err nil]
-                [:ok typ' (list* name args')]))))))))
+            ;; (let [[status err typ'] (type-of-term def-env ctx typ)]
+            ;;   (if (= status :ko)
+            ;;     [:ko err nil]
+            ;;     [:ok typ' (list* name args')]))
+            [:ok typ (list* name args')]
+            ))))))
 
 
 (defn type-of-args [def-env ctx args]
