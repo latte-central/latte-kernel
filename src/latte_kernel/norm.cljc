@@ -253,8 +253,13 @@ potentially rewritten version of `t` and `red?` is `true`
          (definition? sdef)
          ;; unfolding a defined term
          (if (:parsed-term sdef)
-           [(instantiate-def (:params sdef) (:parsed-term sdef) args) true]
-           (throw (ex-info "Cannot unfold term reference (please report)"
+           (if (get (:opts sdef) :opaque)
+             ;; the definition is opaque
+             [t false]
+             ;; the definition is transparent
+             [(instantiate-def (:params sdef) (:parsed-term sdef) args) true])
+           ;; no parsed term for definitoin
+           (throw (ex-info "Cannot unfold term reference: no parsed term (please report)"
                            {:term t :def sdef})))
          (theorem? sdef)
          (if (:proof sdef)
