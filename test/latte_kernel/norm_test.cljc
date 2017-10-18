@@ -52,7 +52,8 @@
                                                  '{:name test
                                                    :arity 3
                                                    :params [[x ✳] [y □] [z ✳]]
-                                                   :parsed-term [y (λ [t ✳] [x [z t]])]})})
+                                                   :parsed-term [y (λ [t ✳] [x [z t]])]
+                                                   :opts {}})})
                           []
                           '(test [a b] c [t (λ [t] t)]))
          '[[c (λ [t' ✳] [[a b] [[t (λ [t] t)] t']])] true]))
@@ -78,7 +79,8 @@
                                                  '{:arity 3
                                                    :tag :definition
                                                    :params [[x ✳] [y □] [z ✳]]
-                                                   :parsed-term [y (λ [t ✳] [x [z t]])]})})
+                                                   :parsed-term [y (λ [t ✳] [x [z t]])]
+                                                   :opts {}})})
                           []
                           '(test [a b] c))
          '[(λ [z ✳] [c (λ [t ✳] [[a b] [z t]])]) true])))
@@ -91,7 +93,8 @@
                                             '{:arity 1
                                               :tag :definition
                                               :params [[x ✳]]
-                                              :parsed-term [x x]})})
+                                              :parsed-term [x x]
+                                              :opts {}})})
                      []
                      '[y (test [t t])])
          '[[y [[t t] [t t]]] true]))
@@ -100,10 +103,21 @@
                                             '{:arity 2
                                               :tag :definition
                                               :params [[x ✳] [y ✳]]
-                                              :parsed-term [x [y x]]})})
+                                              :parsed-term [x [y x]]
+                                              :opts {}})})
                      []
                      '[y (test [t t] u)])
-         '[[y [[t t] [u [t t]]]] true])))
+         '[[y [[t t] [u [t t]]]] true]))
+
+  (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
+                                            '{:arity 2
+                                              :tag :definition
+                                              :params [[x ✳] [y ✳]]
+                                              :parsed-term [x [y x]]
+                                              :opts {:opaque true}})})
+                     []
+                     '[y (test [t t] u)])
+         '[[y (test [t t] u)] false])))
 
 (deftest test-normalize
   (is (= (normalize '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))
