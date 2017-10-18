@@ -150,17 +150,17 @@ that implicits can be erased."
   "Infer the type of variable `x` in context `ctx`."
   [def-env ctx x]
   (if-let [ty (ctx-fetch ctx x)]
-    (let [[status sort ty'] ;;; XXX : cannot normalize first
-                        ;;; (if there is some implicit ...)
-          ;;(let [ty' (norm/normalize def-env ctx ty)]
-          (if (stx/kind? ty)
-            [:ok ty ty]
-            (type-of-term def-env ctx ty))]
+    (let [[status sort ty']                         
+          (let [ty' (norm/normalize def-env ctx ty)]
+            (if (stx/kind? ty')
+              [:ok ty' ty]
+              (type-of-term def-env ctx ty)))]
       (if (= status :ko)
         [:ko {:msg "Cannot calculate type of variable." :term x :from sort} nil]
         (if (stx/sort? sort)
           [:ok ty' x]
           [:ko {:msg "Not a correct type (super-type is not a sort)" :term x :type ty' :sort sort} nil])))
+    ;; not found
     [:ko {:msg "No such variable in type context" :term x} nil]))
 
 
