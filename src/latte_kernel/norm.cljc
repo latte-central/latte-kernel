@@ -18,9 +18,6 @@
 ;; is defined for unfolding definitions when needed. This is based on another reduction rule
 ;; named *delta-reduction*.
 ;;
-;; Finally, the *specials* (expained below) are handled by a third rewrite principle
-;; that we name *sigma-reduction*.
-;;
 ;; Thus unlike the classical λ-calculus, we need to handle three reduction principles at once
 ;; in the normalization process.
 ;;
@@ -269,11 +266,7 @@ potentially rewritten version of `t` and `red?` is `true`
            [t false]
            (throw (ex-info "Cannot use theorem with no proof." {:term t :theorem sdef})))
          (axiom? sdef) [t false]
-         ;; XXX: before that, specials were handled by delta-reduction
-         ;; (if (< (count args) (:arity sdef))
-         ;;   (throw (ex-info "Not enough argument for special definition." { :term t :arity (:arity sdef)}))
-         ;;   (let [term (apply (:special-fn sdef) def-env ctx args)]
-         ;;     [term true]))
+         ;; nothing known
          :else (throw (ex-info "Not a Latte definition (please report)."
                                {:term t :def sdef})))))))
 
@@ -344,7 +337,6 @@ potentially rewritten version of `t` and `red?` is `true`
 ;;   - normalize using beta-reduction only: [[beta-normalize]]
 ;;   - normalize using delta-reduction only: [[delta-normalize]]
 ;;   - normalize using delta-reduction with the local environment only: [[delta-normalize-local]]
-;;   - generic normalization: [[beta-delta-special-normalize]]
 ;;}
 
 (defn beta-normalize
@@ -429,7 +421,7 @@ potentially rewritten version of `t` and `red?` is `true`
 ;; In the lambda-calculus this is generally called *beta-equivalence*
 ;; and we will convey the same name here. However it is clear that
 ;; we also mean equivalent for our general normalization procedure
-;; (involving delta and special reduction also).
+;; (involving delta also).
 ;; Note also that the resulting normal forms are compared for
 ;; alpha-equivalence so that bound variables do not get in the way.
 ;;}

@@ -194,20 +194,6 @@
   (instance? Notation v))
 
 ;;{
-;; ## Specials
-;;
-;; A *special* is a term expanded at normalization-time.
-;; This is mostly used for proof automation.
-;;}
-
-(defrecord Special [name special-fn])
-
-(defn special?
-  "Is `v` a special?"
-  [v]
-  (instance? Special v))
-
-;;{
 ;; ## Implicits
 ;;
 ;; An *implicit* is a term expanded at typing-time.
@@ -232,7 +218,6 @@
 ;;  - a theorem statement
 ;;  - an axiom statement
 ;;  - a new notation
-;;  - a *special*
 ;;  - an *implicit*
 ;;}
 
@@ -243,5 +228,4 @@
       (theorem? v)
       (axiom? v)
       (notation? v)
-      (special? v)
       (implicit? v)))

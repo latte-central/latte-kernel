@@ -322,9 +322,6 @@ that implicits can be erased."
             (= status :ko) [:ko ddef]
             (not (defenv/latte-definition? ddef))
             (throw (ex-info "Not a LaTTe definition (please report)." {:def ddef}))
-            (defenv/special? ddef)
-            (throw (ex-info "Special should not occur at typing time (please report)"
-                            {:special ddef :term (list* name args)}))
             (defenv/notation? ddef)
             (throw (ex-info "Notation should not occur at typing time (please report)"
                             {:notation ddef :term (list* name args)}))
