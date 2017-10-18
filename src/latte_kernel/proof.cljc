@@ -83,7 +83,7 @@
               [:ko {:msg "Have step elaboration failed: local definition already registered"
                     :have-name name
                     :meta meta}]
-              (let [def-env' (defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty) true)
+              (let [def-env' (defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty {}) true)
                     var-deps' (-> var-deps
                                   ;; (update-var-deps name term)
                                   (update-var-deps name rec-ty))

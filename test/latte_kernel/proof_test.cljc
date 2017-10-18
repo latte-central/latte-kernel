@@ -109,8 +109,8 @@
   (is (defenv/registered-definition? def-env5 '<a>))
 
   (is (= (second(defenv/fetch-definition def-env5 '<a> true))
-         '#latte_kernel.defenv.Definition{:name <a>, :params [], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
-
+         '#latte_kernel.defenv.Definition{:name <a>, :params [], :arity 0, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
+  
   (is (= vdeps5
          '[[x #{<a>}] [f #{<a>}] [B #{<a>}] [A #{<a>}]]))
 
@@ -128,7 +128,7 @@
   (is (defenv/registered-definition? def-env6 '<b>))
 
   (is (= (second(defenv/fetch-definition def-env6 '<b> true))
-         '#latte_kernel.defenv.Definition{:name <b>, :params [], :arity 0, :parsed-term [(<a>) x], :type B}))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [], :arity 0, :parsed-term [(<a>) x], :type B, :opts {}}))
 
   (is (= vdeps6
          '[[x #{<a> <b>}] [f #{<a> <b>}] [B #{<a> <b>}] [A #{<a> <b>}]]))
@@ -186,10 +186,10 @@
          '([f (Π [⇧ A] B)] [B ✳] [A ✳])))
   
   (is (= (second (defenv/fetch-definition def-env7 '<a> true))
-         '#latte_kernel.defenv.Definition{:name <a>, :params [[x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
+         '#latte_kernel.defenv.Definition{:name <a>, :params [[x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
  
   (is (= (second (defenv/fetch-definition def-env7 '<b> true))
-         '#latte_kernel.defenv.Definition{:name <b>, :params [[x A]], :arity 0, :parsed-term [(<a> x) x], :type B}))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [[x A]], :arity 0, :parsed-term [(<a> x) x], :type B, :opts {}}))
 
   (is (= vdeps7
          '([f #{<a> <b>}] [B #{<a> <b>}] [A #{<a> <b>}])))
@@ -207,10 +207,10 @@
          '([B ✳] [A ✳])))
   
   (is (= (second (defenv/fetch-definition def-env8 '<a> true))
-         '#latte_kernel.defenv.Definition{:name <a>, :params [[f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
+         '#latte_kernel.defenv.Definition{:name <a>, :params [[f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
  
   (is (= (second (defenv/fetch-definition def-env8 '<b> true))
-         #latte_kernel.defenv.Definition{:name <b>, :params [[f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> f x) x], :type B}))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [[f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> f x) x], :type B, :opts {}}))
 
   (is (= vdeps8
          '([B #{<a> <b>}] [A #{<a> <b>}])))
@@ -228,10 +228,10 @@
          '([A ✳])))
   
   (is (= (second (defenv/fetch-definition def-env9 '<a> true))
-         '#latte_kernel.defenv.Definition{:name <a>, :params [[B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
+         '#latte_kernel.defenv.Definition{:name <a>, :params [[B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
  
   (is (= (second (defenv/fetch-definition def-env9 '<b> true))
-         '#latte_kernel.defenv.Definition{:name <b>, :params [[B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> B f x) x], :type B}))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [[B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> B f x) x], :type B, :opts {}}))
 
   (is (= vdeps9
          '([A #{<a> <b>}])))
@@ -248,10 +248,10 @@
          '()))
   
   (is (= (second (defenv/fetch-definition def-env10 '<a> true))
-         '#latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}))
+         '#latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
  
   (is (= (second (defenv/fetch-definition def-env10 '<b> true))
-         '#latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B}))
+         '#latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B, :opts {}}))
 
   (is (= vdeps10
          '()))
@@ -268,7 +268,7 @@
   ;; [:qed <a> (forall [A B *] (==> (==> A B) (==> A B)))]
   
   (is (= (elab-qed def-env10 ctx10 '(<a>) {})
-         '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
+         '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B), :opts {}}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B, :opts {}}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
 
 
 (deftest test-elab-proof
@@ -284,7 +284,7 @@
                        [:discharge B {}]
                        [:discharge A {}]
                        [:qed <a> {}]])
-         '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
+         '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B), :opts {}}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B, :opts {}}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
 
 (deftest test-compile-proof
   (is (= (compile-proof '[[:assume {:line 1}
@@ -318,7 +318,7 @@
                                       [:have <a> (==> A B) f {:line 2}]
                                       [:have <b> B (<a> x) {:line 3}]]
                                      [:qed <a> {:line 4}]]))
-         '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B)}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]]))
+         '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term f, :type (Π [⇧ A] B), :opts {}}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 0, :parsed-term [(<a> A B f x) x], :type B, :opts {}}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]]))
   
   (is (= (check-proof defenv/empty-env [] 'my-thm
                       (second (parse/parse-term defenv/empty-env '(forall [A B :type] (==> (==> A B) (==> A A B)))))

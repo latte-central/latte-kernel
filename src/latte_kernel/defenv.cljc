@@ -16,7 +16,7 @@
 ;; lambda-terms.
 ;;}
 
-(defrecord Definition [name params arity parsed-term type])
+(defrecord Definition [name params arity parsed-term type opts])
 
 ;;{
 ;; The components of a definition are:
@@ -25,6 +25,10 @@
 ;;   - the `arity` of the definition, i.e. its number of parameters
 ;;   - the `parsed-term` corresponding to the body of the definition
 ;;   - the `type` of the defined lambda-term.
+;;   - some options may be indicated in the map `opts`.
+;;     one particularly useful option is `opaque` which, when true,
+;;     avoids any unfolding of the definition (this is useful for
+;;     e.g. equality).
 ;;}
 
 (defn definition?
