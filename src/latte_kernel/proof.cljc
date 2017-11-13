@@ -377,26 +377,9 @@
     (list)))
 
 (defn check-proof
-  [def-env ctx thm-name thm-type method steps]
-  (let [[status res]
-        (case method
-          :term (let [term (first steps)]
-                  (let [[status proof-term] (parse/parse-term def-env term)]
-                    (if (= status :ko)
-                      [:ko {:msg "Cannot parse proof term."
-                            :term term
-                            :error proof-term}]
-                      (let [[status proof-type _] (typing/type-of-term def-env ctx proof-term)]
-                        (if (= status :ko)
-                          [:ko {:msg "Cannot infer proof type."
-                                :term proof-term
-                                :error proof-type}]
-                          [:ok [def-env proof-term proof-type]])))))
-          :script (let [proof (compile-proof steps)]
-                    (elab-proof def-env ctx proof))
-          ;; else
-          (throw (ex-info "No such proof method" {:method method})))]
-    ;; let body
+  [def-env ctx thm-name thm-type steps]
+  (let [proof (compile-proof steps)
+        [status res] (elab-proof def-env ctx proof)]
     (if (= status :ko)
       [status res]
       (let [[def-env' proof-term proof-type] res]
@@ -409,6 +392,8 @@
                   :thm-type thm-type'
                   :proof-type proof-type}]
             [:ok [proof-term proof-type]]))))))
+
+
 
 
 

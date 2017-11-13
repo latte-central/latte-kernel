@@ -322,7 +322,6 @@
   
   (is (= (check-proof defenv/empty-env [] 'my-thm
                       (second (parse/parse-term defenv/empty-env '(forall [A B :type] (==> (==> A B) (==> A A B)))))
-                      :script
                       '[[:assume {:line 1}
                          [A :type
                           B :type
