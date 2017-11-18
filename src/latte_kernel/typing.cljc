@@ -443,9 +443,11 @@ that implicits can be erased."
       (type-of-term def-env ctx implicit-term))))
 
 (defn rebuild-type [def-env ctx ty]
-  (let [vfresh (gensym "fresh")]
-    (let [[status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
-      [status ty'])))
+  #_(let [vfresh (gensym "fresh")]
+      (let [[status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
+        [status ty']))
+  [:ok ty] ;; XXX : remove type rebuilding everywhere
+  )
 
 (defn type-of
   ([t] (type-of defenv/empty-env [] t))
