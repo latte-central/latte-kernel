@@ -113,42 +113,44 @@
 The return value is a pair `[t' red?]` with `t'` the
 potentially rewritten version of `t` and `red?` is `true`
  iff at least one redex was found and reduced."
-  [t]
-  (cond
-    ;; binder
-    (stx/binder? t)
-    (let [[binder [x ty] body] t
-          ;; 1) try reduction in binding type
-          [ty' red-1?] (beta-step ty)
-          ;; 2) also try reduction in body
-          [body' red-2?] (beta-step body)]
-      [(list binder [x ty'] body') (or red-1? red-2?)])
-    ;; application
-    (stx/app? t)
-    (let [[left right] t
-          ;; 1) try left reduction
-          [left' lred?] (beta-step left)
-          ;; 2) also try right reduction
-          [right' rred?] (beta-step right)]
-      (if (stx/lambda? left')
-        ;; we have a redex
-        [(beta-reduction [left' right']) true]
-        ;; or we stay with an application
-        [[left' right'] (or lred? rred?)]))
-    ;; reference
-    (stx/ref? t)
-    (let [[def-name & args] t
-          [args' red?] (beta-step-args args)
-          t' (if red? (list* def-name args') t)]
-      [t' red?])
-    ;; ascriptions
-    (stx/ascription? t)
-    (let [[_ ty term] t
-          [ty' tyred?] (beta-step ty)
-          [term' termred?] (beta-step term)]
-      [(list :latte-kernel.syntax/ascribe ty' term') (or tyred? termred?)])
-    ;; other cases
-    :else [t false]))
+  ([t] (beta-step t 0))
+  ([t rcount]
+   (cond
+     ;; binder
+     (stx/binder? t)
+     (let [[binder [x ty] body] t
+           ;; 1) try reduction in binding type
+           [ty' rcount1] (beta-step ty rcount)
+           ;; 2) also try reduction in body
+           [body' rcount2] (beta-step body rcount1)]
+       [(list binder [x ty'] body') rcount2])
+     ;; application
+     (stx/app? t)
+     (let [[left right] t
+           ;; 1) try left reduction
+           [left' rcount1] (beta-step left rcount)
+           ;; 2) also try right reduction
+           [right' rcount2] (beta-step right rcount1)]
+       (if (stx/lambda? left')
+         ;; we have a redex
+         (recur (beta-reduction [left' right']) (inc rcount2))
+         ;; or we stay with an application
+         [[left' right'] rcount2]))
+     ;; reference
+     (stx/ref? t)
+     (let [[def-name & args] t
+           [args' rcount'] (beta-step-args args rcount)]
+       (if (not= rcount' rcount)
+         (recur (list* def-name args') rcount')
+         [t rcount]))
+     ;; ascriptions
+     (stx/ascription? t)
+     (let [[_ ty term] t
+           [ty' rcount1] (beta-step ty rcount)
+           [term' rcount2] (beta-step term rcount1)]
+       [(list :latte-kernel.syntax/ascribe ty' term') rcount2])
+     ;; other cases
+     :else [t rcount])))
 
 (defn beta-step-args
   "Apply the reduction strategy on the terms `ts` 
@@ -157,12 +159,12 @@ potentially rewritten version of `t` and `red?` is `true`
   This returns a pair composed of the rewritten
   terms and a flag telling if at least one reduction
   took place."
-  [ts]
-  (loop [ts ts, ts' [], red? false]
+  [ts rcount]
+  (loop [ts ts, ts' [], rcount rcount]
     (if (seq ts)
-      (let [[t' red-1?] (beta-step (first ts))]
-        (recur (rest ts) (conj ts' t') (or red? red-1?)))
-      [ts' red?])))
+      (let [[t' rcount'] (beta-step (first ts) rcount)]
+        (recur (rest ts) (conj ts' t') rcount'))
+      [ts' rcount])))
 
 (defn beta-red
   "Reduce term `t` according to the normalization strategy."
@@ -290,50 +292,53 @@ potentially rewritten version of `t` and `red?` is `true`
  environment `def-env`. If the optional flag `local?` is `true` only the
   local environment is used, otherwise (the default case) the definitions
   are also searched in the current namespace (in Clojure only)."
-  ([def-env ctx t] (delta-step def-env ctx t false))
-  ([def-env ctx t local?]
+  ([def-env ctx t] (delta-step def-env ctx t false 0))
+  ([def-env ctx t local? rcount]
    ;; (println "[delta-step] t=" t)
    (cond
      ;; binder
      (stx/binder? t)
      (let [[binder [x ty] body] t
            ;; 1) try reduction in binding type
-           [ty' red1?] (delta-step def-env ctx ty local?)
+           [ty' rcount1] (delta-step def-env ctx ty local? rcount)
            ;; 2) also try reduction in body
-           [body' red2?] (delta-step def-env (cons [x ty'] ctx) body local?)]
-       [(list binder [x ty'] body') (or red1? red2?)])
+           [body' rcount2] (delta-step def-env (cons [x ty'] ctx) body local? rcount1)]
+       [(list binder [x ty'] body') rcount2])
      ;; application
      (stx/app? t)
      (let [[left right] t
            ;; 1) try left reduction
-           [left' lred?] (delta-step def-env ctx left local?)
+           [left' rcount1] (delta-step def-env ctx left local? rcount)
            ;; 2) also try right reduction
-           [right' rred?] (delta-step def-env ctx right local?)]
-       [[left' right'] (or lred? rred?)])
+           [right' rcount2] (delta-step def-env ctx right local? rcount1)]
+       [[left' right'] rcount2])
      ;; reference
      (stx/ref? t)
      (let [[def-name & args] t
-           [args' red1?] (delta-step-args def-env ctx args local?)
-           t' (if red1? (list* def-name args') t)
-           [t'' red2?] (delta-reduction def-env ctx t' local?)]
-       [t'' (or red1? red2?)])
+           [args' rcount'] (delta-step-args def-env ctx args local? rcount)
+           [t' red?] (if (not= rcount' rcount)
+                       (delta-reduction def-env ctx (list* def-name args'))
+                       (delta-reduction def-env ctx t))]
+       (if red?
+         (recur def-env ctx t' local? (inc rcount'))
+         [t' rcount']))
      ;; ascription
      (stx/ascription? t)
      (let [[_ ty term] t
-           [ty' tyred?] (delta-step def-env ctx ty local?)
-           [term' termred?] (delta-step def-env ctx term local?)]
-       [(list :latte-kernel.syntax/ascribe ty' term') (or tyred? termred?)])
+           [ty' rcount1] (delta-step def-env ctx ty local? rcount)
+           [term' rcount2] (delta-step def-env ctx term local? rcount1)]
+       [(list :latte-kernel.syntax/ascribe ty' term') rcount2])
      ;; other cases
-     :else [t false])))
+     :else [t rcount])))
 
 (defn delta-step-args
   "Applies the delta-reduction on the terms `ts`."
-  [def-env ctx ts local?]
-  (loop [ts ts, ts' [], red? false]
+  [def-env ctx ts local? rcount]
+  (loop [ts ts, ts' [], rcount rcount]
     (if (seq ts)
-      (let [[t' red-1?] (delta-step def-env ctx (first ts) local?)]
-        (recur (rest ts) (conj ts' t') (or red? red-1?)))
-      [ts' red?])))
+      (let [[t' rcount'] (delta-step def-env ctx (first ts) local? rcount)]
+        (recur (rest ts) (conj ts' t') rcount'))
+      [ts' rcount])))
 
 ;;{
 ;; ## Normalization
@@ -347,27 +352,24 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn beta-normalize
   "Normalize term `t` for beta-reduction."
   [t]
-  (let [[t' red?] (beta-step t)]
-    (if red?
-      (recur t')
-      t')))
+  (let [[t' rcount] (beta-step t)]
+    ;;(println "[INFO] Number of beta-reductions=" rcount)
+    t'))
 
 (defn delta-normalize
   "Normalize term `t` for delta-reduction."
   [def-env ctx t]
-  (let [[t' red?] (delta-step def-env ctx t)]
-    (if red?
-      (recur def-env ctx t')
-      t')))
+  (let [[t' rcount] (delta-step def-env ctx t)]
+    ;;(println "[INFO] Number of delta-reductions=" rcount)
+    t'))
 
 (defn delta-normalize-local
   "Normalize term `t` for delta-reduction using only
   environment `def-env` (and *not* the current namespace)."
   [def-env ctx t]
-  (let [[t' red?] (delta-step def-env ctx t true)]
-    (if red?
-      (recur def-env ctx t')
-      t')))
+  (let [[t' rcount] (delta-step def-env ctx t true)]
+    ;;(println "[INFO] Number of (local) delta-reductions=" rcount)
+    t'))
 
 ;;{
 ;; The heart of the general normalization process is
@@ -397,16 +399,11 @@ potentially rewritten version of `t` and `red?` is `true`
   The result is defined as *the normal form* of `t`."
   [def-env ctx t]
   ;;(println "[beta-delta-normalize]: t=" t)
-  (let [[t' delta-red?] (delta-step def-env ctx t)]
-    (if delta-red?
-      (do ;;(println "  [delta] t ==> " t')
-        (recur def-env ctx t'))
-      (let [[t' beta-red?] (beta-step t)]
-        (if beta-red?
-          (do ;;(println "  [beta] t ==> " t')
-            (recur def-env ctx t'))
-          t')))))
-
+  (let [[t' delta-count] (delta-step def-env ctx t)
+        [t'' beta-count] (beta-step t')]
+    ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
+    t''))
+    
 ;;{
 ;; The following is the main user-level function for normalization.
 ;;}
