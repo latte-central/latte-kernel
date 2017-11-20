@@ -133,7 +133,7 @@ potentially rewritten version of `t` and `red?` is `true`
            [right' rcount2] (beta-step right rcount1)]
        (if (stx/lambda? left')
          ;; we have a redex
-         (recur (beta-reduction [left' right']) rcount2)
+         (recur (beta-reduction [left' right']) (inc rcount2))
          ;; or we stay with an application
          [[left' right'] rcount2]))
      ;; reference
@@ -400,7 +400,7 @@ potentially rewritten version of `t` and `red?` is `true`
   [def-env ctx t]
   ;;(println "[beta-delta-normalize]: t=" t)
   (let [[t' delta-count] (delta-step def-env ctx t)
-        [t'' beta-count] (beta-step t)]
+        [t'' beta-count] (beta-step t')]
     ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
     t''))
     
