@@ -87,7 +87,7 @@
 
 (deftest test-delta-step
   (is (= (delta-step {} [] 'x)
-         '[x false]))
+         '[x 0]))
       
   (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
                                             '{:arity 1
@@ -97,7 +97,7 @@
                                               :opts {}})})
                      []
                      '[y (test [t t])])
-         '[[y [[t t] [t t]]] true]))
+         '[[y [[t t] [t t]]] 1]))
 
   (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
                                             '{:arity 2
@@ -107,7 +107,7 @@
                                               :opts {}})})
                      []
                      '[y (test [t t] u)])
-         '[[y [[t t] [u [t t]]]] true]))
+         '[[y [[t t] [u [t t]]]] 1]))
 
   (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
                                             '{:arity 2
@@ -117,7 +117,7 @@
                                               :opts {:opaque true}})})
                      []
                      '[y (test [t t] u)])
-         '[[y (test [t t] u)] false])))
+         '[[y (test [t t] u)] 0])))
 
 (deftest test-normalize
   (is (= (normalize '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))
