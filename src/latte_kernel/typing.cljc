@@ -185,15 +185,15 @@ that implicits can be erased."
       [:ko {:msg "Cannot calculate domain type of product." :term A :from sort1} nil]
       (let [sort1' (norm/normalize def-env ctx sort1)]
         (if (not (stx/sort? sort1'))
-          [:ko {:msg "Not a valid domain type in product (super-type not a sort)" :term A' :type sort1}]
-          (let [ctx' (ctx-put ctx x A')
+          [:ko {:msg "Not a valid domain type in product (super-type not a sort)" :term A :type sort1}]
+          (let [ctx' (ctx-put ctx x A) ;; or unfolded ? (ctx-put ctx x A')
                 [status sort2 B'] (type-of-term def-env ctx' B)]
             (if (= status :ko)
               [:ko {:msg "Cannot calculate codomain type of product." :term B :from sort2} nil]
               (let [sort2' (norm/normalize def-env ctx sort2)]
                 ;; (println "sort2' = " sort2' " sort? " (stx/sort? sort2'))
                 (if (not (stx/sort? sort2'))
-                  [:ko {:msg "Not a valid codomain type in product (not a sort)" :term B' :type sort2} nil]
+                  [:ko {:msg "Not a valid codomain type in product (not a sort)" :term B :type sort2} nil]
                   [:ok sort2 (list 'Π [x A'] B')])))))))))
 
 
@@ -219,20 +219,20 @@ that implicits can be erased."
     (if (= status :ko)
       [:ko {:msg "Cannot calculate domain type of abstraction."
             :term (list 'λ [x A] t) :from err} nil])
-    (let [ctx' (ctx-put ctx x A')
+    (let [ctx' (ctx-put ctx x A) ;; or A' ? (ctx-put ctx x A')
           [status B t'] (type-of-term def-env ctx' t)]
       (if (= status :ko)
         [:ko {:msg "Cannot calculate codomain type of abstraction."
-              :term (list 'λ [x A'] t) :from B} nil]
-        (let [tprod (list 'Π [x A'] B)
+              :term (list 'λ [x A] t) :from B} nil]
+        (let [tprod (list 'Π [x A] B) ;; or A' ? (list 'Π [x A'] B)
               [status sort tprod'] (type-of-term def-env ctx tprod)]
           (if (= status :ko)
             [:ko {:msg "Not a valid codomain type in abstraction (cannot calculate super-type)."
-                  :term (list 'λ [x A'] t')
+                  :term (list 'λ [x A] t')
                   :codomain B :from sort} nil]
             (if (not (stx/sort? (norm/normalize def-env ctx sort)))
               [:ko {:msg "Not a valid codomain type in abstraction (super-type not a sort)."
-                    :term (list 'λ [x A'] t')
+                    :term (list 'λ [x A] t')
                     :codomain B
                     :type sort}]
               [:ok tprod (list 'λ [x A'] t')])))))))
@@ -263,19 +263,20 @@ that implicits can be erased."
       (let [[status trand rand'] (type-of-term def-env ctx rand)]
         (if (= status :ko)
           [:ko {:msg "Cannot calculate operand (right-hand) type in application."
-                :term [rator' rand] :from trand} nil])
+                :term [rator rand] :from trand} nil])
         (let [trator' (norm/normalize def-env ctx trator)]
           (if (not (stx/prod? trator'))
-            [:ko {:msg "Not a product type for operator (left-hand) in application." :term [rator' rand'] :operator-type trator}]
+            [:ko {:msg "Not a product type for operator (left-hand) in application." :term [rator rand] :operator-type trator}]
             (let [[_ [x A] B] trator']
               ;; (println "[type-of-app] trator'=" trator')
-              (if (not (type-check? def-env ctx rand' A))
-                [:ko {:msg "Cannot apply: type domain mismatch" :term [rator' rand'] :domain A :operand rand'}]
+              (if (not (type-check? def-env ctx rand A)) ;; or rand' ? (not (type-check? def-env ctx rand' A))
+                [:ko {:msg "Cannot apply: type domain mismatch" :term [rator rand] :domain A :operand rand}]
                 (do ;;(println "[type-of-app] subst...")
                   ;;(println "    B = " B)
                   ;;(println "    x = " x)
                   ;;(println "    rand = " rand)
-                  (let [res (stx/subst B x rand')]
+                  (let [res (stx/subst B x rand) ;; or rand' ? (stx/subst B x rand')
+                        ]
                     ;;(println "   ===> " res)
                     [:ok res [rator' rand']]))))))))))
 
@@ -363,7 +364,10 @@ that implicits can be erased."
   (let [[status, targs, args'] (type-of-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs nil]
-      (let [[status, res] (prepare-argument-subst def-env ctx name args' targs (:params ddef))]
+      (let [[status, res]
+            ;; (prepare-argument-subst def-env ctx name args' targs (:params ddef))
+            ;; maybe do not replace by the unfolded terms
+            (prepare-argument-subst def-env ctx name args targs (:params ddef))]
         (if (= status :ko)
           [:ko res]
           (let [[params sub] res
@@ -373,7 +377,8 @@ that implicits can be erased."
             ;;   (if (= status :ko)
             ;;     [:ko err nil]
             ;;     [:ok typ' (list* name args')]))
-            [:ok typ (list* name args')]
+            ;; [:ok typ (list* name args')] ;;  no unfold (???)
+            [:ok typ (list* name args)]
             ))))))
 
 
