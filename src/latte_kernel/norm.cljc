@@ -247,10 +247,10 @@ potentially rewritten version of `t` and `red?` is `true`
       (if (empty? params)
         (throw (ex-info "Not enough parameters (please report)" {:args args}))
         (recur (rest args) (rest params) (conj let-bindings (conj (first params) (first args)))))
-      (loop [params (reverse params), res (stx/letify let-bindings body)]
+      (loop [params (reverse params), res body]
         (if (seq params)
           (recur (rest params) (list 'λ (first params) res))
-          res)))))
+          (stx/letify let-bindings  res))))))
 
 
 ;;{

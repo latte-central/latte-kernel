@@ -100,6 +100,7 @@
   (is (= (type-of-term defenv/empty-env '[[w ✳] [y w] [z y]] '(λ [x ✳] z))
          '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x ✳] z),
                 :from {:msg "Not a correct type (super-type is not a sort)", :term z, :type y, :super-type w}} nil])))
+
 (deftest test-type-of-app
   (is (= (type-of-term defenv/empty-env '[[bool ✳] [y bool]]
                        '[(λ [x bool] x) y])

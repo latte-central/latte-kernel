@@ -163,7 +163,7 @@ that implicits can be erased."
               (type-of-term def-env ctx ty)))]
       (if (= status :ko)
         [:ko {:msg "Cannot calculate type of variable." :term x :from sort} nil]
-        (if (stx/sort? sort)
+        (if (stx/sort? (norm/normalize def-env ctx sort))
           [:ok ty' x]
           [:ko {:msg "Not a correct type (super-type is not a sort)" :term x :type (unparse ty') :super-type (unparse sort)} nil])))
     ;; not found
