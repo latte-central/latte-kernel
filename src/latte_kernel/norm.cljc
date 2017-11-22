@@ -239,11 +239,10 @@ potentially rewritten version of `t` and `red?` is `true`
 
 (declare prepare-renaming)
 
-(defn instantiate-def
+(defn preinstantiate-def
   "Substitute in the `body` of a definition the parameters `params` 
   by the actual arguments `args`."
   [forbid params body args]
-  ;;(println "[instantiate-def] params=" params "body=" body "args=" args)
   (loop [args args, forbid forbid, params params, ren {}, let-bindings []]
     (if (seq args)
       (if (empty? params)
@@ -262,12 +261,18 @@ potentially rewritten version of `t` and `red?` is `true`
                 ty' (stx/renaming ty ren)]
             (recur (rest params) forbid' ren' (conj nparams [x' ty'])))
           ;; no more parameters
-          (let [body' (stx/renaming body ren)
-                body'' (loop [params (reverse nparams), res body']
-                         (if (seq params)
-                           (recur (rest params) (list 'λ (first params) res))
-                           res))]
-            (stx/letify let-bindings body'')))))))
+          [let-bindings nparams (stx/renaming body ren)])))))
+
+(defn instantiate-def
+  "Substitute in the `body` of a definition the parameters `params` 
+  by the actual arguments `args`."
+  [forbid params body args]
+  (let [[let-bindings params body] (preinstantiate-def forbid params body args)]
+    (let [body' (loop [params (reverse params), res body]
+                  (if (seq params)
+                    (recur (rest params) (list 'λ (first params) res))
+                    res))]
+      (stx/letify let-bindings body'))))
 
 (defn prepare-renaming [x forbid ren]
   (if (contains? forbid x)

@@ -451,7 +451,6 @@ that implicits can be erased."
       ;; no more arguments (maybe some parameters left)
       [:ok bindings params])))
 
-
 ;;{
 ;; The following function generalizes the remaining uninstantiated parameters.
 ;;}
