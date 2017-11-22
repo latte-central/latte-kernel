@@ -47,12 +47,12 @@
   (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] [z x]]
                           '((λ [t ✳] t) t1 [t2 t3]))
-         '[[(λ [t ✳] t) t1] [[t2 t3] (λ [t ✳] t)]]))
+         '(let [x ✳ (λ [t ✳] t)] (let [y ✳ t1] (let [z ✳ [t2 t3]] [[x y] [z x]])))))
   
   (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳] [t ✳]]
                           '[[x y] [z t]]
                           '((λ [t ✳] t) t1 [t2 t3]))
-         '(λ [t' ✳] [[(λ [t ✳] t) t1] [[t2 t3] t']])))
+         '(λ [t ✳] (let [x ✳ (λ [t ✳] t)] (let [y ✳ t1] (let [z ✳ [t2 t3]] [[x y] [z t]]))))))
   
   (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] z]
@@ -68,7 +68,7 @@
                                                    :opts {}})})
                           []
                           '(test [a b] c [t (λ [t] t)]))
-         '[[c (λ [t' ✳] [[a b] [[t (λ [t] t)] t']])] true]))
+         '[(let [x ✳ [a b]] (let [y □ c] (let [z ✳ [t (λ [t] t)]] [y (λ [t ✳] [x [z t]])]))) true]))
 
   (is (= (delta-reduction (defenv/mkenv {'test (defenv/map->Theorem
                                                  '{:name test
@@ -95,7 +95,7 @@
                                                    :opts {}})})
                           []
                           '(test [a b] c))
-         '[(λ [z ✳] [c (λ [t ✳] [[a b] [z t]])]) true])))
+         '[(λ [z ✳] (let [x ✳ [a b]] (let [y □ c] [y (λ [t ✳] [x [z t]])]))) true])))
 
 (deftest test-delta-step
   (is (= (delta-step {} [] 'x)
@@ -109,7 +109,7 @@
                                               :opts {}})})
                      []
                      '[y (test [t t])])
-         '[[y [[t t] [t t]]] 1]))
+         '[[y (let [x ✳ [t t]] [x x])] 1]))
 
   (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
                                             '{:arity 2
@@ -119,7 +119,7 @@
                                               :opts {}})})
                      []
                      '[y (test [t t] u)])
-         '[[y [[t t] [u [t t]]]] 1]))
+         '[[y (let [x ✳ [t t]] (let [y ✳ u] [x [y x]]))] 1]))
 
   (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
                                             '{:arity 2

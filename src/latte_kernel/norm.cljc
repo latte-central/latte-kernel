@@ -236,20 +236,28 @@ potentially rewritten version of `t` and `red?` is `true`
 ;; by actual arguments. The process is called *instantiation*.
 ;;}
 
+(declare letify)
+
 (defn instantiate-def
   "Substitute in the `body` of a definition the parameters `params` 
   by the actual arguments `args`."
   [params body args]
   ;;(println "[instantiate-def] params=" params "body=" body "args=" args)
-  (loop [args args, params params, sub {}]
+  (loop [args args, params params, let-bindings []]
     (if (seq args)
       (if (empty? params)
         (throw (ex-info "Not enough parameters (please report)" {:args args}))
-        (recur (rest args) (rest params) (assoc sub (ffirst params) (first args))))
-      (loop [params (reverse params), res body]
+        (recur (rest args) (rest params) (conj let-bindings (conj (first params) (first args)))))
+      (loop [params (reverse params), res (letify let-bindings body)]
         (if (seq params)
           (recur (rest params) (list 'λ (first params) res))
-          (stx/subst res sub))))))
+          res)))))
+
+(defn letify [bindings body]
+  (loop [bindings (reverse bindings), res body]
+    (if (seq bindings)
+      (recur (rest bindings) (list 'let (first bindings) res))
+      res)))
 
 ;;{
 ;; Note that for the sake of efficiency, we do not unfold theorems (by their proof)
@@ -340,6 +348,13 @@ potentially rewritten version of `t` and `red?` is `true`
            ;; 2) also try reduction in body
            [body' rcount2] (delta-step def-env (cons [x ty'] ctx) body local? rcount1)]
        [(list binder [x ty'] body') rcount2])
+     ;; let abstraction
+     (stx/let? t)
+     (let [[_ [x ty xval] body] t
+           [ty' rcount1] (delta-step def-env ctx ty local? rcount)
+           [xval' rcount2] (delta-step def-env ctx xval local? rcount1)
+           [body' rcount3] (delta-step def-env (cons [x ty'] ctx) body local? rcount2)]
+       [(list 'let [x ty' xval'] body') rcount3])
      ;; application
      (stx/app? t)
      (let [[left right] t
