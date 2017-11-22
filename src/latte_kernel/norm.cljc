@@ -237,21 +237,45 @@ potentially rewritten version of `t` and `red?` is `true`
 ;; by actual arguments. The process is called *instantiation*.
 ;;}
 
+(declare prepare-renaming)
+
 (defn instantiate-def
   "Substitute in the `body` of a definition the parameters `params` 
   by the actual arguments `args`."
-  [params body args]
+  [forbid params body args]
   ;;(println "[instantiate-def] params=" params "body=" body "args=" args)
-  (loop [args args, params params, let-bindings []]
+  (loop [args args, forbid forbid, params params, ren {}, let-bindings []]
     (if (seq args)
       (if (empty? params)
         (throw (ex-info "Not enough parameters (please report)" {:args args}))
-        (recur (rest args) (rest params) (conj let-bindings (conj (first params) (first args)))))
-      (loop [params (reverse params), res body]
+        (let [[x ty] (first params)
+              arg (first args)
+              [x' forbid' ren'] (prepare-renaming x forbid ren)
+              ty' (stx/renaming ty ren)
+              arg' (stx/renaming arg ren)]
+          (recur (rest args) forbid' (rest params) ren' (conj let-bindings [x' ty' arg']))))
+      ;; no more arguments
+      (loop [params params, forbid forbid, ren ren, nparams []]
         (if (seq params)
-          (recur (rest params) (list 'λ (first params) res))
-          (stx/letify let-bindings  res))))))
+          (let [[x ty] (first params)
+                [x' forbid' ren'] (prepare-renaming x forbid ren)
+                ty' (stx/renaming ty ren)]
+            (recur (rest params) forbid' ren' (conj nparams [x' ty'])))
+          ;; no more parameters
+          (let [body' (stx/renaming body ren)
+                body'' (loop [params (reverse nparams), res body']
+                         (if (seq params)
+                           (recur (rest params) (list 'λ (first params) res))
+                           res))]
+            (stx/letify let-bindings body'')))))))
 
+(defn prepare-renaming [x forbid ren]
+  (if (contains? forbid x)
+    (let [x' (stx/mk-fresh x forbid)
+          forbid' (conj forbid x')
+          ren' (assoc ren x x')]
+      [x' forbid' ren'])
+    [x forbid ren]))
 
 ;;{
 ;; Note that for the sake of efficiency, we do not unfold theorems (by their proof)
@@ -297,7 +321,7 @@ potentially rewritten version of `t` and `red?` is `true`
              ;; the definition is opaque
              [t false]
              ;; the definition is transparent
-             [(instantiate-def (:params sdef) (:parsed-term sdef) args) true])
+             [(instantiate-def (into #{} (map first ctx)) (:params sdef) (:parsed-term sdef) args) true])
            ;; no parsed term for definitoin
            (throw (ex-info "Cannot unfold term reference: no parsed term (please report)"
                            {:term t :def sdef})))
