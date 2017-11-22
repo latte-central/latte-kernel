@@ -236,8 +236,6 @@ potentially rewritten version of `t` and `red?` is `true`
 ;; by actual arguments. The process is called *instantiation*.
 ;;}
 
-(declare letify)
-
 (defn instantiate-def
   "Substitute in the `body` of a definition the parameters `params` 
   by the actual arguments `args`."
@@ -248,16 +246,11 @@ potentially rewritten version of `t` and `red?` is `true`
       (if (empty? params)
         (throw (ex-info "Not enough parameters (please report)" {:args args}))
         (recur (rest args) (rest params) (conj let-bindings (conj (first params) (first args)))))
-      (loop [params (reverse params), res (letify let-bindings body)]
+      (loop [params (reverse params), res (stx/letify let-bindings body)]
         (if (seq params)
           (recur (rest params) (list 'λ (first params) res))
           res)))))
 
-(defn letify [bindings body]
-  (loop [bindings (reverse bindings), res body]
-    (if (seq bindings)
-      (recur (rest bindings) (list 'let (first bindings) res))
-      res)))
 
 ;;{
 ;; Note that for the sake of efficiency, we do not unfold theorems (by their proof)

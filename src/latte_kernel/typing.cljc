@@ -2,7 +2,8 @@
   (:require [latte-kernel.utils :as u]
             [latte-kernel.syntax :as stx]
             [latte-kernel.norm :as norm]
-            [latte-kernel.defenv :as defenv]))
+            [latte-kernel.defenv :as defenv]
+            [latte-kernel.unparser :as unparsed :refer [unparse]]))
   
 ;;{
 ;; # Type checking
@@ -50,15 +51,16 @@
          type-of-var
          type-of-prod
          type-of-abs
+         type-of-let
          type-of-app
          type-of-ref
          type-of-ascribe)
+
 
 ;;{
 ;; The following function is the main entry point for type inference.
 ;;}
 
-(declare unfold-implicit)
 
 (defn type-of-term
   "Infer the type of term `t` in definitional environment `def-env` 
@@ -80,6 +82,10 @@ that implicits can be erased."
               λ (type-of-abs def-env ctx x ty body)
               Π (type-of-prod def-env ctx x ty body)
               (throw (ex-info "No such binder (please report)" {:term t :binder binder}))))
+          ;; let abstraction
+          (stx/let? t)
+          (let [[_ [x ty xval] body] t]
+            (type-of-let def-env ctx x ty xval body))
           ;; references
           (stx/ref? t) (type-of-ref def-env ctx (first t) (rest t))
           ;; ascriptions
@@ -159,7 +165,7 @@ that implicits can be erased."
         [:ko {:msg "Cannot calculate type of variable." :term x :from sort} nil]
         (if (stx/sort? sort)
           [:ok ty' x]
-          [:ko {:msg "Not a correct type (super-type is not a sort)" :term x :type ty' :sort sort} nil])))
+          [:ko {:msg "Not a correct type (super-type is not a sort)" :term x :type (unparse ty') :super-type (unparse sort)} nil])))
     ;; not found
     [:ko {:msg "No such variable in type context" :term x} nil]))
 
@@ -182,18 +188,17 @@ that implicits can be erased."
   [def-env ctx x A B]
   (let [[status sort1 A'] (type-of-term def-env ctx A)]
     (if (= status :ko)
-      [:ko {:msg "Cannot calculate domain type of product." :term A :from sort1} nil]
+      [:ko {:msg "Cannot calculate domain type of product." :term (unparse A) :from sort1} nil]
       (let [sort1' (norm/normalize def-env ctx sort1)]
         (if (not (stx/sort? sort1'))
-          [:ko {:msg "Not a valid domain type in product (super-type not a sort)" :term A :type sort1}]
+          [:ko {:msg "Not a valid domain type in product (super-type not a sort)" :term (unparse A) :type sort1}]
           (let [ctx' (ctx-put ctx x A) ;; or unfolded ? (ctx-put ctx x A')
                 [status sort2 B'] (type-of-term def-env ctx' B)]
             (if (= status :ko)
-              [:ko {:msg "Cannot calculate codomain type of product." :term B :from sort2} nil]
+              [:ko {:msg "Cannot calculate codomain type of product." :codomain (unparse B) :from sort2} nil]
               (let [sort2' (norm/normalize def-env ctx sort2)]
-                ;; (println "sort2' = " sort2' " sort? " (stx/sort? sort2'))
                 (if (not (stx/sort? sort2'))
-                  [:ko {:msg "Not a valid codomain type in product (not a sort)" :term B :type sort2} nil]
+                  [:ko {:msg "Not a valid codomain type in product (not a sort)" :codomain (unparse B) :codomain-type (unparse sort2)} nil]
                   [:ok sort2 (list 'Π [x A'] B')])))))))))
 
 
@@ -201,7 +206,7 @@ that implicits can be erased."
 ;;
 ;; ### The type of abstractions
 ;;
-;; The type of an abstraction is simply the coresponding
+;; The type of an abstraction is simply the corresponding
 ;; product, on of the beauties of type theory.
 ;;
 ;;
@@ -212,31 +217,68 @@ that implicits can be erased."
 
 
 (defn type-of-abs
-  "Infer the type of an  with bound variable `x` of
+  "Infer the type of an abstraction  with bound variable `x` of
   type `A` in body `B`."
   [def-env ctx x A t]
   (let [[status err A'] (type-of-term def-env ctx A)]
     (if (= status :ko)
       [:ko {:msg "Cannot calculate domain type of abstraction."
-            :term (list 'λ [x A] t) :from err} nil])
+            :term (list 'λ [x (unparse A)] (unparse t)) :from err} nil])
     (let [ctx' (ctx-put ctx x A) ;; or A' ? (ctx-put ctx x A')
           [status B t'] (type-of-term def-env ctx' t)]
       (if (= status :ko)
         [:ko {:msg "Cannot calculate codomain type of abstraction."
-              :term (list 'λ [x A] t) :from B} nil]
+              :term (list 'λ [x (unparse A)] (unparse t)) :from B} nil]
         (let [tprod (list 'Π [x A] B) ;; or A' ? (list 'Π [x A'] B)
               [status sort tprod'] (type-of-term def-env ctx tprod)]
           (if (= status :ko)
             [:ko {:msg "Not a valid codomain type in abstraction (cannot calculate super-type)."
-                  :term (list 'λ [x A] t')
+                  :term (list 'λ [x (unparse A)] (unparse t'))
                   :codomain B :from sort} nil]
             (if (not (stx/sort? (norm/normalize def-env ctx sort)))
               [:ko {:msg "Not a valid codomain type in abstraction (super-type not a sort)."
-                    :term (list 'λ [x A] t')
-                    :codomain B
-                    :type sort}]
+                    :term (list 'λ [x (unparse A)] (unparse t'))
+                    :codomain (unparse B)
+                    :type (unparse sort)}]
               [:ok tprod (list 'λ [x A'] t')])))))))
 
+;;{
+;;
+;; ### The type of let-abstractions
+;;
+;; The let is very easity typable.
+;;
+;;             E,x:A |- y ::> T 
+;;   --------------------------------
+;;       E |- let x:A=t in y  ::> T
+;;
+;; In fact we have a simper rule:
+;;
+;;         E |- lambda x:A . y ::> T
+;;   -------------------------------------
+;;            E |- let x:A=t in y
+;;}
+
+
+(defn type-of-let
+  "Infer the type of a let-abstraction with bound variable `x` of
+  type `A` and value `t` in term `u`"
+  [def-env ctx x A t u]
+  (let [[status err A'] (type-of-term def-env ctx A)]
+    (if (= status :ko)
+      [:ko {:msg "Cannot calculate variable type of let-abstraction."
+            :var-type (unparse A) :from err} nil]
+      (let [[status ty u'] (type-of-term def-env
+                                         (ctx-put ctx x A) ;; or A' ?
+                                         u)]
+        (if (= status :ko)
+          [:ko {:msg "Cannot calculate type of let-abstraction body."
+                :body (unparse u) :from ty} nil]
+          [:ok ty (list 'let [x A' t] u')]
+          ;; XXX: term t is not expanded (it may contain implicits...)
+          ;;      it's ok because it is never used for its type (?)
+          ;;      otherwise we may type it and inject the expanded version (it's just slower)
+          )))))
 
 ;;{
 ;;
@@ -246,10 +288,18 @@ that implicits can be erased."
 ;; especially because it involves the substitution of the
 ;; bound variable by the operand in the return type.
 ;;
+;; The classical rule is the following one:
 ;;
 ;;       E |- rator ::> prod x:A . B    E|- rand :: A
 ;;    -------------------------------------------------
 ;;          E |- rator rand : B [rand/x]
+;;
+;; To avoid the costly substitution, we rewrite the type as a let-abstraction
+;;
+;;       E |- rator ::> prod x:A . B    E|- rand :: A
+;;    -------------------------------------------------
+;;          E |- rator rand : let x:A=rand in B
+;;
 ;;}
 
 (defn type-of-app
@@ -259,26 +309,24 @@ that implicits can be erased."
   (let [[status trator rator'] (type-of-term def-env ctx rator)]
     (if (= status :ko)
       [:ko {:msg "Cannot calculate operator (left-hand) type in application."
-            :term [rator rand] :from trator} nil]
+            :left-term (unparse rator) :from trator} nil]
       (let [[status trand rand'] (type-of-term def-env ctx rand)]
         (if (= status :ko)
           [:ko {:msg "Cannot calculate operand (right-hand) type in application."
-                :term [rator rand] :from trand} nil])
-        (let [trator' (norm/normalize def-env ctx trator)]
-          (if (not (stx/prod? trator'))
-            [:ko {:msg "Not a product type for operator (left-hand) in application." :term [rator rand] :operator-type trator}]
-            (let [[_ [x A] B] trator']
-              ;; (println "[type-of-app] trator'=" trator')
-              (if (not (type-check? def-env ctx rand A)) ;; or rand' ? (not (type-check? def-env ctx rand' A))
-                [:ko {:msg "Cannot apply: type domain mismatch" :term [rator rand] :domain A :operand rand}]
+                :right-term (unparse rand) :from trand} nil]
+          (let [trator' (norm/normalize def-env ctx trator)]
+            (if (not (stx/prod? trator'))
+              [:ko {:msg "Not a product type for operator (left-hand) in application." :operator (unparse rator) :operator-type (unparse trator)}]
+              (let [[_ [x A] B] trator']
+                ;; (println "[type-of-app] trator'=" trator')
+                (if (not (type-check? def-env ctx rand A)) ;; or rand' ? (not (type-check? def-env ctx rand' A))
+                  [:ko {:msg "Cannot apply: type domain mismatch" :domain (unparse A) :operand (unparse rand)}]
                 (do ;;(println "[type-of-app] subst...")
                   ;;(println "    B = " B)
                   ;;(println "    x = " x)
                   ;;(println "    rand = " rand)
-                  (let [res (stx/subst B x rand) ;; or rand' ? (stx/subst B x rand')
-                        ]
-                    ;;(println "   ===> " res)
-                    [:ok res [rator' rand']]))))))))))
+                  [:ok (list 'let [x A rand] B)
+                   [rator' rand']]))))))))))
 
 ;;{
 ;;
@@ -298,6 +346,8 @@ that implicits can be erased."
 ;;      D, E |- (ref e1 e2 ... eM)
 ;;              ::> (prod [xM+1 tM+1] ... (prod [xN tN] t [e1/x1, e2/x2, ...eM/xM]) ...)
 ;;
+;;
+;; Instead of applying directly a substituion, we inject let-abstractions (cf. [[type-of-app]])
 ;;}
 
 ;;{
@@ -325,7 +375,7 @@ that implicits can be erased."
             (throw (ex-info "Not a LaTTe definition (please report)." {:def ddef}))
             (defenv/notation? ddef)
             (throw (ex-info "Notation should not occur at typing time (please report)"
-                            {:notation ddef :term (list* name args)}))
+                            {:notation ddef :term (unparse (list* name args))}))
             (and (defenv/theorem? ddef)
                  (= (:proof ddef) false))
             [:ko {:msg "Theorem has no proof." :thm-name (:name ddef)} nil]
@@ -337,7 +387,7 @@ that implicits can be erased."
             (throw (ex-info "Unsupported definitional entity, expecting a true definition or a theorem name"
                             {:name name, :entity ddef}))
             (> (count args) (:arity ddef))
-            [:ko {:msg "Too many arguments for definition." :term (list* name args) :arity (:arity ddef)}]
+            [:ko {:msg "Too many arguments for definition." :term (unparse (list* name args)) :arity (:arity ddef)}]
             :else
             (type-of-refdef def-env ctx name ddef args)))]
     ;;(println "---------------------")
@@ -353,34 +403,24 @@ that implicits can be erased."
 ;; to the unfolding of a defined term. This is by substituting the parameters of the
 ;; defined term by the arguments of the reference. LaTTe allows the partial unfolding
 ;; of the defined terms, thus at the end we generalise for the remaining
-;; uninstantiated parameters (as lambda-abstractions).
+;; uninstantiated parameters (as lambda-abstractions). But of course we use the "let-trick"
+;; to avoid any costly substitution at typing time.
 ;;}
 
-(declare type-of-args)
-(declare prepare-argument-subst)
-(declare generalize-params)
+(declare prepare-bindings
+         type-of-args
+         generalize-params)
 
 (defn type-of-refdef [def-env ctx name ddef args]
-  (let [[status, targs, args'] (type-of-args def-env ctx args)]
+  (let [[status targs args'] (type-of-args def-env ctx args)] ;; XXX: the targs are not in use (only for error info) ...
     (if (= status :ko)
-      [:ko targs nil]
-      (let [[status, res]
-            ;; (prepare-argument-subst def-env ctx name args' targs (:params ddef))
-            ;; maybe do not replace by the unfolded terms
-            (prepare-argument-subst def-env ctx name args targs (:params ddef))]
-        (if (= status :ko)
-          [:ko res]
-          (let [[params sub] res
-                expanded-term (stx/subst (:type ddef) sub)
-                typ (generalize-params (reverse params) expanded-term)]
-            ;; (let [[status err typ'] (type-of-term def-env ctx typ)]
-            ;;   (if (= status :ko)
-            ;;     [:ko err nil]
-            ;;     [:ok typ' (list* name args')]))
-            ;; [:ok typ (list* name args')] ;;  no unfold (???)
-            [:ok typ (list* name args)]
-            ))))))
-
+      [:ko targs nil])
+    (let [[bindings params] (prepare-bindings def-env ctx name args (:params ddef))
+          body (generalize-params params (:type ddef))
+          [status ty _] (type-of-term def-env ctx (stx/letify bindings body))]
+      (if (= status :ko)
+        [:ko ty nil]
+        [:ok ty (list* name args')]))))
 
 (defn type-of-args [def-env ctx args]
   (loop [args args, targs [], args' []]
@@ -391,36 +431,26 @@ that implicits can be erased."
           (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
       [:ok targs args'])))
 
-;;{
-;; The function below realizes the substitution of the parameters by
-;; their corresponding argument. The substitution `sub` is represented
-;; as a map.
-;;}
 
-(defn prepare-argument-subst [def-env ctx name args targs params]
-  (loop [args args, targs targs, params params, sub {}]
-    ;; (println "args=" args "params=" params "sub=" sub)
+(defn prepare-bindings [def-env ctx name args params]
+  (loop [args args, params params, bindings []]
     (if (seq args)
-      (let [arg (first args)
-            targ (second (first targs))
-            ty (stx/subst (second (first params)) sub)]
-        ;; (println "arg=" arg "ty=" ty)
-        (if (not (type-check? def-env ctx arg ty))
-          [:ko {:msg "Wrong argument type"
-                :term (list* name args)
-                :arg arg
-                :arg-type targ
-                :expected-type ty}]
-          (recur (rest args) (rest targs) (rest params) (assoc sub (ffirst params) arg))))
-      ;; all args have been checked
-      [:ok [params sub]])))
+      (do
+        (when (not (seq params))
+          (throw (ex-info "Not enough parameters (please report)" {:defname name :args args})))
+        (let [arg (first args)
+              [x ty] (first params)]
+          (recur (rest args) (rest params) (conj bindings [x ty arg]))))
+      ;; no more arguments (maybe some parameters left)
+      [bindings params])))
+
 
 ;;{
 ;; The following function generalizes the remaining uninstantiated parameters.
 ;;}
 
 (defn generalize-params [params res-type]
-  (loop [params params, res res-type]
+  (loop [params (reverse params), res res-type]
     (if (seq params)
       (recur (rest params) (list 'Π (first params) res))
       res)))
@@ -447,12 +477,13 @@ that implicits can be erased."
       ;; recursive typing of implicit-generated term
       (type-of-term def-env ctx implicit-term))))
 
-(defn rebuild-type [def-env ctx ty]
-  #_(let [vfresh (gensym "fresh")]
-      (let [[status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
-        [status ty']))
-  [:ok ty] ;; XXX : remove type rebuilding everywhere
-  )
+(comment
+  (defn rebuild-type [def-env ctx ty]
+    #_(let [vfresh (gensym "fresh")]
+        (let [[status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
+          [status ty']))
+    [:ok ty] ;; XXX : remove type rebuilding everywhere
+    ))
 
 (defn type-of
   ([t] (type-of defenv/empty-env [] t))

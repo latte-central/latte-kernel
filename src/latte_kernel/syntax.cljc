@@ -78,6 +78,15 @@
   (and (seq? t)
        (= (first t) 'let)))
 
+(defn letify
+  "Generate a let-abstraction from a sequence of `bindings` and a `body`."
+  [bindings body]
+  (loop [bindings (reverse bindings), res body]
+    (if (seq bindings)
+      (recur (rest bindings) (list 'let (first bindings) res))
+      res)))
+
+
 ;;{
 ;;  - *applications* `[u v]`
 ;;}
