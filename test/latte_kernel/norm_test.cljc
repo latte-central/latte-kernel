@@ -22,6 +22,18 @@
   (is (= (beta-red '[z [(λ [x ✳] x) y]])
          '[z y]))
 
+  (is (= (beta-red '(let [x ✳ y] x))
+         'y))
+
+  (is (= (beta-red '(λ [x ✳] (let [x ✳ y] x)))
+         '(λ [x ✳] y)))
+
+  (is (= (beta-red '(λ [x ✳] (let [y ✳ x] y)))
+         '(λ [x ✳] x)))
+
+  (is (= (beta-red '(λ [x ✳] (let [x ✳ x] x)))
+         '(λ [x ✳] x)))
+  
   (is (= (beta-red '(:latte-kernel.syntax/ascribe z [(λ [x ✳] x) y]))
          'z))
   
