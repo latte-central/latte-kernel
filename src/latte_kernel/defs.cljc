@@ -25,4 +25,18 @@
     (defenv/->Definition name params' (count params') term' type' opts)))
 
 
+(defn mkthm
+  "Make a (unproven) theorem with parameter renaming."
+  [thm-name params ty]
+  (let [[params' ren] (mk-params-renaming params)
+        ty' (stx/renaming ty ren)]
+    (defenv/->Theorem thm-name params' (count params') ty' false)))
+
+(defn mkaxiom
+  "Make an axiom with parameter renaming."
+  [ax-name params ty]
+  (let [[params' ren] (mk-params-renaming params)
+        ty' (stx/renaming ty ren)]
+    (defenv/->Axiom ax-name params' (count params') ty')))
+
 

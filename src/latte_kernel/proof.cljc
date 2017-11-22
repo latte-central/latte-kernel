@@ -7,7 +7,6 @@
             [latte-kernel.presyntax :as parse]
             [latte-kernel.norm :as norm]
             [latte-kernel.unparser :as unparser]
-            [latte-kernel.defs :refer [mkdef]]
             [clojure.pprint :as pp]))
 
 ;;{
@@ -87,7 +86,7 @@
               [:ko {:msg "Have step elaboration failed: local definition already registered"
                     :have-name name
                     :meta meta}]
-              (let [def-env' (defenv/register-definition def-env (mkdef name [] term rec-ty {}) true)
+              (let [def-env' (defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty {}) true)
                     var-deps' (-> var-deps
                                   ;; (update-var-deps name term)
                                   (update-var-deps name rec-ty))
