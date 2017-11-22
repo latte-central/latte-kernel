@@ -70,8 +70,10 @@
 
   (is (= (type-of-term defenv/empty-env '[[y bool]] '(λ [x bool] x))
          '[:ko {:msg "Cannot calculate codomain type of abstraction.",
-                :term (λ [x nil] x),
-                :from {:msg "No such variable in type context", :term x}}
+                :term (λ [x bool] x),
+                :from {:msg "Cannot calculate type of variable.",
+                       :term x,
+                       :from {:msg "No such variable in type context", :term bool}}}
            nil]))
 
   (is (= (type-of-term defenv/empty-env '[[y ✳] [z y]] '(λ [x z] x))
