@@ -55,10 +55,8 @@
            nil]))
 
   (is (= (type-of-term defenv/empty-env [] '(Π [x ✳] □))
-         '[:ko {:msg "Cannot calculate codomain type of product.",
-                :term □,
-                :from {:msg "Kind has not type", :term □}}
-           nil])))
+         '[:ko {:msg "Cannot calculate codomain type of product.", :codomain □,
+                :from {:msg "Kind has not type", :term □}} nil])))
 
 (deftest test-type-of-abs
   (is (= (type-of-term defenv/empty-env '[[bool ✳] [t bool] [y bool]]
@@ -77,10 +75,8 @@
            nil]))
 
   (is (= (type-of-term defenv/empty-env '[[y ✳] [z y]] '(λ [x z] x))
-         '[:ko {:msg "Cannot calculate codomain type of abstraction.",
-                :term (λ [x z] x),
-                :from {:msg "Not a correct type (super-type is not a sort)", :term x, :type z, :sort y}}
-           nil]))
+         '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x z] x),
+                :from {:msg "Not a correct type (super-type is not a sort)", :term x, :type z, :super-type y}} nil]))
 
   (is (= (type-of-term defenv/empty-env '[[y bool]] '(λ [x ✳] y))
          '[:ko {:msg "Cannot calculate codomain type of abstraction.",
@@ -98,22 +94,16 @@
 
   (is (= (type-of-term defenv/empty-env '[[y bool]] '(λ [x ✳] ✳))
          '[:ko {:msg "Not a valid codomain type in abstraction (cannot calculate super-type).",
-                :term (λ [x ✳] ✳),
-                :codomain □,
-                :from {:msg "Cannot calculate codomain type of product.",
-                       :term □,
-                       :from {:msg "Kind has not type", :term □}}}
-           nil]))
+                :term (λ [x ✳] ✳), :codomain □,
+                :from {:msg "Cannot calculate codomain type of product.", :codomain □,
+                       :from {:msg "Kind has not type", :term □}}} nil]))
   (is (= (type-of-term defenv/empty-env '[[w ✳] [y w] [z y]] '(λ [x ✳] z))
-         '[:ko {:msg "Cannot calculate codomain type of abstraction.",
-                :term (λ [x ✳] z),
-                :from {:msg "Not a correct type (super-type is not a sort)", :term z, :type y, :sort w}}
-           nil])))
-
+         '[:ko {:msg "Cannot calculate codomain type of abstraction.", :term (λ [x ✳] z),
+                :from {:msg "Not a correct type (super-type is not a sort)", :term z, :type y, :super-type w}} nil])))
 (deftest test-type-of-app
   (is (= (type-of-term defenv/empty-env '[[bool ✳] [y bool]]
                        '[(λ [x bool] x) y])
-         '[:ok bool [(λ [x bool] x) y]])))
+         '[:ok (let [x bool y] bool) [(λ [x bool] x) y]])))
 
 
 (deftest test-type-of-refdef
@@ -123,7 +113,7 @@
                                                 :arity 2})})
                        '[[a ✳] [b ✳]]
                        '(test a b))
-         '[:ok ✳ (test a b)]))
+         '[:ok (let [x ✳ a] (let [y ✳ b] ✳)) (test a b)]))
   
     (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
@@ -131,7 +121,7 @@
                                                 :arity 2})})
                        '[[a ✳] [b ✳]]
                        '(test a))
-           '[:ok (Π [y ✳] ✳) (test a)]))
+           '[:ok (let [x ✳ a] (Π [y ✳] ✳)) (test a)]))
 
   (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
@@ -159,12 +149,16 @@
                                       'equal eq-implicit})
                        '[[U ✳] [a U] [b U]]
                        '(equal a b))
-         '[:ok (Π [P (Π [⇧ U] ✳)] (Π [⇧' [P a]] [P b])) (equal% U a b)]))) 
+         '[:ok (let [T ✳ U]
+                 (let [x T a]
+                   (let [y T b]
+                     (Π [P (Π [⇧ T] ✳)] (Π [⇧ [P x]] [P y]))))) (equal% U a b)]))) 
 
-(deftest test-rebuild-type
-  (is (= (rebuild-type defenv/empty-env '[[bool ✳] [t bool] [y bool]]
-                       '(Π [x bool] bool))
-         '[:ok (Π [x bool] bool)])))
+(comment ;;; XXX: type rebuilding not required (?)
+  (deftest test-rebuild-type
+    (is (= (rebuild-type defenv/empty-env '[[bool ✳] [t bool] [y bool]]
+                         '(Π [x bool] bool))
+           '[:ok (Π [x bool] bool)]))))
 
 
 

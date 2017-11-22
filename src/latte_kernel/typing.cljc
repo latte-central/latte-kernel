@@ -412,15 +412,15 @@ that implicits can be erased."
          generalize-params)
 
 (defn type-of-refdef [def-env ctx name ddef args]
-  (let [[status targs args'] (type-of-args def-env ctx args)] ;; XXX: the targs are not in use (only for error info) ...
+  (let [[status targs args'] (type-of-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs nil])
-    (let [[bindings params] (prepare-bindings def-env ctx name args (:params ddef))
-          body (generalize-params params (:type ddef))
-          [status ty _] (type-of-term def-env ctx (stx/letify bindings body))]
+    (let [[status bindings params] (prepare-bindings def-env ctx name args targs (:params ddef))]
       (if (= status :ko)
-        [:ko ty nil]
-        [:ok ty (list* name args')]))))
+        [:ko bindings nil]
+        (let [body (generalize-params params (:type ddef))
+              ty (stx/letify bindings body)]
+          [:ok ty (list* name args')])))))
 
 (defn type-of-args [def-env ctx args]
   (loop [args args, targs [], args' []]
@@ -432,17 +432,24 @@ that implicits can be erased."
       [:ok targs args'])))
 
 
-(defn prepare-bindings [def-env ctx name args params]
-  (loop [args args, params params, bindings []]
+(defn prepare-bindings [def-env ctx name args targs params]
+  (loop [args args, targs targs, let-env norm/letenv-empty, params params, bindings []]
     (if (seq args)
       (do
         (when (not (seq params))
           (throw (ex-info "Not enough parameters (please report)" {:defname name :args args})))
         (let [arg (first args)
+              targ (second (first targs))
               [x ty] (first params)]
-          (recur (rest args) (rest params) (conj bindings [x ty arg]))))
+          (if (not (norm/beta-eq? def-env ctx let-env targ ty))
+            [:ko {:msg "Wrong argument type"
+                  :term (unparse (list* name args))
+                  :arg (unparse arg)
+                  :arg-type (unparse targ)
+                  :expected-type ty} nil]
+            (recur (rest args) (rest targs) (norm/letenv-put let-env x arg) (rest params) (conj bindings [x ty arg])))))
       ;; no more arguments (maybe some parameters left)
-      [bindings params])))
+      [:ok bindings params])))
 
 
 ;;{

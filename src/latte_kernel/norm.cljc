@@ -118,6 +118,7 @@ The return value is a pair `[t' red?]` with `t'` the
 potentially rewritten version of `t` and `red?` is `true`
  iff at least one redex was found and reduced."
   ([t] (beta-step letenv-empty t 0))
+  ([let-env t] (beta-step let-env t 0))
   ([let-env t rcount]
    (cond
      ;; free variable
@@ -440,10 +441,10 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn beta-delta-normalize
   "Apply the general normalization strategy of LaTTe on term `t`.
   The result is defined as *the normal form* of `t`."
-  [def-env ctx t]
+  [def-env ctx let-env t]
   ;;(println "[beta-delta-normalize]: t=" t)
   (let [[t' delta-count] (delta-step def-env ctx t)
-        [t'' beta-count] (beta-step t')]
+        [t'' beta-count] (beta-step let-env t')]
     ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
     t''))
     
@@ -454,9 +455,10 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn normalize
   "Normalize term `t` in (optional) environment `def-env` and (optional) context `ctx`.
   The result is *the normal form* of `t`."
-  ([t] (normalize {} [] t))
-  ([def-env t] (normalize def-env [] t))
-  ([def-env ctx t] (beta-delta-normalize def-env ctx t)))
+  ([t] (normalize defenv/empty-env [] letenv-empty t))
+  ([def-env t] (normalize def-env [] letenv-empty t))
+  ([def-env ctx t] (normalize def-env ctx letenv-empty t))
+  ([def-env ctx let-env t] (beta-delta-normalize def-env ctx let-env t)))
 
 ;;{
 ;; ## Beta-equivalence
@@ -474,16 +476,11 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn beta-eq?
   "Are terms `t1` and `t2` equivalent, i.e. with the
 same normal form (up-to alpha-convertion)?"
-  ([t1 t2]
-   (let [t1' (normalize t1)
-         t2' (normalize t2)]
-     (stx/alpha-eq? t1' t2')))
-  ([def-env t1 t2]
-   (let [t1' (normalize def-env t1)
-         t2' (normalize def-env t2)]
-     (stx/alpha-eq? t1' t2')))
-  ([def-env ctx t1 t2]
-   (let [t1' (normalize def-env ctx t1)
-         t2' (normalize def-env ctx t2)]
+  ([t1 t2] (beta-eq? defenv/empty-env [] letenv-empty t1 t2))
+  ([def-env t1 t2] (beta-eq? def-env [] letenv-empty t1 t2))
+  ([def-env ctx t1 t2] (beta-eq? def-env ctx letenv-empty t1 t2))
+  ([def-env ctx let-env t1 t2]
+   (let [t1' (normalize def-env ctx let-env t1)
+         t2' (normalize def-env ctx let-env t2)]
      (stx/alpha-eq? t1' t2'))))
 
