@@ -23,10 +23,10 @@
          '[z y]))
 
   (is (= (beta-red '(:latte-kernel.syntax/ascribe z [(λ [x ✳] x) y]))
-         '(:latte-kernel.syntax/ascribe z y)))
+         'z))
   
   (is (= (beta-red '(:latte-kernel.syntax/ascribe [(λ [x ✳] x) y] z))
-         '(:latte-kernel.syntax/ascribe y z)))
+         'y))
   
   (is (= (beta-red '[x y])
          '[x y])))

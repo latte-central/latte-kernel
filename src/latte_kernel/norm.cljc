@@ -103,6 +103,10 @@
   
   
 (declare beta-step-args)
+(declare letenv-empty)
+(declare letenv-lookup)
+(declare letenv-forget)
+(declare letenv-put)
 
 (defn beta-step
   "A call to this function will reduce a (somewhat)
@@ -113,42 +117,51 @@
 The return value is a pair `[t' red?]` with `t'` the
 potentially rewritten version of `t` and `red?` is `true`
  iff at least one redex was found and reduced."
-  ([t] (beta-step t 0))
-  ([t rcount]
+  ([t] (beta-step letenv-empty t 0))
+  ([let-env t rcount]
    (cond
+     ;; free variable
+     (stx/variable? t)
+     (if-let [vterm (letenv-lookup let-env t)]
+       [vterm rcount]
+       [t rcount])
      ;; binder
      (stx/binder? t)
      (let [[binder [x ty] body] t
            ;; 1) try reduction in binding type
-           [ty' rcount1] (beta-step ty rcount)
+           [ty' rcount1] (beta-step let-env ty rcount)
            ;; 2) also try reduction in body
-           [body' rcount2] (beta-step body rcount1)]
+           [body' rcount2] (beta-step (letenv-forget let-env x) body  rcount1)]
        [(list binder [x ty'] body') rcount2])
+     ;; let abstraction
+     (stx/let? t)
+     (let [[_ [x _ xval] body] t  ;; XXX: no need for the type part
+           [xval' rcount1] (beta-step let-env xval  rcount)]
+       (recur (letenv-put let-env x xval') body rcount1))
      ;; application
      (stx/app? t)
      (let [[left right] t
            ;; 1) try left reduction
-           [left' rcount1] (beta-step left rcount)
+           [left' rcount1] (beta-step let-env left rcount)
            ;; 2) also try right reduction
-           [right' rcount2] (beta-step right rcount1)]
+           [right' rcount2] (beta-step let-env right rcount1)]
        (if (stx/lambda? left')
          ;; we have a redex
-         (recur (beta-reduction [left' right']) (inc rcount2))
+         (let [[_ [x ty] body] left']
+           (recur (letenv-put let-env x right') body rcount2))
          ;; or we stay with an application
          [[left' right'] rcount2]))
      ;; reference
      (stx/ref? t)
      (let [[def-name & args] t
-           [args' rcount'] (beta-step-args args rcount)]
+           [args' rcount'] (beta-step-args let-env args rcount)]
        (if (not= rcount' rcount)
-         (recur (list* def-name args') rcount')
+         (recur let-env (list* def-name args') rcount')
          [t rcount]))
      ;; ascriptions
      (stx/ascription? t)
-     (let [[_ ty term] t
-           [ty' rcount1] (beta-step ty rcount)
-           [term' rcount2] (beta-step term rcount1)]
-       [(list :latte-kernel.syntax/ascribe ty' term') rcount2])
+     (let [[_ term _] t] ;; forget about the type part
+       (recur let-env term rcount))
      ;; other cases
      :else [t rcount])))
 
@@ -159,12 +172,35 @@ potentially rewritten version of `t` and `red?` is `true`
   This returns a pair composed of the rewritten
   terms and a flag telling if at least one reduction
   took place."
-  [ts rcount]
+  [let-env ts rcount]
   (loop [ts ts, ts' [], rcount rcount]
     (if (seq ts)
-      (let [[t' rcount'] (beta-step (first ts) rcount)]
+      (let [[t' rcount'] (beta-step let-env (first ts) rcount)]
         (recur (rest ts) (conj ts' t') rcount'))
       [ts' rcount])))
+
+(def letenv-empty [])
+
+(defn letenv-lookup [env x]  ;; XXX: optimize ?
+  (if (seq env)
+    (let [[y yval] (first env)]
+      (if (= x y)
+        yval
+        (recur (rest env) x)))
+    ;; not found
+    nil))
+
+(defn letenv-forget [env x]
+  (loop [env env, res []]
+    (if (seq env)
+      (let [[y _] (first env)]
+        (if (= x y)
+          (recur (rest env) res)
+          (recur (rest env) (conj res (first env)))))
+      res)))
+
+(defn letenv-put [env x xval]
+  (cons [x xval] env))
 
 (defn beta-red
   "Reduce term `t` according to the normalization strategy."
