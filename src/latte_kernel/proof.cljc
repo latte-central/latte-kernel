@@ -35,11 +35,11 @@
 ;;}
 
 (defn elab-declare [def-env ctx var-deps def-uses v ty meta]
-  (let [[status, ty'] (typing/rebuild-type def-env ctx ty)]
+  (let [[status, ty'] [:ok ty];; was: (typing/rebuild-type def-env ctx ty)
+        ]
     (if (= status :ko)
       [:ko ty']
       [:ok [def-env, (cons [v ty'] ctx), (cons [v #{}] var-deps), def-uses]])))
-
 
 ;;{
 ;; ## Local definitions
@@ -60,7 +60,8 @@
       ;; we have the type here
       (let [[status, rec-ty] (if (= ty '_)
                                [:ok term-type]
-                               (let [[status, have-type] (typing/rebuild-type def-env ctx ty)]
+                               (let [[status, have-type] [:ok ty];; was: (typing/rebuild-type def-env ctx ty)
+                                     ]
                                  (cond
                                    (= status :ko)
                                    [:ko {:msg "Have step elaboration failed: cannot rebuild have-type."
@@ -386,7 +387,8 @@
     (if (= status :ko)
       [status res]
       (let [[def-env' proof-term proof-type] res]
-        (let [[status thm-type'] (typing/rebuild-type def-env' ctx thm-type)]
+        (let [[status thm-type'] [:ok thm-type];; was: (typing/rebuild-type def-env' ctx thm-type)
+              ]
           (if (= status :ko)
             (throw (ex-info "Cannot rebuild theorem type." {:thm-type thm-type
                                                             :error thm-type'})))
