@@ -27,6 +27,9 @@
   (is (= (free-vars '(λ [x t] (test x y z)))
          '#{t y z}))
 
+  (is (= (free-vars '(let [x y z] (test x a b)))
+         '#{a y z b}))
+
   (is (= (free-vars '(:latte-kernel.syntax/ascribe x [y z]))
          '#{x y z}))
   
@@ -45,6 +48,9 @@
   
   (is (= (vars '(Π [x t] (test x [y z])))
          #{'t 'x 'y 'z}))
+
+  (is (= (vars '(let [x y z] (test x a b)))
+         '#{x a y z b}))
 
   (is (= (vars '(:latte-kernel.syntax/ascribe x [y z]))
          '#{x y z}))
@@ -67,6 +73,9 @@
 
   (is (= (bound-vars '(Π [x t] (test x [y z])))
          #{'x}))
+
+  (is (= (bound-vars '(let [x y z] (test x a b)))
+         '#{x}))
   
   (is (= (bound-vars '(:latte-kernel.syntax/ascribe x [y z]))
          '#{}))
@@ -111,6 +120,9 @@
                                                        'x' :replace-x' })
          '(test :replace-x y (λ [x'' ✳] (test x'' y :replace-x')) y)))
 
+  (is (= (subst '[x (let [x ✳ y] (test x y z y))] {'x '✳, 'y '□})
+         '[✳ (let [x' ✳ □] (test x' □ z □))]))
+
   (is  ;; XXX: this comes from a very subtile bug !
    (= (subst '(Π [⇧ (Π [x' T] (Π [⇧ (Π [x T] (Π [⇧ [X x]] [[R x] x']))] [R z]))]
                  [R z]) 'z 'x)
@@ -129,6 +141,10 @@
 (deftest test-alpha-eq?
   (is (= (alpha-eq? '(λ [x ✳] x)
                     '(λ [y ✳] y))
+         true))
+
+  (is (= (alpha-eq? '(let [x ✳ z] x)
+                    '(let [y ✳ z] y))
          true))
   ;; the type part of an ascription is not
   ;; considered for alpha-equivalence

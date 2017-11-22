@@ -372,7 +372,7 @@ Names generated fresh along the substitution cannot be members of `forbid`.
     (ascription? t)
     (let [[_ e _] t
           [e' level'] (alpha-norm- e sub level)
-          ;; the type part is removed during alpha-normalization
+          ;; XXX: the type part is removed during alpha-normalization, it's what's needed ?
           ]
       [e' level'])
     ;; references
