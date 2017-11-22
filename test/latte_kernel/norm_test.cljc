@@ -52,7 +52,7 @@
   (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳] [t ✳]]
                           '[[x y] [z t]]
                           '((λ [t ✳] t) t1 [t2 t3]))
-         '(λ [t ✳] (let [x ✳ (λ [t ✳] t)] (let [y ✳ t1] (let [z ✳ [t2 t3]] [[x y] [z t]]))))))
+         '(let [x ✳ (λ [t ✳] t)] (let [y ✳ t1] (let [z ✳ [t2 t3]] (λ [t ✳] [[x y] [z t]]))))))
   
   (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] z]
@@ -95,7 +95,7 @@
                                                    :opts {}})})
                           []
                           '(test [a b] c))
-         '[(λ [z ✳] (let [x ✳ [a b]] (let [y □ c] [y (λ [t ✳] [x [z t]])]))) true])))
+         '[(let [x ✳ [a b]] (let [y □ c] (λ [z ✳] [y (λ [t ✳] [x [z t]])]))) true])))
 
 (deftest test-delta-step
   (is (= (delta-step {} [] 'x)

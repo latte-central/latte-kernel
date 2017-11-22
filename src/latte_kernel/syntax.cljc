@@ -340,6 +340,46 @@ Names generated fresh along the substitution cannot be members of `forbid`.
          [t' _] (subst- t sub forbid {})]
      t')))
 
+(defn renaming
+  "Applies a simple renaming or variables. An assumption is that the
+  renaming variables are fresh."
+  [t ren]
+  (cond
+    ;; variables
+    (variable? t) (get ren t t)
+    ;; binders
+    (binder? t)
+    (let [[binder [x ty] body] t
+          ty' (renaming ty ren)
+          body' (renaming body (dissoc ren x))]
+      (list binder [x ty'] body'))
+    ;; let abstractions
+    (let? t)
+    (let [[_ [x ty xval] body] t
+          ty' (renaming ty ren)
+          xval' (renaming xval ren)
+          body' (renaming body (dissoc ren x))]
+      (list 'let [x ty' xval'] body'))
+    ;; applications
+    (app? t)
+    (let [[left right] t
+          left' (renaming left ren)
+          right' (renaming right ren)]
+      [left' right'])
+    ;; ascriptions
+    (ascription? t)
+    (let [[_ term type] t
+          term' (renaming term ren)
+          type' (renaming type ren)]
+      (list ::ascribe term' type'))
+    ;; references
+    (ref? t)
+    (let [args (reduce (fn [args' arg]
+                         (conj args' (renaming arg ren))) [] (rest t))]
+      (conj (into '() args) (first t)))
+    :else
+    t))
+
 ;;{
 ;; ## Alpha-equivalence
 ;;
