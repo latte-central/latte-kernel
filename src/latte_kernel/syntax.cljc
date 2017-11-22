@@ -67,6 +67,18 @@
        (= (first t) 'Π)))
 
 ;;{
+;; - *let abstraction* `(let [x A t] u)`. This can be useful
+;; in the concrete syntax (although not as in a programming case)
+;; but it is more important to avoid substitutions in typing.
+;;}
+
+(defn let?
+  "Is `t` a let abstraction?"
+  [t]
+  (and (seq? t)
+       (= (first t) 'let)))
+
+;;{
 ;;  - *applications* `[u v]`
 ;;}
 (defn app?
@@ -82,7 +94,7 @@
   "Is `t` a reference?"
   [t]
   (and (seq? t)
-       (not (contains? '#{λ Π ::ascribe} (first t)))))
+       (not (contains? '#{λ Π let ::ascribe} (first t)))))
 
 ;;{
 ;;  - *ascriptions* `(::ascribe e t)` that term `e` is of type `t`. These are like
@@ -99,7 +111,6 @@
   "Is `t` a type ascription?"
   [t]
   (and (seq? t)
-       (= (count t) 3)
        (= (first t) ::ascribe)))
 
 ;;{
@@ -109,8 +120,8 @@
 ;;}
 
 ;;{
-;; ... and that's everything you need to capture the
-;; essence of mathematics!
+;; ... and that's every (and even a little bit too much) things
+;; we need to capture the essence of mathematics!
 ;;}
 
 ;;{
@@ -138,6 +149,13 @@
                   (if-let [binder-fn (get red-funs bind-kind)]
                     (binder-fn body-val x)
                     body-val))
+    (let? t) (let [[_ [x ty xval] body] t
+                   ty-red (term-reduce red-funs init ty)
+                   xval-red (term-reduce red-funs ty-red xval)
+                   body-red (term-reduce red-funs xval-red body)]
+               (if-let [let-fn (get red-funs :let)]
+                 (let-fn body-red x)
+                 body-red))
     (app? t) (let [[t1 t2] t
                    val1 (term-reduce red-funs init t1)
                    val2 (term-reduce red-funs val1 t2)]
@@ -173,6 +191,10 @@
     (binder? t) (let [[_ [x ty] body] t]
                   (set/union (free-vars ty)
                              (disj (free-vars body) x)))
+    (let? t) (let [[_ [x ty xval] body] t]
+               (set/union (free-vars ty)
+                          (free-vars xval)
+                          (disj (free-vars body) x)))
     (app? t) (set/union (free-vars (first t))
                         (free-vars (second t)))
     (ascription? t) (let [[_ e u] t]
@@ -188,6 +210,8 @@
     (variable? t) #{t}
     (binder? t) (let [[_ [x ty] body] t]
                   (set/union (vars ty) (vars body)))
+    (let? t) (let [[_ [x ty xval] body] t]
+               (set/union (vars ty) (vars xval) (vars body)))
     (app? t) (set/union (vars (first t))
                         (vars (second t)))
     (ascription? t) (let [[_ e u] t]
@@ -236,6 +260,8 @@ The `forbid` argument says what names are forbidden."
 ;; The following is the core of the substitution algorithm.
 ;;}
 
+(declare rebinder)
+
 (defn- subst-
   "Applies substituion `sub` on term `t`. 
 Names generated fresh along the substitution cannot be members of `forbid`.
@@ -250,16 +276,20 @@ Names generated fresh along the substitution cannot be members of `forbid`.
           ;; binders (λ, Π)
           (binder? t)
           (let [[binder [x ty] body] t
-                [x' rebind' forbid']
-                (if (contains? forbid x)
-                  (let [x' (mk-fresh x forbid)]
-                    [x' (assoc rebind x x') (conj forbid x')])
-                  [x rebind (conj forbid x)])
+                [x' rebind' forbid'] (rebinder x rebind forbid)
                 [ty' forbid''] (subst- ty sub forbid' rebind)
                 [body' forbid'''] (subst- body sub forbid'' rebind')]
-            ;; (println "term=" (list binder [x' ty'] body') "sub=" sub')
             [(list binder [x' ty'] body')
              forbid'''])
+          ;; let abstractions
+          (let? t)
+          (let [[_ [x ty xval] body] t
+                [x' rebind' forbid'] (rebinder x rebind forbid)
+                [ty' forbid''] (subst- ty sub forbid' rebind)
+                [xval' forbid'''] (subst- xval sub forbid'' rebind)
+                [body' forbid''''] (subst- body sub forbid''' rebind')]
+            [(list 'let [x' ty' xval'] body')
+             forbid''''])
           ;; applications
           (app? t)
           (let [[rator forbid'] (subst- (first t) sub forbid rebind)
@@ -282,6 +312,13 @@ Names generated fresh along the substitution cannot be members of `forbid`.
     ;;(println "[subst-] t=" t "sub=" sub "forbid=" forbid "rebind=" rebind)
     ;;(println "   ==> " t')
     [t' forbid']))
+
+(defn rebinder [x rebind forbid]
+  "Rebind `x` if it is present in `forbid`."
+  (if (contains? forbid x)
+    (let [x' (mk-fresh x forbid)]
+      [x' (assoc rebind x x') (conj forbid x')])
+    [x rebind (conj forbid x)]))
 
 (defn subst
   "Applies substitution `sub` (defaulting to `{x u}`) to term `t`."
@@ -317,6 +354,15 @@ Names generated fresh along the substitution cannot be members of `forbid`.
           [body' level''] (alpha-norm- body (assoc sub x x') level')]
       [(list binder [x' ty'] body')
        level''])
+    ;; let abstraction
+    (let? t)
+    (let [[_ [x ty xval] body] t
+          x' (symbol (str "_" level))
+          [ty' level'] (alpha-norm- ty sub (inc level))
+          [xval' level''] (alpha-norm- xval sub level')
+          [body' level'''] (alpha-norm- body (assoc sub x x') level'')]
+      [(list 'let [x' ty' xval'] body')
+       level'''])
     ;; applications
     (app? t)
     (let [[left' level'] (alpha-norm- (first t) sub level)
