@@ -118,52 +118,55 @@
 The return value is a pair `[t' red?]` with `t'` the
 potentially rewritten version of `t` and `red?` is `true`
  iff at least one redex was found and reduced."
-  ([t] (beta-step letenv-empty t 0))
-  ([let-env t] (beta-step let-env t 0))
-  ([let-env t rcount]
+  ([t] (beta-step letenv-empty #{} t 0))
+  ([let-env t] (beta-step let-env #{} t 0))
+  ([let-env forbid t rcount]
    (cond
      ;; free variable
      (stx/variable? t)
      (if-let [vterm (letenv-lookup let-env t)]
-       [vterm rcount]
+       [vterm (inc rcount)]
        [t rcount])
      ;; binder
      (stx/binder? t)
      (let [[binder [x ty] body] t
            ;; 1) try reduction in binding type
-           [ty' rcount1] (beta-step let-env ty rcount)
+           [ty' rcount1] (beta-step let-env forbid ty rcount)
            ;; 2) also try reduction in body
-           [body' rcount2] (beta-step (letenv-forget let-env x) body  rcount1)]
-       [(list binder [x ty'] body') rcount2])
+           [x' fresh?] (if (contains? forbid x)
+                         [(stx/mk-fresh x forbid) true]
+                         [x false])
+           [body' rcount2] (beta-step (if fresh?
+                                        (letenv-put let-env x x')
+                                        let-env) (conj forbid x') body rcount1)]
+       [(list binder [x' ty'] body') rcount2])
      ;; let abstraction
      (stx/let? t)
      (let [[_ [x _ xval] body] t  ;; XXX: no need for the type part
-           [xval' rcount1] (beta-step let-env xval  rcount)]
-       (recur (letenv-put let-env x xval') body rcount1))
+           [xval' rcount1] (beta-step let-env forbid xval  rcount)]
+       (recur (letenv-put let-env x xval') (conj forbid x) body rcount1))
      ;; application
      (stx/app? t)
      (let [[left right] t
            ;; 1) try left reduction
-           [left' rcount1] (beta-step let-env left rcount)
+           [left' rcount1] (beta-step let-env forbid left rcount)
            ;; 2) also try right reduction
-           [right' rcount2] (beta-step let-env right rcount1)]
+           [right' rcount2] (beta-step let-env forbid right rcount1)]
        (if (stx/lambda? left')
          ;; we have a redex
          (let [[_ [x ty] body] left']
-           (recur (letenv-put let-env x right') body rcount2))
+           (recur (letenv-put let-env x right') (conj forbid x) body rcount2))
          ;; or we stay with an application
          [[left' right'] rcount2]))
      ;; reference
      (stx/ref? t)
      (let [[def-name & args] t
-           [args' rcount'] (beta-step-args let-env args rcount)]
-       (if (not= rcount' rcount)
-         (recur let-env (list* def-name args') rcount')
-         [t rcount]))
+           [args' rcount'] (beta-step-args let-env forbid args rcount)]
+       [(list* def-name args') rcount'])
      ;; ascriptions
      (stx/ascription? t)
      (let [[_ term _] t] ;; forget about the type part
-       (recur let-env term rcount))
+       (recur let-env forbid term rcount))
      ;; other cases
      :else [t rcount])))
 
@@ -174,10 +177,10 @@ potentially rewritten version of `t` and `red?` is `true`
   This returns a pair composed of the rewritten
   terms and a flag telling if at least one reduction
   took place."
-  [let-env ts rcount]
+  [let-env forbid ts rcount]
   (loop [ts ts, ts' [], rcount rcount]
     (if (seq ts)
-      (let [[t' rcount'] (beta-step let-env (first ts) rcount)]
+      (let [[t' rcount'] (beta-step let-env forbid (first ts) rcount)]
         (recur (rest ts) (conj ts' t') rcount'))
       [ts' rcount])))
 

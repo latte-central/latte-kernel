@@ -33,6 +33,12 @@
 
   (is (= (beta-red '(λ [x ✳] (let [x ✳ x] x)))
          '(λ [x ✳] x)))
+
+  (is (= (beta-red '(λ [y ✳] (let [x ✳ y] (λ [y ✳] (test x y z)))))
+         ;; => if *this* is not a bug, what is ?! (λ [y ✳] (λ [y ✳] (test x y z)))))
+         ;; => this one is nice too ! (λ [y ✳] (λ [y ✳] (test y y z)))
+         ;; => and what about this one ? (λ [y ✳] (λ [y' ✳] (test y' y' z)))
+         '(λ [y ✳] (λ [y' ✳] (test y y' z)))))
   
   (is (= (beta-red '(:latte-kernel.syntax/ascribe z [(λ [x ✳] x) y]))
          'z))
