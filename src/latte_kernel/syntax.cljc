@@ -378,7 +378,7 @@ Names generated fresh along the substitution cannot be members of `forbid`.
       (ref? t)
       (let [args (reduce (fn [args' arg]
                            (conj args' (renaming arg ren))) [] (rest t))]
-        (conj (into '() args) (first t)))
+        (cons (first t) (seq args)))
       :else
       t)))
 

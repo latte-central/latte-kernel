@@ -3,7 +3,7 @@
             [latte-kernel.syntax :as stx]
             [latte-kernel.norm :as norm]
             [latte-kernel.defenv :as defenv]
-            [latte-kernel.unparser :as unparsed :refer [unparse]]))
+            [latte-kernel.unparser :refer [unparse]]))
   
 ;;{
 ;; # Type checking
@@ -97,8 +97,8 @@ that implicits can be erased."
           :else
           (throw (ex-info "Invalid term (please report)" {:term t})))]
     ;;(println "--------------------")
-    ;;(println "[type-of-term] t=" t)
-    ;;(clojure.pprint/pprint ty)
+    ;;(println "[type-of-term] t=" (unparse t))
+    ;;(clojure.pprint/pprint (unparse ty))
     ;;(println "--------------------")
     [status ty t']))
 
@@ -391,8 +391,8 @@ that implicits can be erased."
             :else
             (type-of-refdef def-env ctx name ddef args)))]
     ;;(println "---------------------")
-    ;;(println "[type-of-ref] name=" name "args=" args)
-    ;;(clojure.pprint/pprint ty)
+    ;;(println "[type-of-ref] name=" name "args=" (map unparse args))
+    ;;(clojure.pprint/pprint (unparse ty))
     ;;(println "---------------------")
     [status ty nref]))
 
@@ -415,11 +415,13 @@ that implicits can be erased."
   (let [[status targs args'] (type-of-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs nil])
-    (let [[status bindings params] (prepare-bindings def-env ctx name args targs (:params ddef))]
+    (let [[status bindings params ren] (prepare-bindings def-env ctx name args targs (:params ddef))]
       (if (= status :ko)
         [:ko bindings nil]
         (let [body (generalize-params params (:type ddef))
-              ty (stx/letify bindings body)]
+              ty (stx/letify bindings (stx/renaming body ren))]
+          (println "[type-of-refdef]" (str "(" name " " (clojure.string/join " " (map unparse args')) ")"))
+          (println "  ty=" (unparse ty))
           [:ok ty (list* name args')])))))
 
 (defn type-of-args [def-env ctx args]
@@ -433,23 +435,31 @@ that implicits can be erased."
 
 
 (defn prepare-bindings [def-env ctx name args targs params]
-  (loop [args args, targs targs, let-env norm/letenv-empty, params params, bindings []]
-    (if (seq args)
-      (do
-        (when (not (seq params))
-          (throw (ex-info "Not enough parameters (please report)" {:defname name :args args})))
-        (let [arg (first args)
-              targ (second (first targs))
-              [x ty] (first params)]
-          (if (not (norm/beta-eq? def-env ctx let-env targ ty))
-            [:ko {:msg "Wrong argument type"
-                  :term (unparse (list* name args))
-                  :arg (unparse arg)
-                  :arg-type (unparse targ)
-                  :expected-type ty} nil]
-            (recur (rest args) (rest targs) (norm/letenv-put let-env x arg) (rest params) (conj bindings [x ty arg])))))
-      ;; no more arguments (maybe some parameters left)
-      [:ok bindings params])))
+  (let [forbid (into #{} (map first ctx))]
+    (loop [args args, targs targs, let-env norm/letenv-empty, forbid forbid, ren {}, params params, bindings []]
+      (if (seq args)
+        (do
+          (when (not (seq params))
+            (throw (ex-info "Not enough parameters (please report)" {:defname name :args args})))
+          (let [arg (first args)
+                targ (second (first targs))
+                [x ty] (first params)
+                ty' (stx/renaming ty ren)
+                [x' forbid' ren'] (if (contains? forbid x)
+                                    (let [x' (stx/mk-fresh x forbid)
+                                          ren' (assoc ren x x')
+                                          forbid' (conj forbid x')]
+                                      [x' forbid' ren'])
+                                        [x forbid ren])]
+            (if (not (norm/beta-eq? def-env ctx let-env targ ty'))
+              [:ko {:msg "Wrong argument type"
+                    :term (unparse (list* name args))
+                    :arg (unparse arg)
+                    :arg-type (unparse targ)
+                    :expected-type ty'} nil]
+              (recur (rest args) (rest targs) (norm/letenv-put let-env x' arg) forbid' ren' (rest params) (conj bindings [x' ty' arg])))))
+        ;; no more arguments (maybe some parameters left)
+        [:ok bindings params ren]))))
 
 ;;{
 ;; The following function generalizes the remaining uninstantiated parameters.

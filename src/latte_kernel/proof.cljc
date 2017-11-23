@@ -6,7 +6,7 @@
             [latte-kernel.syntax :as stx]
             [latte-kernel.presyntax :as parse]
             [latte-kernel.norm :as norm]
-            [latte-kernel.unparser :as unparser]
+            [latte-kernel.unparser :refer [unparse]]
             [clojure.pprint :as pp]))
 
 ;;{
@@ -46,12 +46,20 @@
 ;;
 ;;}
 
+;; We make the have step in a small function for "debugging-friendliness".
+(declare elab-have-impl)
+(defn elab-have [def-env ctx var-deps def-uses name ty term meta]
+  (println "  => have step: " name)
+  (let [[status res] (elab-have-impl def-env ctx var-deps def-uses name ty term meta)]
+    [status res]))
+
 (declare update-var-deps)
 (declare update-def-uses)
 
-(defn elab-have [def-env ctx var-deps def-uses name ty term meta]
-  (println "  => have step: " name)
+(defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   (let [[status, term-type, term'] (typing/type-of-term def-env ctx term)]
+    ;; (println "[have] term=" (unparse term))
+    ;; (println "[have] term-type=" (unparse term-type))
     (if (= status :ko)
       [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
             :have-name name
@@ -166,7 +174,10 @@
   (let [[status, ddef] (defenv/fetch-definition def-env def-name true)]
     (when (= status :ko)
       (throw (ex-info "Local definition not found (please report)" {:def-name def-name})))
-    (defenv/register-definition def-env (update ddef :params (fn [params] (u/vcons [x ty] params))) true)))
+    (defenv/register-definition def-env (-> ddef
+                                            (update :params (fn [params] (u/vcons [x ty] params)))
+                                            (update :arity inc))
+      true)))
 
 (declare abstract-local-calls)
 (declare gen-local-calls)
@@ -223,7 +234,7 @@
 (defn elab-print [def-env ctx term meta]
   (println "============================")
   (let [[term' _] (norm/delta-step def-env ctx term)]
-    (pp/pprint (unparser/unparse term')))
+    (pp/pprint (unparse term')))
   (println "============================"))
 
 (defn elab-print-type [def-env ctx term meta]
@@ -233,7 +244,7 @@
       (throw (ex-info "Cannot type term for print-type."
                       {:term term})))
     (print "type of: ") (pp/pprint term)
-    (pp/pprint (unparser/unparse ty)))
+    (pp/pprint (unparse ty)))
   (println "============================"))
 
 ;;{

@@ -55,6 +55,13 @@
           [body' body-modif?] (unparse-term-rec registry order body)
           [term' term-modif?] (unparse-term-once registry order (list binder [x ty'] body'))]
       [term' (or ty-modif? body-modif? term-modif?)])
+    (stx/let? term)
+    (let [[_ [x ty xval] body] term
+          [ty' ty-modif?] (unparse-term-rec registry order ty)
+          [xval' xval-modif?] (unparse-term-rec registry order xval)
+          [body' body-modif?] (unparse-term-rec registry order body)
+          [term' term-modif?] (unparse-term-once registry order (list 'let [x ty' xval'] body'))]
+      [term' (or ty-modif? xval-modif? body-modif? term-modif?)])
     (stx/app? term)
     (let [[term1 term2] term
           [term1' term1-modif?] (unparse-term-rec registry order term1)

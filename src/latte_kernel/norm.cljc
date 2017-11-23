@@ -2,6 +2,7 @@
   "Normalization and beta-equivalence."
   (:require [latte-kernel.utils :as utils :refer [vconcat]]
             [latte-kernel.syntax :as stx]
+            [latte-kernel.unparser :refer [unparse]]
             [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]))
 
 
@@ -250,9 +251,8 @@ potentially rewritten version of `t` and `red?` is `true`
         (let [[x ty] (first params)
               arg (first args)
               [x' forbid' ren'] (prepare-renaming x forbid ren)
-              ty' (stx/renaming ty ren)
-              arg' (stx/renaming arg ren)]
-          (recur (rest args) forbid' (rest params) ren' (conj let-bindings [x' ty' arg']))))
+              ty' (stx/renaming ty ren)]
+          (recur (rest args) forbid' (rest params) ren' (conj let-bindings [x' ty' arg]))))
       ;; no more arguments
       (loop [params params, forbid forbid, ren ren, nparams []]
         (if (seq params)
@@ -298,7 +298,7 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn delta-reduction
   "Apply a strategy of delta-reduction in definitional environment `def-env`, context `ctx` and
   term `t`. If the flag `local?` is `true` the definition in only looked for
-  in `def-env`. By default it is also looked for in the current namespace (in Clojure only).²"
+  in `def-env`. By default it is also looked for in the current namespace (in Clojure only)."
   ([def-env ctx t] (delta-reduction def-env ctx t false))
   ([def-env ctx t local?]
    ;; (println "[delta-reduction] t=" t)
@@ -318,7 +318,7 @@ potentially rewritten version of `t` and `red?` is `true`
              [implicit-term true]))
          (> (count args) (:arity sdef))
          (throw (ex-info "Too many arguments to instantiate definition."
-                         {:term t :def-name name :nb-params (count (:arity sdef)) :nb-args (count args)}))
+                         {:term t :def-name name :nb-params (:arity sdef) :nb-args (count args)}))
          (definition? sdef)
          ;; unfolding a defined term
          (if (:parsed-term sdef)
@@ -511,5 +511,9 @@ same normal form (up-to alpha-convertion)?"
   ([def-env ctx let-env t1 t2]
    (let [t1' (normalize def-env ctx let-env t1)
          t2' (normalize def-env ctx let-env t2)]
+     ;; (println "[normalize] t1=" (unparse t1))
+     ;; (println "[normalize] t1'=" (unparse t1'))
+     ;; (println "[normalize] t2=" (unparse t2))
+     ;; (println "[normalize] t2'=" (unparse t2'))
      (stx/alpha-eq? t1' t2'))))
 
