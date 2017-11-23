@@ -50,7 +50,7 @@
 (declare elab-have-impl)
 (defn elab-have [def-env ctx var-deps def-uses name ty term meta]
   (println "  => have step: " name)
-  (let [[status res] (elab-have-impl def-env ctx var-deps def-uses name ty term meta)]
+  (let [[status res] (elab-have-impl def-env ctx var-deps def-uses name ty term metan)]
     [status res]))
 
 (declare update-var-deps)
