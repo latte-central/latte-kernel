@@ -81,7 +81,8 @@ that implicits can be erased."
             (case binder
               λ (type-of-abs def-env ctx x ty body)
               Π (type-of-prod def-env ctx x ty body)
-              (throw (ex-info "No such binder (please report)" {:term t :binder binder}))))
+              (throw (ex-info "No such binder (please report)"
+                              {:term t :binder binder}))))
           ;; let abstraction
           (stx/let? t)
           (let [[_ [x ty xval] body] t]
@@ -118,7 +119,8 @@ that implicits can be erased."
     ;;(println "  ==> " status "type'=" type' "vs. type=" type)
     (if (= status :ok)
       (norm/beta-eq? def-env ctx type type')
-      (throw (ex-info "Cannot check type of term" {:term term :from type'})))))
+      (throw (ex-info "Cannot check type of term"
+                      {:term term :from type'})))))
 
 ;;{
 ;;
@@ -165,7 +167,8 @@ that implicits can be erased."
         [:ko {:msg "Cannot calculate type of variable." :term x :from sort} nil]
         (if (stx/sort? (norm/normalize def-env ctx sort))
           [:ok ty' x]
-          [:ko {:msg "Not a correct type (super-type is not a sort)" :term x :type (unparse ty') :super-type (unparse sort)} nil])))
+          [:ko {:msg "Not a correct type (super-type is not a sort)"
+                :term x :type (unparse ty') :super-type (unparse sort)} nil])))
     ;; not found
     [:ko {:msg "No such variable in type context" :term x} nil]))
 
@@ -188,17 +191,21 @@ that implicits can be erased."
   [def-env ctx x A B]
   (let [[status sort1 A'] (type-of-term def-env ctx A)]
     (if (= status :ko)
-      [:ko {:msg "Cannot calculate domain type of product." :term (unparse A) :from sort1} nil]
+      [:ko {:msg "Cannot calculate domain type of product."
+            :term (unparse A) :from sort1} nil]
       (let [sort1' (norm/normalize def-env ctx sort1)]
         (if (not (stx/sort? sort1'))
-          [:ko {:msg "Not a valid domain type in product (super-type not a sort)" :term (unparse A) :type sort1}]
+          [:ko {:msg "Not a valid domain type in product (super-type not a sort)"
+                :term (unparse A) :type sort1}]
           (let [ctx' (ctx-put ctx x A) ;; or unfolded ? (ctx-put ctx x A')
                 [status sort2 B'] (type-of-term def-env ctx' B)]
             (if (= status :ko)
-              [:ko {:msg "Cannot calculate codomain type of product." :codomain (unparse B) :from sort2} nil]
+              [:ko {:msg "Cannot calculate codomain type of product."
+                    :codomain (unparse B) :from sort2} nil]
               (let [sort2' (norm/normalize def-env ctx sort2)]
                 (if (not (stx/sort? sort2'))
-                  [:ko {:msg "Not a valid codomain type in product (not a sort)" :codomain (unparse B) :codomain-type (unparse sort2)} nil]
+                  [:ko {:msg "Not a valid codomain type in product (not a sort)"
+                        :codomain (unparse B) :codomain-type (unparse sort2)} nil]
                   [:ok sort2 (list 'Π [x A'] B')])))))))))
 
 
@@ -277,7 +284,8 @@ that implicits can be erased."
           [:ok ty (list 'let [x A' t] u')]
           ;; XXX: term t is not expanded (it may contain implicits...)
           ;;      it's ok because it is never used for its type (?)
-          ;;      otherwise we may type it and inject the expanded version (it's just slower)
+          ;;      otherwise we may type it and inject the expanded version
+          ;;      (it's just slower)
           )))))
 
 ;;{
@@ -316,11 +324,14 @@ that implicits can be erased."
                 :right-term (unparse rand) :from trand} nil]
           (let [trator' (norm/normalize def-env ctx trator)]
             (if (not (stx/prod? trator'))
-              [:ko {:msg "Not a product type for operator (left-hand) in application." :operator (unparse rator) :operator-type (unparse trator)}]
+              [:ko {:msg "Not a product type for operator (left-hand) in application."
+                    :operator (unparse rator)
+                    :operator-type (unparse trator)}]
               (let [[_ [x A] B] trator']
                 ;; (println "[type-of-app] trator'=" trator')
                 (if (not (type-check? def-env ctx rand A)) ;; or rand' ? (not (type-check? def-env ctx rand' A))
-                  [:ko {:msg "Cannot apply: type domain mismatch" :domain (unparse A) :operand (unparse rand)}]
+                  [:ko {:msg "Cannot apply: type domain mismatch"
+                        :domain (unparse A) :operand (unparse rand)}]
                 (do ;;(println "[type-of-app] subst...")
                   ;;(println "    B = " B)
                   ;;(println "    x = " x)
@@ -347,20 +358,23 @@ that implicits can be erased."
 ;;              ::> (prod [xM+1 tM+1] ... (prod [xN tN] t [e1/x1, e2/x2, ...eM/xM]) ...)
 ;;
 ;;
-;; Instead of applying directly a substituion, we inject let-abstractions (cf. [[type-of-app]])
+;; Instead of applying directly a substituion, we inject let-abstractions
+;; (cf. [[type-of-app]])
 ;;}
 
 ;;{
-;; A reference is of the form `(ref e1 e2 ... eM)` where `ref` is a name and the `ei`'s are arbitrary expressions.
+;; A reference is of the form `(ref e1 e2 ... eM)` where `ref` is a name and the `ei`'s
+;; are arbitrary expressions.
 ;; It can be a reference to either:
 ;;  - a defined term such as a parametric definition or an axiom
 ;;  - a theorem, which is a particular case of a defined term
 ;;  - an implicit
 ;;
-;; Both the two first cases are handled by the function `type-of-refdef` below. The only difference
-;; is that a theorem is a defined term only if it has been demonstrated. Put in other terms, it
-;; is forbidden to reference a theorem with no-proof. The third case allows to perform arbibrary
-;; computations during the type synthesis phase, it is handled by the `type-of-implicit` function.
+;; Both the two first cases are handled by the function `type-of-refdef` below.
+;; The only difference is that a theorem is a defined term only if it has been demonstrated.
+;; Put in other terms, it is forbidden to reference a theorem with no-proof.
+;; The third case allows to perform arbibrary computations during the type synthesis phase,
+;; it is handled by the `type-of-implicit` function.
 ;;}
 
 (declare type-of-refdef)
@@ -387,7 +401,8 @@ that implicits can be erased."
             (throw (ex-info "Unsupported definitional entity, expecting a true definition or a theorem name"
                             {:name name, :entity ddef}))
             (> (count args) (:arity ddef))
-            [:ko {:msg "Too many arguments for definition." :term (unparse (list* name args)) :arity (:arity ddef)}]
+            [:ko {:msg "Too many arguments for definition."
+                  :term (unparse (list* name args)) :arity (:arity ddef)}]
             :else
             (type-of-refdef def-env ctx name ddef args)))]
     ;;(println "---------------------")
@@ -415,7 +430,8 @@ that implicits can be erased."
   (let [[status targs args'] (type-of-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs nil])
-    (let [[status bindings params ren] (prepare-bindings def-env ctx name args targs (:params ddef))]
+    (let [[status bindings params ren] (prepare-bindings def-env ctx name
+                                                         args targs (:params ddef))]
       (if (= status :ko)
         [:ko bindings nil]
         (let [body (generalize-params params (:type ddef))
@@ -436,11 +452,13 @@ that implicits can be erased."
 
 (defn prepare-bindings [def-env ctx name args targs params]
   (let [forbid (into #{} (map first ctx))]
-    (loop [args args, targs targs, let-env norm/letenv-empty, forbid forbid, ren {}, params params, bindings []]
+    (loop [args args, targs targs, let-env norm/letenv-empty,
+           forbid forbid, ren {}, params params, bindings []]
       (if (seq args)
         (do
           (when (not (seq params))
-            (throw (ex-info "Not enough parameters (please report)" {:defname name :args args})))
+            (throw (ex-info "Not enough parameters (please report)"
+                            {:defname name :args args})))
           (let [arg (first args)
                 targ (second (first targs))
                 [x ty] (first params)
@@ -457,7 +475,8 @@ that implicits can be erased."
                     :arg (unparse arg)
                     :arg-type (unparse targ)
                     :expected-type ty'} nil]
-              (recur (rest args) (rest targs) (norm/letenv-put let-env x' arg) forbid' ren' (rest params) (conj bindings [x' ty' arg])))))
+              (recur (rest args) (rest targs) (norm/letenv-put let-env x' arg)
+                     forbid' ren' (rest params) (conj bindings [x' ty' arg])))))
         ;; no more arguments (maybe some parameters left)
         [:ok bindings params ren]))))
 
