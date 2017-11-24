@@ -434,10 +434,12 @@ that implicits can be erased."
       [:ko targs nil]
       (let [forbid (into #{} (map first ctx))
             [params' type' forbid'] (norm/prepare-def forbid params type)
-            [status bindings rest-params] (prepare-bindings def-env ctx forbid' params' targs)]
+            [status bindings rest-params] (prepare-bindings def-env ctx
+                                                            forbid' params' targs)]
         (if (= status :ko)
           [:ko bindings nil]
-          [:ok (stx/letify bindings (stx/binderify 'Π rest-params type')) (list* name args')])))))
+          [:ok (stx/letify bindings (stx/binderify 'Π rest-params type'))
+           (list* name args')])))))
 
 (defn type-of-args [def-env ctx args]
   "Type the arguments, give a set of bindings."
@@ -477,7 +479,8 @@ that implicits can be erased."
       (do (when (empty? params)
             (throw (ex-info "Not enough parameters (please report)" {:args args})))
           (let [[x ty] (first params)]
-            (recur (rest params) (rest args) (conj bindings [x ty (stx/noclash forbid (first args))]))))
+            (recur (rest params) (rest args)
+                   (conj bindings [x ty (stx/noclash forbid (first args))]))))
       ;; no more argument
       [bindings params])))
 
