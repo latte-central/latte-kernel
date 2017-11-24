@@ -46,6 +46,10 @@
 ;;
 ;;}
 
+(comment  ;; TODO
+  (defn show-defenv [def-env]
+    (clojure.string/join "\n" (map (fn [[name ddef]])))))
+
 ;; We make the have step in a small function for "debugging-friendliness".
 (declare elab-have-impl)
 (defn elab-have [def-env ctx var-deps def-uses name ty term meta]
