@@ -508,11 +508,11 @@ same normal form (up-to alpha-convertion)?"
   ([def-env t1 t2] (beta-eq? def-env [] letenv-empty t1 t2))
   ([def-env ctx t1 t2] (beta-eq? def-env ctx letenv-empty t1 t2))
   ([def-env ctx let-env t1 t2]
+   (println "[normalize] t1=" (unparse t1))
+   (println "[normalize] t2=" (unparse t2))
    (let [t1' (normalize def-env ctx let-env t1)
          t2' (normalize def-env ctx let-env t2)]
-     ;; (println "[normalize] t1=" (unparse t1))
-     ;; (println "[normalize] t1'=" (unparse t1'))
-     ;; (println "[normalize] t2=" (unparse t2))
-     ;; (println "[normalize] t2'=" (unparse t2'))
+     (println "[normalize] t1'=" (unparse t1'))
+     (println "[normalize] t2'=" (unparse t2'))
      (stx/alpha-eq? t1' t2'))))
 

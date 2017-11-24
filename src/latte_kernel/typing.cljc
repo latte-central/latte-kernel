@@ -404,7 +404,7 @@ that implicits can be erased."
             [:ko {:msg "Too many arguments for definition."
                   :term (unparse (list* name args)) :arity (:arity ddef)}]
             :else
-            (type-of-refdef def-env ctx name (:params ddef) (:type ddef) args)))]
+            (type-of-refdef def-env ctx name ddef args)))]
     ;;(println "---------------------")
     ;;(println "[type-of-ref] name=" name "args=" (map unparse args))
     ;;(clojure.pprint/pprint (unparse ty))
@@ -422,11 +422,14 @@ that implicits can be erased."
 ;; to avoid any costly substitution at typing time.
 ;;}
 
+
 (declare prepare-bindings
          type-of-args)
 
-(defn type-of-refdef [def-env ctx name params type args]
-  (let [[status targs args'] (type-of-args def-env ctx args)]
+(defn type-of-refdef [def-env ctx name ddef args]
+  (let [params (:params ddef)
+        type (:type ddef)
+        [status targs args'] (type-of-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs nil]
       (let [forbid (into #{} (map first ctx))
@@ -477,6 +480,7 @@ that implicits can be erased."
             (recur (rest params) (rest args) (conj bindings [x ty (stx/noclash forbid (first args))]))))
       ;; no more argument
       [bindings params])))
+
 
 (defn unfold-implicit [def-env ctx implicit-def args]
   (let [[status, targs, args'] (type-of-args def-env ctx args)]

@@ -58,8 +58,8 @@
 
 (defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   (let [[status, term-type, term'] (typing/type-of-term def-env ctx term)]
-    ;; (println "[have] term=" (unparse term))
-    ;; (println "[have] term-type=" (unparse term-type))
+    (println "[have] term=" (unparse term))
+    (println "[have] term-type=" (unparse term-type))
     (if (= status :ko)
       [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
             :have-name name
