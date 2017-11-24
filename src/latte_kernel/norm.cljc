@@ -249,46 +249,13 @@ potentially rewritten version of `t` and `red?` is `true`
 ;; by actual arguments. The process is called *instantiation*.
 ;;}
 
-(declare make-fresh-params)
-
-(defn prepare-def
-  "Prepare a definition for instantiation, no name-clash etc."
-  [forbid params body]
-  (let [[params' forbid' ren'] (make-fresh-params params forbid {})
-        body' (stx/noclash forbid' ren' body)]
-    [params' body' forbid']))
-
-(defn make-fresh-params [params forbid ren]
-  "Ensure the parameters of a definition are fresh, renaming them if needed."
-  (loop [params params, forbid forbid, ren ren, fparams []]
-    (if (seq params)
-      (let [[x ty] (first params)
-            [x' forbid' ren'] (stx/fresh-binder x forbid ren)
-            ty' (stx/renaming ty ren)]
-        (recur (rest params) forbid' ren' (conj fparams [x' ty'])))
-      ;; no more params
-      [fparams forbid ren])))
-
-(defn make-let-bindings
-  "Build the let bindings for instantiating a definition."
-  [forbid params args]
-  (loop [params params, args args, bindings []]
-    (if (seq args)
-      (do (when (empty? params)
-            (throw (ex-info "Not enough parameters (please report)" {:args args})))
-          (let [[x ty] (first params)]
-            (recur (rest params) (rest args)
-                   (conj bindings [x ty (stx/noclash forbid (first args))]))))
-      ;; no more argument
-      [bindings params])))
 
 (defn instantiate-def
   "Substitute in the `body` of a definition the parameters `params` 
-  by the actual arguments `args`."
-  [forbid params body args]
-  (let [[params' body' forbid'] (prepare-def forbid params body)
-        [bindings rest-params] (make-let-bindings forbid' params' args)]
-    (stx/letify bindings (stx/binderify 'λ rest-params body'))))
+  by the actual arguments `args`. This is done by generating an application."
+  [params body args]
+  (let [def-term (stx/binderify 'λ params body)]
+    (stx/appify def-term args)))
 
 ;;{
 ;; Note that for the sake of efficiency, we do not unfold theorems (by their proof)
@@ -302,6 +269,7 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn, install-unfold-implicit! [unfold-fn]
   (swap! +unfold-implict+ (fn [_]
                             unfold-fn)))
+
 
 (defn delta-reduction
   "Apply a strategy of delta-reduction in definitional environment `def-env`,
@@ -339,8 +307,7 @@ potentially rewritten version of `t` and `red?` is `true`
              ;; the definition is opaque
              [t false]
              ;; the definition is transparent
-             [(instantiate-def (into #{} (map first ctx))
-                               (:params sdef) (:parsed-term sdef) args)
+             [(instantiate-def (:params sdef) (:parsed-term sdef) args)
               true])
            ;; no parsed term for definitoin
            (throw (ex-info "Cannot unfold term reference: no parsed term (please report)"

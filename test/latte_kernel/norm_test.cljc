@@ -53,26 +53,22 @@
          '[x y])))
 
 (deftest test-instantiate-def
-  (is (= (instantiate-def #{}
-                          '[[x ✳] [y ✳] [z ✳]]
+  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] [z x]]
                           '((λ [t ✳] t) t1 [t2 t3]))
-         '(let [x ✳ (λ [t ✳] t)] (let [y ✳ t1] (let [z ✳ [t2 t3]] [[x y] [z x]])))))
+         '[[[(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] [z x]]))) (λ [t ✳] t)] t1] [t2 t3]]))
 
-  (is (= (instantiate-def '#{x}
-                          '[[x ✳] [y ✳] [z ✳]]
+  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] [z x]]
                           '((λ [t ✳] t) t1 [t2 t3]))
-         '(let [x' ✳ (λ [t ✳] t)] (let [y ✳ t1] (let [z ✳ [t2 t3]] [[x' y] [z x']])))))
+         '[[[(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] [z x]]))) (λ [t ✳] t)] t1] [t2 t3]]))
   
-  (is (= (instantiate-def '#{x y z t t' t''}
-                          '[[x ✳] [y ✳] [z ✳] [t ✳]]
+  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳] [t ✳]]
                           '[[x y] [z t]]
                           '((λ [t ✳] t) t1 [t2 t3]))
-         '(let [x' ✳ (λ [t ✳] t)] (let [y' ✳ t1] (let [z' ✳ [t2 t3]] (λ [t''' ✳] [[x' y'] [z' t''']]))))))
+         '[[[(λ [x ✳] (λ [y ✳] (λ [z ✳] (λ [t ✳] [[x y] [z t]])))) (λ [t ✳] t)] t1] [t2 t3]]))
   
-  (is (= (instantiate-def #{}
-                          '[[x ✳] [y ✳] [z ✳]]
+  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] z]
                           '())
          '(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] z]))))))
@@ -86,7 +82,7 @@
                                                    :opts {}})})
                           []
                           '(test [a b] c [t (λ [t] t)]))
-         '[(let [x ✳ [a b]] (let [y □ c] (let [z ✳ [t (λ [t] t)]] [y (λ [t ✳] [x [z t]])]))) true]))
+         '[[[[(λ [x ✳] (λ [y □] (λ [z ✳] [y (λ [t ✳] [x [z t]])]))) [a b]] c] [t (λ [t] t)]] true]))
 
   (is (= (delta-reduction (defenv/mkenv {'test (defenv/map->Theorem
                                                  '{:name test
@@ -113,7 +109,7 @@
                                                    :opts {}})})
                           []
                           '(test [a b] c))
-         '[(let [x ✳ [a b]] (let [y □ c] (λ [z ✳] [y (λ [t ✳] [x [z t]])]))) true])))
+         '[[[(λ [x ✳] (λ [y □] (λ [z ✳] [y (λ [t ✳] [x [z t]])]))) [a b]] c] true])))
 
 (deftest test-delta-step
   (is (= (delta-step {} [] 'x)
@@ -127,7 +123,7 @@
                                               :opts {}})})
                      []
                      '[y (test [t t])])
-         '[[y (let [x ✳ [t t]] [x x])] 1]))
+         '[[y [(λ [x ✳] [x x]) [t t]]] 1]))
 
   (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
                                             '{:arity 2
@@ -137,7 +133,7 @@
                                               :opts {}})})
                      []
                      '[y (test [t t] u)])
-         '[[y (let [x ✳ [t t]] (let [y ✳ u] [x [y x]]))] 1]))
+         '[[y [[(λ [x ✳] (λ [y ✳] [x [y x]])) [t t]] u]] 1]))
 
   (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
                                             '{:arity 2

@@ -98,11 +98,22 @@
 ;;{
 ;;  - *applications* `[u v]`
 ;;}
+
 (defn app?
   "Is `t` an application?"
   [t]
   (and (vector? t)
        (= (count t) 2)))
+
+
+(defn appify
+  "Build a multiple calls f `f` with `args`."
+  [f args]
+  (loop [args args, res f]
+    (if (seq args)
+      (recur (rest args) [res (first args)])
+      res)))
+
 
 ;;{
 ;;  - *references* to named definitions `(f {X1 t1, ..., Xn tn} e1 e2 ... eN)`
