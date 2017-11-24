@@ -431,7 +431,7 @@ that implicits can be erased."
       [:ko targs nil]
       (let [forbid (into #{} (map first ctx))
             [params' type' forbid'] (norm/prepare-def forbid params type)
-            [status bindings rest-params] (prepare-bindings def-env ctx forbid' params targs)]
+            [status bindings rest-params] (prepare-bindings def-env ctx forbid' params' targs)]
         (if (= status :ko)
           [:ko bindings nil]
           [:ok (stx/letify bindings (stx/binderify 'Π rest-params type')) (list* name args')])))))
