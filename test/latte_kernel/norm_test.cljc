@@ -39,6 +39,9 @@
          ;; => this one is nice too ! (λ [y ✳] (λ [y ✳] (test y y z)))
          ;; => and what about this one ? (λ [y ✳] (λ [y' ✳] (test y' y' z)))
          '(λ [y ✳] (λ [y' ✳] (test y y' z)))))
+
+  (is (= (beta-red '(let [y ✳ z] (let [x ✳ y] (λ [y ✳] (test x y z)))))
+         '(λ [y' ✳] (test z y' z))))
   
   (is (= (beta-red '(:latte-kernel.syntax/ascribe z [(λ [x ✳] x) y]))
          'z))

@@ -382,6 +382,58 @@ Names generated fresh along the substitution cannot be members of `forbid`.
       :else
       t)))
 
+(declare fresh-binder)
+
+(defn noclash
+  "Rewrites a term such that there is no clash for bound variables."
+  ([t] (noclash #{} {} t))
+  ([forbid t] (noclash forbid) {} t)
+  ([forbid ren t]
+   (cond
+     ;; variables
+     (variable? t) (get ren t t)
+     ;; binders
+     (binder? t)
+     (let [[binder [x ty] body] t
+           [x' forbid' ren'] (fresh-binder forbid ren x)
+           ty' (noclash forbid ren ty)
+           body' (noclash forbid' ren' body)]
+       (list binder [x' ty'] body'))
+     ;; let abstraction
+     (let? t)
+     (let [[_ [x ty xval] body] t
+           [x' forbid' ren'] (fresh-binder forbid ren x)
+           ty' (noclash forbid ren ty)
+           xval' (noclash forbid ren xval)
+           body' (noclash forbid' ren' body)]
+       (list 'let [x' ty' xval'] body'))
+     ;; applications
+     (app? t)
+     (let [[left right] t
+           left' (noclash forbid ren left)
+           right' (noclash forbid ren right)]
+       [left' right'])
+     ;; ascriptions
+     (ascription? t)
+     (let [[_ term type] t
+           term' (noclash forbid ren term)
+           type' (noclash forbid ren type)]
+       (list ::ascribe term' type'))
+     ;; references
+     (ref? t)
+     (let [args (reduce (fn [args' arg]
+                          (conj args' (noclash forbid ren arg)) [] (rest t)))]
+       (cons (first t) (seq args)))
+     :else
+     t)))
+
+(defn fresh-binder [forbid ren x]
+  "Generate a fresh binder name."
+  (if (forbid x)
+    (let [x' (mk-fresh x forbid)]
+      [x' (conj forbid x') (assoc ren x x')])
+    [x (conj forbid x) ren]))
+
 ;;{
 ;; ## Alpha-equivalence
 ;;
