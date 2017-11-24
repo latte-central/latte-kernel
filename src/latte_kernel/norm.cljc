@@ -9,43 +9,49 @@
 ;;{
 ;; # Normalization
 ;;
-;; The semantics of the lambda-calculus relies on a fundamental rewrite rule: *beta-reduction*.
+;; The semantics of the lambda-calculus relies on a fundamental
+;; rewrite rule: *beta-reduction*.
 ;;
-;; The process of *normalization* is the repeated application of the beta-reduction rule until
-;; it is not possible to do so. A normalization algorithm applies a *rewrite strategy* to
+;; The process of *normalization* is the repeated application of
+;; the beta-reduction rule until it is not possible to do so.
+;; A normalization algorithm applies a *rewrite strategy* to
 ;; apply the beta-reductions in some (most often) deterministic way.
 ;;
-;; Because LaTTe extends the λ-calculus with explicit definitions, a dedicated rewriting process
-;; is defined for unfolding definitions when needed. This is based on another reduction rule
-;; named *delta-reduction*.
+;; Because LaTTe extends the λ-calculus with explicit definitions,
+;; a dedicated rewriting process is defined for unfolding definitions
+;; when needed. This is based on another reduction rule named *delta-reduction*.
 ;;
-;; Thus unlike the classical λ-calculus, we need to handle three reduction principles at once
-;; in the normalization process.
+;; Thus unlike the classical λ-calculus, we need to handle three reduction principles
+;; at once in the normalization process.
 ;;
 ;; A type theory requires the normalization process to ensure two fundamental propertie:
 ;;
-;;   1. *strong normalization*: it is not possible to rewrite a given term infinitely, which
-;;   means that the normalization algorithm must terminate.
+;;   1. *strong normalization*: it is not possible to rewrite a given term infinitely,
+;;   which means that the normalization algorithm must terminate.
 ;;
 ;;   2. *confluence*: different strategies can be followed for reducing a given term - 
-;;   the normalization process is non-deterministics - but the ultimate result must be the same (up-to alpha-equivalence)
+;;   the normalization process is non-deterministics - but the ultimate result must
+;;   be the same (up-to alpha-equivalence)
 ;;
 ;; Strong normalization is as its name implies a very strong constraint, and in general
 ;; separate λ-calculi aimed at logical reasoning - that enjoy the property - and those
 ;; that are aimed at programming - for which the requirement is much too strong because
 ;; partial functions are not supported. Confluence in the programming case is associated
 ;; to a given strategy: strict or lazy (sometimes associated to a form of parallelism).
-;; In the logic case, the normalization process is confluent regardless of the chosen strategy.
+;; In the logic case, the normalization process is confluent regardless of the chosen
+;; strategy.
 ;;
 ;;
-;; The LaTTe calculus is a type theory aimed at logical reasoning and thus enjoys the two properties.
-;; There is no formal proof of it, but despite all of our effort we never observed any failure
-;; as of today. Moreover, the formal definition of the calculus is available in the
-;; *Type Theory and Formal Proof: an Introduction* (TTFP) book. There strong normalization and
-;; confluence are discussed at length.
+;; The LaTTe calculus is a type theory aimed at logical reasoning and thus enjoys the
+;; two properties. There is no formal proof of it, but despite all of our effort
+;; we never observed any failure as of today. Moreover, the formal definition of the
+;; calculus is available in the :
+;; *Type Theory and Formal Proof: an Introduction* (TTFP) book.
+;; There strong normalization and confluence are discussed at length.
 ;;
-;; By way of consequence, for each term `t` the normalization process produces a term `t'` that
-;; is unique up-to alpha-equivalence. This term is named the *normal form* of `t`.
+;; By way of consequence, for each term `t` the normalization process produces
+;; a term `t'` that is unique up-to alpha-equivalence.
+;; This term is named the *normal form* of `t`.
 ;;
 ;; We will now describe the normalization process in details.
 ;;
@@ -57,10 +63,12 @@
 ;; ## Beta-reduction
 
 ;; At the heart of a λ-calculus lies *beta-reduction*.
-;; The reduction rule is based on a principle of substitution for (free occurrences of) variables
-;; by arbitrary terms, which is far from being a simple thing.
+;; The reduction rule is based on a principle of substitution for
+;; (free occurrences of) variables by arbitrary terms,
+;; which is far from being a simple thing.
 
-;; Here is an example of a somewhat tricky example (resulting from an old tricky bug in the LaTTe kernel):
+;; Here is an example of a somewhat tricky example
+;; (resulting from an old tricky bug in the LaTTe kernel):
 
 ;; ```
 ;;  ((lambda [z :type] (lambda [x :type] (x y))) x)
@@ -71,8 +79,8 @@
 ;;   ~~> (lambda [y :type] (y x)    is correct
 ;; ```
 ;;
-;; What is called a *redex* (reducible expression) is simply the application of
-;; a λ-abstraction on a term.
+;; What is called a *redex* (reducible expression) is simply
+;; the application of a λ-abstraction on a term.
 ;;}
 
 (defn redex?
@@ -269,7 +277,8 @@ potentially rewritten version of `t` and `red?` is `true`
       (do (when (empty? params)
             (throw (ex-info "Not enough parameters (please report)" {:args args})))
           (let [[x ty] (first params)]
-            (recur (rest params) (rest args) (conj bindings [x ty (stx/noclash forbid (first args))]))))
+            (recur (rest params) (rest args)
+                   (conj bindings [x ty (stx/noclash forbid (first args))]))))
       ;; no more argument
       [bindings params])))
 
@@ -295,14 +304,18 @@ potentially rewritten version of `t` and `red?` is `true`
                             unfold-fn)))
 
 (defn delta-reduction
-  "Apply a strategy of delta-reduction in definitional environment `def-env`, context `ctx` and
-  term `t`. If the flag `local?` is `true` the definition in only looked for
-  in `def-env`. By default it is also looked for in the current namespace (in Clojure only)."
+  "Apply a strategy of delta-reduction in definitional environment `def-env`,
+  context `ctx` and term `t`. If the flag `local?` is `true` the definition
+  in only looked for in `def-env`.
+
+  By default it is also looked for in the current namespace (in Clojure only)."
+
   ([def-env ctx t] (delta-reduction def-env ctx t false))
   ([def-env ctx t local?]
    ;; (println "[delta-reduction] t=" t)
    (if (not (stx/ref? t))
-     (throw (ex-info "Cannot delta-reduce: not a reference term (please report)." {:term t}))
+     (throw (ex-info "Cannot delta-reduce: not a reference term (please report)."
+                     {:term t}))
      (let [[name & args] t
            [status sdef]  (defenv/fetch-definition def-env name local?)]
        ;; (println "[delta-reduction] term=" t "def=" sdef)
@@ -317,7 +330,8 @@ potentially rewritten version of `t` and `red?` is `true`
              [implicit-term true]))
          (> (count args) (:arity sdef))
          (throw (ex-info "Too many arguments to instantiate definition."
-                         {:term t :def-name name :nb-params (:arity sdef) :nb-args (count args)}))
+                         {:term t :def-name name
+                          :nb-params (:arity sdef) :nb-args (count args)}))
          (definition? sdef)
          ;; unfolding a defined term
          (if (:parsed-term sdef)
@@ -325,7 +339,9 @@ potentially rewritten version of `t` and `red?` is `true`
              ;; the definition is opaque
              [t false]
              ;; the definition is transparent
-             [(instantiate-def (into #{} (map first ctx)) (:params sdef) (:parsed-term sdef) args) true])
+             [(instantiate-def (into #{} (map first ctx))
+                               (:params sdef) (:parsed-term sdef) args)
+              true])
            ;; no parsed term for definitoin
            (throw (ex-info "Cannot unfold term reference: no parsed term (please report)"
                            {:term t :def sdef})))
@@ -391,7 +407,8 @@ potentially rewritten version of `t` and `red?` is `true`
            [t' red?] (delta-reduction def-env ctx t)]
        (if red?
          (recur def-env ctx t' local? (inc rcount))
-         ;; only reduce the arguments if the top is not a delta-redex (but still a reference)
+         ;; only reduce the arguments if the top is not a delta-redex
+         ;; (but still a reference)
          (let [[args' rcount'] (delta-step-args def-env ctx args local? rcount)]
            [(list* def-name args') rcount'])))
      ;; ascription
@@ -418,7 +435,8 @@ potentially rewritten version of `t` and `red?` is `true`
 ;; We finally define a few normalization functions:
 ;;   - normalize using beta-reduction only: [[beta-normalize]]
 ;;   - normalize using delta-reduction only: [[delta-normalize]]
-;;   - normalize using delta-reduction with the local environment only: [[delta-normalize-local]]
+;;   - normalize using delta-reduction with
+;;     the local environment only: [[delta-normalize-local]]
 ;;}
 
 (defn beta-normalize
