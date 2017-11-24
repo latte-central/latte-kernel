@@ -53,22 +53,26 @@
          '[x y])))
 
 (deftest test-instantiate-def
-  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
+  (is (= (instantiate-def []
+                          '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] [z x]]
                           '((λ [t ✳] t) t1 [t2 t3]))
          '[[[(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] [z x]]))) (λ [t ✳] t)] t1] [t2 t3]]))
 
-  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
+  (is (= (instantiate-def []
+                          '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] [z x]]
                           '((λ [t ✳] t) t1 [t2 t3]))
          '[[[(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] [z x]]))) (λ [t ✳] t)] t1] [t2 t3]]))
   
-  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳] [t ✳]]
+  (is (= (instantiate-def []
+                          '[[x ✳] [y ✳] [z ✳] [t ✳]]
                           '[[x y] [z t]]
                           '((λ [t ✳] t) t1 [t2 t3]))
          '[[[(λ [x ✳] (λ [y ✳] (λ [z ✳] (λ [t ✳] [[x y] [z t]])))) (λ [t ✳] t)] t1] [t2 t3]]))
   
-  (is (= (instantiate-def '[[x ✳] [y ✳] [z ✳]]
+  (is (= (instantiate-def []
+                          '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] z]
                           '())
          '(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] z]))))))

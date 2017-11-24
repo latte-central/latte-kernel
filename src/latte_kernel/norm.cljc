@@ -278,7 +278,6 @@ potentially rewritten version of `t` and `red?` is `true`
   in only looked for in `def-env`.
 
   By default it is also looked for in the current namespace (in Clojure only)."
-
   ([def-env ctx t] (delta-reduction def-env ctx t false))
   ([def-env ctx t local?]
    ;; (println "[delta-reduction] t=" t)
