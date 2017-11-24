@@ -271,15 +271,15 @@ potentially rewritten version of `t` and `red?` is `true`
           (let [[x ty] (first params)]
             (recur (rest params) (rest args) (conj bindings [x ty (stx/noclash forbid (first args))]))))
       ;; no more argument
-      bindings)))
+      [bindings params])))
 
 (defn instantiate-def
   "Substitute in the `body` of a definition the parameters `params` 
   by the actual arguments `args`."
   [forbid params body args]
   (let [[params' body' forbid'] (prepare-def forbid params body)
-        bindings (make-let-bindings forbid' params' args)]
-    (stx/letify bindings body')))
+        [bindings rest-params] (make-let-bindings forbid' params' args)]
+    (stx/letify bindings (stx/binderify 'λ rest-params body'))))
 
 ;;{
 ;; Note that for the sake of efficiency, we do not unfold theorems (by their proof)
