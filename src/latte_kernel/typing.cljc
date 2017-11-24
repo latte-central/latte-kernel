@@ -423,8 +423,11 @@ that implicits can be erased."
 ;;}
 
 
+
+
 (declare prepare-bindings
-         type-of-args)
+         type-of-args
+         prepare-def)
 
 (defn type-of-refdef [def-env ctx name ddef args]
   (let [params (:params ddef)
@@ -433,13 +436,33 @@ that implicits can be erased."
     (if (= status :ko)
       [:ko targs nil]
       (let [forbid (into #{} (map first ctx))
-            [params' type' forbid'] (norm/prepare-def forbid params type)
+            [params' type' forbid'] (prepare-def forbid params type)
             [status bindings rest-params] (prepare-bindings def-env ctx
                                                             forbid' params' targs)]
         (if (= status :ko)
           [:ko bindings nil]
           [:ok (stx/letify bindings (stx/binderify 'Π rest-params type'))
            (list* name args')])))))
+
+(declare make-fresh-params)
+
+(defn prepare-def
+  "Prepare a definition for instantiation, no name-clash etc."
+  [forbid params body]
+  (let [[params' forbid' ren'] (make-fresh-params params forbid {})
+        body' (stx/noclash forbid' ren' body)]
+    [params' body' forbid']))
+
+(defn make-fresh-params [params forbid ren]
+  "Ensure the parameters of a definition are fresh, renaming them if needed."
+  (loop [params params, forbid forbid, ren ren, fparams []]
+    (if (seq params)
+      (let [[x ty] (first params)
+            [x' forbid' ren'] (stx/fresh-binder x forbid ren)
+            ty' (stx/renaming ty ren)]
+        (recur (rest params) forbid' ren' (conj fparams [x' ty'])))
+      ;; no more params
+      [fparams forbid ren])))
 
 (defn type-of-args [def-env ctx args]
   "Type the arguments, give a set of bindings."
@@ -483,6 +506,41 @@ that implicits can be erased."
                    (conj bindings [x ty (stx/noclash forbid (first args))]))))
       ;; no more argument
       [bindings params])))
+
+(comment
+  ;; it would be nice to have a simple solution like this, but
+  ;; how to type check arguments against parameter types ?
+
+  (declare type-of-args)
+
+  (defn type-of-refdef [def-env ctx name ddef args]
+    (let [params (:params ddef)
+          type (:type ddef)
+          [status targs args'] (type-of-args def-env ctx args)]
+      (if (= status :ko)
+        [:ko targs nil]
+        (let [ftype (stx/binderify 'λ params type)
+              ref-type (stx/appify ftype args)
+              [status super-type _] (type-of-term def-env ctx ref-type)]
+          (if (= status :ko)
+            [:ko {:msg "Cannot unfold definition."
+                  :name name
+                  :ref-type (unparse ref-type)
+                  :from super-type}]
+            [:ok ref-type
+             (list* name args')])))))
+  
+  (defn type-of-args [def-env ctx args]
+    "Type the arguments, give a set of bindings."
+    (loop [args args, targs [], args' []]
+      (if (seq args)
+        (let [[status typ arg'] (type-of-term def-env ctx (first args))]
+          (if (= status :ko)
+            [:ko typ nil]
+            (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
+        [:ok targs args'])))
+  ;; end of comment
+  )
 
 
 (defn unfold-implicit [def-env ctx implicit-def args]
