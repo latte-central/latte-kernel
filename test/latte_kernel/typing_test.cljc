@@ -130,7 +130,7 @@
                                                 :arity 2})})
                        '[[bool ✳] [a ✳] [b bool]]
                        '(test a b))
-         '[:ko {:msg "Wrong argument type", :term (test b), :arg b, :arg-type bool, :expected-type ✳} nil])))
+         '[:ko {:msg "Wrong argument type", :arg-type bool, :parameter-type ✳} nil])))
 
 (def fake-eq (defenv/map->Definition
                {:params '[[T ✳] [x T] [y T]]
@@ -151,9 +151,10 @@
                        '[[U ✳] [a U] [b U]]
                        '(equal a b))
          '[:ok (let [T ✳ U]
-                 (let [x T a]
-                   (let [y T b]
-                     (Π [P (Π [⇧ T] ✳)] (Π [⇧ [P x]] [P y]))))) (equal% U a b)]))) 
+                 (let [x U a]
+                   (let [y U b]
+                     (Π [P (Π [⇧ T] ✳)] (Π [⇧ [P x]] [P y])))))
+           (equal% U a b)]))) 
 
 (comment ;;; XXX: type rebuilding not required (?)
   (deftest test-rebuild-type

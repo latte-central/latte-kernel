@@ -430,7 +430,7 @@ Names generated fresh along the substitution cannot be members of `forbid`.
      ;; references
      (ref? t)
      (let [args (reduce (fn [args' arg]
-                          (conj args' (noclash forbid ren arg)) [] (rest t)))]
+                          (conj args' (noclash forbid ren arg))) [] (rest t))]
        (cons (first t) (seq args)))
      :else
      t)))
