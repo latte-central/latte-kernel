@@ -241,49 +241,45 @@ potentially rewritten version of `t` and `red?` is `true`
 ;; by actual arguments. The process is called *instantiation*.
 ;;}
 
-(declare prepare-renaming)
+(declare make-fresh-params)
 
-(defn preinstantiate-def
-  "Substitute in the `body` of a definition the parameters `params` 
-  by the actual arguments `args`."
-  [forbid params body args]
-  (loop [args args, forbid forbid, params params, ren {}, let-bindings []]
+(defn prepare-def
+  "Prepare a definition for instantiation, no name-clash etc."
+  [forbid params body]
+  (let [[params' forbid' ren'] (make-fresh-params params forbid {})
+        body' (stx/noclash forbid' ren' body)]
+    [params' body' forbid']))
+
+(defn make-fresh-params [params forbid ren]
+  "Ensure the parameters of a definition are fresh, renaming them if needed."
+  (loop [params params, forbid forbid, ren ren, fparams []]
+    (if (seq params)
+      (let [[x ty] (first params)
+            [x' forbid' ren'] (stx/fresh-binder x forbid ren)
+            ty' (stx/renaming ty ren)]
+        (recur (rest params) forbid' ren' (conj fparams [x' ty'])))
+      ;; no more params
+      [fparams forbid ren])))
+
+(defn make-let-bindings
+  "Build the let bindings for instantiating a definition."
+  [forbid params args]
+  (loop [params params, args args, bindings []]
     (if (seq args)
-      (if (empty? params)
-        (throw (ex-info "Not enough parameters (please report)" {:args args}))
-        (let [[x ty] (first params)
-              arg (first args)
-              [x' forbid' ren'] (prepare-renaming x forbid ren)
-              ty' (stx/renaming ty ren)]
-          (recur (rest args) forbid' (rest params) ren' (conj let-bindings [x' ty' arg]))))
-      ;; no more arguments
-      (loop [params params, forbid forbid, ren ren, nparams []]
-        (if (seq params)
-          (let [[x ty] (first params)
-                [x' forbid' ren'] (prepare-renaming x forbid ren)
-                ty' (stx/renaming ty ren)]
-            (recur (rest params) forbid' ren' (conj nparams [x' ty'])))
-          ;; no more parameters
-          [let-bindings nparams (stx/renaming body ren)])))))
+      (do (when (empty? params)
+            (throw (ex-info "Not enough parameters (please report)" {:args args})))
+          (let [[x ty] (first params)]
+            (recur (rest params) (rest args) (conj bindings [x ty (stx/noclash forbid (first args))]))))
+      ;; no more argument
+      bindings)))
 
 (defn instantiate-def
   "Substitute in the `body` of a definition the parameters `params` 
   by the actual arguments `args`."
   [forbid params body args]
-  (let [[let-bindings params body] (preinstantiate-def forbid params body args)]
-    (let [body' (loop [params (reverse params), res body]
-                  (if (seq params)
-                    (recur (rest params) (list 'λ (first params) res))
-                    res))]
-      (stx/letify let-bindings body'))))
-
-(defn prepare-renaming [x forbid ren]
-  (if (contains? forbid x)
-    (let [x' (stx/mk-fresh x forbid)
-          forbid' (conj forbid x')
-          ren' (assoc ren x x')]
-      [x' forbid' ren'])
-    [x forbid ren]))
+  (let [[params' body' forbid'] (prepare-def forbid params body)
+        bindings (make-let-bindings forbid' params' args)]
+    (stx/letify bindings body')))
 
 ;;{
 ;; Note that for the sake of efficiency, we do not unfold theorems (by their proof)

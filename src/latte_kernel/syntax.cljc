@@ -66,6 +66,14 @@
   (and (seq? t)
        (= (first t) 'Π)))
 
+(defn binderify
+  "Generate an abstraction for `binder` from a sequences of `bindings` and a `body`."
+  [binder bindings body]
+  (loop [bindings (reverse bindings), res body]
+    (if (seq bindings)
+      (recur (rest bindings) (list binder (first bindings) res))
+      res)))
+
 ;;{
 ;; - *let abstraction* `(let [x A t] u)`. This can be useful
 ;; in the concrete syntax (although not as in a programming case)
@@ -395,14 +403,14 @@ Names generated fresh along the substitution cannot be members of `forbid`.
      ;; binders
      (binder? t)
      (let [[binder [x ty] body] t
-           [x' forbid' ren'] (fresh-binder forbid ren x)
+           [x' forbid' ren'] (fresh-binder x forbid ren)
            ty' (noclash forbid ren ty)
            body' (noclash forbid' ren' body)]
        (list binder [x' ty'] body'))
      ;; let abstraction
      (let? t)
      (let [[_ [x ty xval] body] t
-           [x' forbid' ren'] (fresh-binder forbid ren x)
+           [x' forbid' ren'] (fresh-binder x forbid ren)
            ty' (noclash forbid ren ty)
            xval' (noclash forbid ren xval)
            body' (noclash forbid' ren' body)]
@@ -427,7 +435,7 @@ Names generated fresh along the substitution cannot be members of `forbid`.
      :else
      t)))
 
-(defn fresh-binder [forbid ren x]
+(defn fresh-binder [x forbid ren]
   "Generate a fresh binder name."
   (if (forbid x)
     (let [x' (mk-fresh x forbid)]
