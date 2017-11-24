@@ -406,7 +406,7 @@ Names generated fresh along the substitution cannot be members of `forbid`.
 (defn noclash
   "Rewrites a term such that there is no clash for bound variables."
   ([t] (noclash #{} {} t))
-  ([forbid t] (noclash forbid) {} t)
+  ([forbid t] (noclash forbid {} t))
   ([forbid ren t]
    (cond
      ;; variables

@@ -253,9 +253,10 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn instantiate-def
   "Substitute in the `body` of a definition the parameters `params` 
   by the actual arguments `args`. This is done by generating an application."
-  [params body args]
-  (let [def-term (stx/binderify 'λ params body)]
-    (stx/appify def-term args)))
+  [ctx params body args]
+  (let [def-term (stx/binderify 'λ params body)
+        def-term' (stx/noclash (into #{} (map first ctx)) def-term)]
+    (stx/appify def-term' args)))
 
 ;;{
 ;; Note that for the sake of efficiency, we do not unfold theorems (by their proof)
@@ -307,7 +308,7 @@ potentially rewritten version of `t` and `red?` is `true`
              ;; the definition is opaque
              [t false]
              ;; the definition is transparent
-             [(instantiate-def (:params sdef) (:parsed-term sdef) args)
+             [(instantiate-def ctx (:params sdef) (:parsed-term sdef) args)
               true])
            ;; no parsed term for definitoin
            (throw (ex-info "Cannot unfold term reference: no parsed term (please report)"
