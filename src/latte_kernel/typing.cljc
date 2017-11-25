@@ -423,7 +423,9 @@ that implicits can be erased."
 ;;}
 
 
+;;(comment
 
+;; XXX: This is relatively ugly and perhaps buggy at the moment
 
 (declare prepare-bindings
          type-of-args
@@ -507,25 +509,29 @@ that implicits can be erased."
       ;; no more argument
       [bindings params])))
 
+  ;;  )
+
 (comment
   ;; it would be nice to have a simple solution like this, but
   ;; how to type check arguments against parameter types ?
-
+  ;; ... this probably requires universes and cumulativity, etc.
+  
   (declare type-of-args)
 
   (defn type-of-refdef [def-env ctx name ddef args]
     (let [params (:params ddef)
           type (:type ddef)
+          forbid (into #{} (map first ctx))
           [status targs args'] (type-of-args def-env ctx args)]
       (if (= status :ko)
         [:ko targs nil]
-        (let [ftype (stx/binderify 'λ params type)
+        (let [ftype (stx/noclash forbid (stx/binderify 'Π params type))
               ref-type (stx/appify ftype args)
               [status super-type _] (type-of-term def-env ctx ref-type)]
           (if (= status :ko)
             [:ko {:msg "Cannot unfold definition."
                   :name name
-                  :ref-type (unparse ref-type)
+                :ref-type (unparse ref-type)
                   :from super-type}]
             [:ok ref-type
              (list* name args')])))))
@@ -537,7 +543,7 @@ that implicits can be erased."
         (let [[status typ arg'] (type-of-term def-env ctx (first args))]
           (if (= status :ko)
             [:ko typ nil]
-            (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
+          (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
         [:ok targs args'])))
   ;; end of comment
   )

@@ -110,11 +110,11 @@
 (deftest test-type-of-refdef
   (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
-                                                :type *
+                                                :type ✳
                                                 :arity 2})})
                        '[[a ✳] [b ✳]]
                        '(test a b))
-         '[:ok (let [x ✳ a] (let [y ✳ b] *)) (test a b)]))
+         '[:ok (let [x ✳ a] (let [y ✳ b] ✳)) (test a b)]))
   
     (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
