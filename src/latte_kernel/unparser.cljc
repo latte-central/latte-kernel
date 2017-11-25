@@ -1,6 +1,7 @@
 (ns latte-kernel.unparser
   (:require [latte-kernel.utils :as u]
-            [latte-kernel.syntax :as stx]))
+            [latte-kernel.syntax :as stx]
+            [clojure.pprint :as pp]))
 
 (def +unparser-registry+ (atom {:fundamental []
                                 :standard []
@@ -109,3 +110,11 @@
 (defn install-fundamental-unparsers! []
   (register-unparser! :fundamental :prod-impl prod-impl-unparser))
 
+;; Also pretty pretting
+(defn show-term
+  ([t] (show-term t true true))
+  ([t unparse? pprint?]
+   (let [t' (if unparse? (unparse t) t)]
+     (if pprint?
+       (with-out-str (pp/pprint t'))
+       (str t')))))

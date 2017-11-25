@@ -6,7 +6,7 @@
             [latte-kernel.syntax :as stx]
             [latte-kernel.presyntax :as parse]
             [latte-kernel.norm :as norm]
-            [latte-kernel.unparser :refer [unparse]]
+            [latte-kernel.unparser :as unparser :refer [unparse]]
             [clojure.pprint :as pp]))
 
 ;;{
@@ -46,12 +46,10 @@
 ;;
 ;;}
 
-(comment  ;; TODO
-  (defn show-defenv [def-env]
-    (clojure.string/join "\n" (map (fn [[name ddef]])))))
 
 ;; We make the have step in a small function for "debugging-friendliness".
 (declare elab-have-impl)
+
 (defn elab-have [def-env ctx var-deps def-uses name ty term meta]
   (println "  => have step: " name)
   (let [[status res] (elab-have-impl def-env ctx var-deps def-uses name ty term meta)]
@@ -62,8 +60,8 @@
 
 (defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   (let [[status, term-type, term'] (typing/type-of-term def-env ctx term)]
-    (println "[have] term=" (unparse term))
-    (println "[have] term-type=" (unparse term-type))
+    ;;(println "[have] term=" (unparse term))
+    ;;(println "[have] term-type=" (unparse term-type))
     (if (= status :ko)
       [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
             :have-name name
@@ -234,11 +232,20 @@
             :meta meta}]
       [:ok [def-env term proof-type]])))
 
+;; ## Proof debuggin aids
+
+(defn show-term [t meta]
+  (let [pprint? (get meta :pprint true)
+        unparse? (get meta :unparse true)]
+    (unparser/show-term t pprint? unparse?)))
 
 (defn elab-print [def-env ctx term meta]
   (println "============================")
-  (let [[term' _] (norm/delta-step def-env ctx term)]
-    (pp/pprint (unparse term')))
+  (let [delta? (get meta :delta true)
+        term' (if delta?
+                (second (norm/delta-step def-env ctx term))
+                term)]
+    (println (show-term term' meta)))
   (println "============================"))
 
 (defn elab-print-type [def-env ctx term meta]
@@ -246,9 +253,20 @@
   (let [[status ty _] (typing/type-of-term def-env ctx term)]
     (when (= status :ko)
       (throw (ex-info "Cannot type term for print-type."
-                      {:term term})))
-    (print "type of: ") (pp/pprint term)
-    (pp/pprint (unparse ty)))
+                      {:term (unparse term)})))
+    (print "type of: ") (println (show-term term meta))
+    (println (show-term ty meta)))
+  (println "============================"))
+
+
+(defn show-def [ddef meta]
+  "")
+
+(defn elab-print-defenv [def-env meta]
+  (println "============================")
+  (println "local definitions:")
+  (doseq [[name ddef] (defenv/local-definitions def-env)]
+    (println name ":" (show-def ddef meta)))
   (println "============================"))
 
 ;;{
@@ -345,6 +363,10 @@
               :cause term}]
         (do (elab-print-type def-env ctx term meta)
             [:cont [def-env ctx var-deps def-uses]])))
+    :print-defenv
+    (let [[meta] args]
+      (do (elab-print-defenv meta)
+          [:cont [def-env ctx var-deps def-uses]]))
     ;; else
     (throw (ex-info "Unknown step kind in proof script."
                     {:step step
