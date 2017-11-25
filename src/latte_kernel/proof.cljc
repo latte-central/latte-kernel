@@ -242,20 +242,28 @@
 (defn elab-print [def-env ctx term meta]
   (println "============================")
   (let [delta? (get meta :delta true)
+        norm? (get meta :norm false)
         term' (if delta?
-                (second (norm/delta-step def-env ctx term))
-                term)]
-    (println (show-term term' meta)))
+                (first (norm/delta-step def-env ctx term))
+                term)
+        term'' (if norm?
+                 (norm/beta-red term')
+                 term')]
+    (println (show-term term'' meta)))
   (println "============================"))
 
 (defn elab-print-type [def-env ctx term meta]
   (println "============================")
-  (let [[status ty _] (typing/type-of-term def-env ctx term)]
+  (let [[status ty _] (typing/type-of-term def-env ctx term)
+        norm? (get meta :norm false)
+        ty' (if norm?
+              (norm/beta-red ty)
+              ty)]
     (when (= status :ko)
       (throw (ex-info "Cannot type term for print-type."
                       {:term (unparse term)})))
     (print "type of: ") (println (show-term term meta))
-    (println (show-term ty meta)))
+    (println (show-term ty' meta)))
   (println "============================"))
 
 
