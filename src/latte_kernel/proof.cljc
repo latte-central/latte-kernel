@@ -270,11 +270,11 @@
 (defn show-def [ddef meta]
   (cond
     (defenv/definition? ddef)
-    (str (:params ddef) ":=" (show-term (:parsed-term ddef) meta)
-         " :: " (show-term (:type ddef) meta))
+    (str (:params ddef) ":=\n" (show-term (:parsed-term ddef) meta)
+         "\n:: " (show-term (:type ddef) meta))
     (or (defenv/theorem? ddef)
         (defenv/axiom? ddef))
-    (str (:params ddef) "::" (show-term (:type ddef) meta))
+    (str (:params ddef) "\n::" (show-term (:type ddef) meta))
     :else
     "<hidden>"))
 
@@ -285,6 +285,14 @@
     (defenv/theorem? ddef) "theorem"
     (defenv/implicit? ddef) "implicit"
     :else "unknown"))
+
+(defn elab-print-def [def-env name meta]
+  (println "============================")
+  (let [[status ddef] (defenv/fetch-definition def-env name true)]
+    (if (= status :ko)
+      (println "<<<no such definition>>>")
+      (println name (str "(" (show-deftype ddef) "):") (show-def ddef meta))))
+  (println "============================"))
 
 (defn elab-print-defenv [def-env meta]
   (println "============================")
@@ -387,9 +395,13 @@
               :cause term}]
         (do (elab-print-type def-env ctx term meta)
             [:cont [def-env ctx var-deps def-uses]])))
+    :print-def
+    (let [[name meta] args]
+      (do (elab-print-def def-env name meta)
+          [:cont [def-env ctx var-deps def-uses]]))
     :print-defenv
     (let [[meta] args]
-      (do (elab-print-defenv meta)
+      (do (elab-print-defenv def-env meta)
           [:cont [def-env ctx var-deps def-uses]]))
     ;; else
     (throw (ex-info "Unknown step kind in proof script."
@@ -432,7 +444,7 @@
                      proof-body
                      (map (fn [[x _]]
                             [:discharge x meta]) (reverse params))))
-           (contains? #{:have :qed :print :print-type} (ffirst proof))
+           (contains? #{:have :qed :print :print-type :print-def :print-defenv} (ffirst proof))
            (list (first proof))
            :else
            (throw (ex-info "Compilation failed: unsupported proof step." {:step (first proof)})))
