@@ -14,12 +14,17 @@
 ;;
 ;; At the lowest level, a LaTTe proof script is represented
 ;; by a sequence of **proof statements**, either:
-;;  - a **variable declaration** `[:declare x T <meta>]` declaring variable `x` of type `T`
-;;  - a **local definition** `[:have <a> T t <meta>]` defining reference `<a>` by term `T` and
-;;    of type `T`  (if inferred then the type is the underscore symbol `_`). The name can be replaced by
-;;    an underscore symbol `_` in which case the definition is not recorded.
-;;  - a **discharge** `[:discharge x <meta>]` of variable `x` (previously introduced by a `:declare` form)
-;;  - a **commitment** `[:qed t <meta>]` yielding the proof term `t` to ultimately submit to the proof checker.
+;;  - a **variable declaration** `[:declare x T <meta>]`
+;;    declaring variable `x` of type `T`
+;;  - a **local definition** `[:have <a> T t <meta>]`
+;;    defining reference `<a>` by term `T` and of type `T`
+;;    (if inferred then the type is the underscore symbol `_`).
+;;    The name can be replaced by an underscore symbol `_` in which case
+;;    the definition is not recorded.
+;;  - a **discharge** `[:discharge x <meta>]` of variable `x`
+;;    (previously introduced by a `:declare` form)
+;;  - a **commitment** `[:qed t <meta>]` yielding the proof term `t`
+;;    to ultimately submit to the proof checker.
 ;;
 ;; In all these cases, the `<meta>` argument is a map containing optional metadata.
 ;;
@@ -96,7 +101,9 @@
               [:ko {:msg "Have step elaboration failed: local definition already registered"
                     :have-name name
                     :meta meta}]
-              (let [def-env' (defenv/register-definition def-env (defenv/->Definition name [] 0 term rec-ty {}) true)
+              (let [def-env' (defenv/register-definition
+                               def-env
+                               (defenv/->Definition name [] 0 term rec-ty {}) true)
                     var-deps' (-> var-deps
                                   ;; (update-var-deps name term)
                                   (update-var-deps name rec-ty))
@@ -185,9 +192,10 @@
   (let [[status, ddef] (defenv/fetch-definition def-env def-name true)]
     (when (= status :ko)
       (throw (ex-info "Local definition not found (please report)" {:def-name def-name})))
-    (defenv/register-definition def-env (-> ddef
-                                            (update :params (fn [params] (u/vcons [x ty] params)))
-                                            (update :arity inc))
+    (defenv/register-definition
+      def-env (-> ddef
+                  (update :params (fn [params] (u/vcons [x ty] params)))
+                  (update :arity inc))
       true)))
 
 (declare abstract-local-calls)
@@ -197,9 +205,10 @@
   (let [[status, ddef] (defenv/fetch-definition def-env ref true)]
     (when (= status :ko)
       (throw (ex-info "Local definition not found (please report)" {:def-name ref})))
-    (defenv/register-definition def-env (-> ddef
-                                            ;; (update :params (fn [params] (u/vcons [x ty] params)))
-                                            (update :parsed-term (fn [t] (gen-local-calls t abs-defs x)))) true)))
+    (defenv/register-definition
+      def-env (-> ddef
+                  ;; (update :params (fn [params] (u/vcons [x ty] params)))
+                  (update :parsed-term (fn [t] (gen-local-calls t abs-defs x)))) true)))
 
 (defn gen-local-calls [t abs-defs x]
   (cond
@@ -374,7 +383,8 @@
               [:cont [def-env' ctx' var-deps' def-uses']])))))
     :discharge
     (let [[v meta] args
-          [def-env' ctx' var-deps' def-uses'] (elab-discharge def-env ctx var-deps def-uses v meta)]
+          [def-env' ctx' var-deps' def-uses']
+          (elab-discharge def-env ctx var-deps def-uses v meta)]
       ;; (print-state (str "* Discharge step: " (first script))
       ;;              def-env' ctx' var-deps' def-uses')
       [:cont [def-env' ctx' var-deps' def-uses']])
@@ -442,7 +452,8 @@
   [proof]
   (if (seq proof)
     (do (when (not (seq (first proof)))
-          (throw (ex-info "Compilation failed: malformed proof step." {:step (first proof)})))
+          (throw (ex-info "Compilation failed: malformed proof step."
+                          {:step (first proof)})))
         (concat 
          (cond
            (string? (first proof))
@@ -456,10 +467,12 @@
                      proof-body
                      (map (fn [[x _]]
                             [:discharge x meta]) (reverse params))))
-           (contains? #{:have :qed :print :print-type :print-def :print-defenv} (ffirst proof))
+           (contains? #{:have :qed :print :print-type :print-def :print-defenv}
+                      (ffirst proof))
            (list (first proof))
            :else
-           (throw (ex-info "Compilation failed: unsupported proof step." {:step (first proof)})))
+           (throw (ex-info "Compilation failed: unsupported proof step."
+                           {:step (first proof)})))
          (compile-proof (rest proof))))
     ;; the end
     (list)))
