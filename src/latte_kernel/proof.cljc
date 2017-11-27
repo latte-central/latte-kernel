@@ -143,10 +143,19 @@
 (declare abstract-local-def)
 (declare abstract-local-calls)
 
+;; for debugging
+(declare elab-discharge-impl)
+
 (defn elab-discharge [def-env ctx var-deps def-uses name meta]
+  (if (empty? ctx)
+    (throw (ex-info "Context is empty (please report)." {:discharge-name name
+                                                         :meta meta}))
+    (elab-discharge-impl def-env ctx var-deps def-uses name meta)))
+
+(defn elab-discharge-impl [def-env ctx var-deps def-uses name meta]
   ;; (println "[elab-discharge] name=" name)
   (when (empty? ctx)
-    (throw (ex-info "Context is empty (please report)." {:disacharge-name name
+    (throw (ex-info "Context is empty (please report)." {:discharge-name name
                                                          :meta meta})))
   (let [[x _] (first ctx)]
     (when (not= x name)
@@ -199,12 +208,15 @@
                    (cons ref (if (contains? abs-defs ref)
                                (cons x args')
                                args')))
-    (stx/binder? t) (let [[_ [x ty] body] t
+    (stx/binder? t) (let [[binder [y ty] body] t
                           ty' (gen-local-calls ty abs-defs x)
                           body' (gen-local-calls body abs-defs x)]
-                      (if (stx/lambda? t)
-                        (list 'λ [x ty'] body')
-                        (list 'Π [x ty'] body')))
+                      (list binder [y ty'] body'))
+    (stx/let? t) (let [[_ [y ty xval] body] t
+                       ty' (gen-local-calls ty abs-defs x)
+                       xval' (gen-local-calls xval abs-defs x)
+                       body' (gen-local-calls body abs-defs x)]
+                   (list 'let [y ty' xval'] body'))
     (stx/app? t) (let [[t1 t2] t
                        t1' (gen-local-calls t1 abs-defs x)
                        t2' (gen-local-calls t2 abs-defs x)]
