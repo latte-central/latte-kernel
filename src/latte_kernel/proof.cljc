@@ -268,13 +268,29 @@
 
 
 (defn show-def [ddef meta]
-  "")
+  (cond
+    (defenv/definition? ddef)
+    (str (:params ddef) ":=" (show-term (:parsed-term ddef) meta)
+         " :: " (show-term (:type ddef) meta))
+    (or (defenv/theorem? ddef)
+        (defenv/axiom? ddef))
+    (str (:params ddef) "::" (show-term (:type ddef) meta))
+    :else
+    "<hidden>"))
+
+(defn show-deftype [ddef]
+  (cond
+    (defenv/definition? ddef) "definition"
+    (defenv/axiom? ddef) "axiom"
+    (defenv/theorem? ddef) "theorem"
+    (defenv/implicit? ddef) "implicit"
+    :else "unknown"))
 
 (defn elab-print-defenv [def-env meta]
   (println "============================")
   (println "local definitions:")
   (doseq [[name ddef] (defenv/local-definitions def-env)]
-    (println name ":" (show-def ddef meta)))
+    (println name (str "(" (show-deftype ddef) "):") (show-def ddef meta)))
   (println "============================"))
 
 ;;{
