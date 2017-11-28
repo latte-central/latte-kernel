@@ -161,32 +161,21 @@
 
 (defn elab-discharge-impl [def-env ctx var-deps def-uses name meta]
   ;; (println "[elab-discharge] name=" name)
-  (when (empty? ctx)
-    (throw (ex-info "Context is empty (please report)." {:discharge-name name
-                                                         :meta meta})))
-  (let [[x _] (first ctx)]
+  (let [[x ty] (first ctx)]
     (when (not= x name)
       (throw (ex-info "Incorrect discharge name." {:discharge-name name
                                                    :var x
                                                    :meta meta})))
-    (let [[status ty _] (typing/type-of-term def-env ctx x)]
-      (when (= status :ko)
-        (throw (ex-info "Cannot recompute type of context variable." {:variable x
-                                                                      :error ty})))
-      (let [[x' xdeps] (first var-deps)]
-        (when (not= x' x)
-          (throw (ex-info "Incorrect discharge name." {:discharge-name name
-                                                       :var x'
-                                                       :meta meta})))
-        (loop [def-env def-env, abstracted-deps #{}, deps xdeps]
-          (if (seq deps)
-            (let [def-env' (if (contains? abstracted-deps (first deps))
-                             def-env
-                             (abstract-local-def def-env (first deps) x ty))
-                  def-env'' (abstract-local-calls def-env' (first deps) abstracted-deps x)
-                  deps' (into (get def-uses (first deps) #{}) (rest  deps))]
-              (recur def-env'' (conj abstracted-deps (first deps)) deps'))
-            [def-env (rest ctx) (rest var-deps) def-uses]))))))
+    (let [[x' xdeps] (first var-deps)]
+      (when (not= x' x)
+        (throw (ex-info "Incorrect discharge name." {:discharge-name name
+                                                     :var x'
+                                                     :meta meta})))
+      (let [def-env' (reduce (fn [def-env def-name]
+                               (abstract-local-def def-env def-name x ty)) def-env xdeps)
+            def-env'' (reduce (fn [def-env def-name]
+                                (abstract-local-calls def-env def-name xdeps x)) def-env' xdeps)]
+        [def-env'' (rest ctx) (rest var-deps) def-uses]))))
 
 (defn abstract-local-def [def-env def-name x ty]
   (let [[status, ddef] (defenv/fetch-definition def-env def-name true)]
