@@ -86,6 +86,8 @@
   (and (seq? t)
        (= (first t) 'let)))
 
+(declare free-vars)
+
 (defn letify
   "Generate a let-abstraction from a sequence of `bindings` and a `body`."
   [bindings body]

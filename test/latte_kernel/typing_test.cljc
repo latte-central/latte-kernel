@@ -114,7 +114,7 @@
                                                 :arity 2})})
                        '[[a ✳] [b ✳]]
                        '(test a b))
-         '[:ok (let [x ✳ a] (let [y ✳ b] ✳)) (test a b)]))
+         '[:ok ✳ (test a b)]))
   
     (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
@@ -122,7 +122,7 @@
                                                 :arity 2})})
                        '[[a ✳] [b ✳]]
                        '(test a))
-           '[:ok (let [x ✳ a] (Π [y ✳] ✳)) (test a)]))
+           '[:ok (Π [y ✳] ✳) (test a)]))
 
   (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
