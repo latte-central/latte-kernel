@@ -104,7 +104,7 @@
 (deftest test-type-of-app
   (is (= (type-of-term defenv/empty-env '[[bool ✳] [y bool]]
                        '[(λ [x bool] x) y])
-         '[:ok (let [x bool y] bool) [(λ [x bool] x) y]])))
+         '[:ok bool [(λ [x bool] x) y]])))
 
 
 (deftest test-type-of-refdef
