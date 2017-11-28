@@ -336,7 +336,9 @@ that implicits can be erased."
                   ;;(println "    B = " B)
                   ;;(println "    x = " x)
                   ;;(println "    rand = " rand)
-                  [:ok (list 'let [x A rand] B)
+                  [:ok (if (contains? (stx/free-vars B) x)
+                         (list 'let [x A rand] B)
+                         B)
                    [rator' rand']]))))))))))
 
 ;;{
