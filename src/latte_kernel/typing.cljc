@@ -493,6 +493,7 @@ that implicits can be erased."
                     :arg-type (unparse targ)
                     :parameter-type ty} nil]
               (recur (rest params) (rest targs)
+                     ;; XXX: there's (probably) an issue here
                      (norm/letenv-put let-env x arg') (conj bindings [x targ arg'])))))
       ;; no more argument
       [:ok bindings params])))
