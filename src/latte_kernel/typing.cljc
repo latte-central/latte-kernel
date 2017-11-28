@@ -202,11 +202,11 @@ that implicits can be erased."
             (if (= status :ko)
               [:ko {:msg "Cannot calculate codomain type of product."
                     :codomain (unparse B) :from sort2} nil]
-              (let [sort2' (norm/normalize def-env ctx sort2)]
+              (let [sort2' (norm/normalize def-env ctx' sort2)]
                 (if (not (stx/sort? sort2'))
                   [:ko {:msg "Not a valid codomain type in product (not a sort)"
                         :codomain (unparse B) :codomain-type (unparse sort2)} nil]
-                  [:ok sort2 (list 'Π [x A'] B')])))))))))
+                  [:ok sort2' (list 'Π [x A'] B')])))))))))
 
 
 ;;{
@@ -479,8 +479,7 @@ that implicits can be erased."
       [:ok targs args'])))
 
 (defn prepare-bindings
-  "The preparation of bindings, similarly to [[norm/make-let-bindings]] but
-  with type-checking enabled."
+  "The preparation of bindings and type-checking of arguments."
   [def-env ctx forbid params targs]
   (loop [params params, targs targs, let-env norm/letenv-empty, bindings []]
     (if (seq targs)
@@ -489,7 +488,7 @@ that implicits can be erased."
           (let [[x ty] (first params)
                 [arg targ] (first targs)
                 arg' (stx/noclash forbid arg)]
-            (if (not (norm/beta-eq? def-env ctx let-env targ ty))
+            (if (not (norm/beta-eq? def-env ctx targ (stx/letify bindings ty)))
               [:ko {:msg "Wrong argument type"
                     :arg-type (unparse targ)
                     :parameter-type ty} nil]

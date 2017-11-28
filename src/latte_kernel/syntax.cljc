@@ -89,10 +89,15 @@
 (defn letify
   "Generate a let-abstraction from a sequence of `bindings` and a `body`."
   [bindings body]
-  (loop [bindings (reverse bindings), res body]
-    (if (seq bindings)
-      (recur (rest bindings) (list 'let (first bindings) res))
-      res)))
+  (let [body-fv (free-vars body)]
+    (loop [bindings (reverse bindings), fv (free-vars body), res body]
+      (if (seq bindings)
+        (let [[x ty xval] (first bindings)
+              fv' (clojure.set/union (free-vars xval) fv)]
+          (recur (rest bindings) fv' (if (contains? fv' x)
+                                         (list 'let [x ty xval] res)
+                                         res)))
+        res))))
 
 
 ;;{
