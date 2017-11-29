@@ -54,6 +54,14 @@
   (and (list? t)
        (contains? '#{λ Π} (first t))))
 
+(defn binderify
+  "Generate an abstraction for `binder` from a sequences of `bindings` and a `body`."
+  [binder bindings body]
+  (loop [bindings (reverse bindings), res body]
+    (if (seq bindings)
+      (recur (rest bindings) (list binder (first bindings) res))
+      res)))
+
 (defn lambda?
   "Is `t` a lambda-abstraction?"
   [t]
@@ -74,6 +82,15 @@
   [t]
   (and (vector? t)
        (= (count t) 2)))
+
+(defn appify
+  "Build a multiple calls f `f` with `args`."
+  [f args]
+  (loop [args args, res f]
+    (if (seq args)
+      (recur (rest args) [res (first args)])
+      res)))
+
 
 ;;{
 ;;  - *references* to named definitions `(f {X1 t1, ..., Xn tn} e1 e2 ... eN)`
@@ -236,6 +253,8 @@ The `forbid` argument says what names are forbidden."
 ;; The following is the core of the substitution algorithm.
 ;;}
 
+(declare rebinder)
+
 (defn- subst-
   "Applies substituion `sub` on term `t`. 
 Names generated fresh along the substitution cannot be members of `forbid`.
@@ -250,11 +269,7 @@ Names generated fresh along the substitution cannot be members of `forbid`.
           ;; binders (λ, Π)
           (binder? t)
           (let [[binder [x ty] body] t
-                [x' rebind' forbid']
-                (if (contains? forbid x)
-                  (let [x' (mk-fresh x forbid)]
-                    [x' (assoc rebind x x') (conj forbid x')])
-                  [x rebind (conj forbid x)])
+                [x' rebind' forbid'] (rebinder x rebind forbid)
                 [ty' forbid''] (subst- ty sub forbid' rebind)
                 [body' forbid'''] (subst- body sub forbid'' rebind')]
             ;; (println "term=" (list binder [x' ty'] body') "sub=" sub')
@@ -282,6 +297,14 @@ Names generated fresh along the substitution cannot be members of `forbid`.
     ;;(println "[subst-] t=" t "sub=" sub "forbid=" forbid "rebind=" rebind)
     ;;(println "   ==> " t')
     [t' forbid']))
+
+(defn rebinder [x rebind forbid]
+  "Rebind `x` if it is present in `forbid`."
+  (if (contains? forbid x)
+    (let [x' (mk-fresh x forbid)]
+      [x' (assoc rebind x x') (conj forbid x')])
+    [x rebind (conj forbid x)]))
+
 
 (defn subst
   "Applies substitution `sub` (defaulting to `{x u}`) to term `t`."
