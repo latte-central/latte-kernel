@@ -346,10 +346,13 @@ potentially rewritten version of `t` and `red?` is `true`
   ([def-env let-env ctx t local? rcount]
    ;; (println "[delta-step] t=" t)
    (cond
+     ;; sort
+     (stx/sort? t)
+     [t rcount]
      ;; variable
      (stx/variable? t)
      (if-let [t' (letenv-lookup let-env t)]
-       [t' (inc rcount)]
+       [(stx/noclash (into #{} (map first ctx)) t') (inc rcount)]
        [t rcount])
      ;; binder
      (stx/binder? t)
