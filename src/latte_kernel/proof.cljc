@@ -132,40 +132,42 @@
 (declare abstract-local-def)
 (declare abstract-local-calls)
 
+;; for debugging
+(declare elab-discharge-impl)
+
 (defn elab-discharge [def-env ctx var-deps def-uses name meta]
+  (if (empty? ctx)
+    (throw (ex-info "Context is empty (please report)." {:discharge-name name
+                                                         :meta meta}))
+    (elab-discharge-impl def-env ctx var-deps def-uses name meta)))
+
+(defn elab-discharge-impl [def-env ctx var-deps def-uses name meta]
   ;; (println "[elab-discharge] name=" name)
-  (when (empty? ctx)
-    (throw (ex-info "Context is empty (please report)." {:disacharge-name name
-                                                         :meta meta})))
-  (let [[x _] (first ctx)]
+  (let [[x ty] (first ctx)]
     (when (not= x name)
       (throw (ex-info "Incorrect discharge name." {:discharge-name name
                                                    :var x
                                                    :meta meta})))
-    (let [[status ty _] (typing/type-of-term def-env ctx x)]
-      (when (= status :ko)
-        (throw (ex-info "Cannot recompute type of context variable." {:variable x
-                                                                      :error ty})))
-      (let [[x' xdeps] (first var-deps)]
-        (when (not= x' x)
-          (throw (ex-info "Incorrect discharge name." {:discharge-name name
-                                                       :var x'
-                                                       :meta meta})))
-        (loop [def-env def-env, abstracted-deps #{}, deps xdeps]
-          (if (seq deps)
-            (let [def-env' (if (contains? abstracted-deps (first deps))
-                             def-env
-                             (abstract-local-def def-env (first deps) x ty))
-                  def-env'' (abstract-local-calls def-env' (first deps) abstracted-deps x)
-                  deps' (into (get def-uses (first deps) #{}) (rest  deps))]
-              (recur def-env'' (conj abstracted-deps (first deps)) deps'))
-            [def-env (rest ctx) (rest var-deps) def-uses]))))))
+    (let [[x' xdeps] (first var-deps)]
+      (when (not= x' x)
+        (throw (ex-info "Incorrect discharge name." {:discharge-name name
+                                                     :var x'
+                                                     :meta meta})))
+      (let [def-env' (reduce (fn [def-env def-name]
+                               (abstract-local-def def-env def-name x ty)) def-env xdeps)
+            def-env'' (reduce (fn [def-env def-name]
+                                (abstract-local-calls def-env def-name xdeps x)) def-env' xdeps)]
+        [def-env'' (rest ctx) (rest var-deps) def-uses]))))
 
 (defn abstract-local-def [def-env def-name x ty]
   (let [[status, ddef] (defenv/fetch-definition def-env def-name true)]
     (when (= status :ko)
       (throw (ex-info "Local definition not found (please report)" {:def-name def-name})))
-    (defenv/register-definition def-env (update ddef :params (fn [params] (u/vcons [x ty] params))) true)))
+    (defenv/register-definition
+      def-env (-> ddef
+                  (update :params (fn [params] (u/vcons [x ty] params)))
+                  (update :arity inc))
+      true)))
 
 (declare abstract-local-calls)
 (declare gen-local-calls)
@@ -174,9 +176,10 @@
   (let [[status, ddef] (defenv/fetch-definition def-env ref true)]
     (when (= status :ko)
       (throw (ex-info "Local definition not found (please report)" {:def-name ref})))
-    (defenv/register-definition def-env (-> ddef
-                                            ;; (update :params (fn [params] (u/vcons [x ty] params)))
-                                            (update :parsed-term (fn [t] (gen-local-calls t abs-defs x)))) true)))
+    (defenv/register-definition
+      def-env (-> ddef
+                  ;; (update :params (fn [params] (u/vcons [x ty] params)))
+                  (update :parsed-term (fn [t] (gen-local-calls t abs-defs x)))) true)))
 
 (defn gen-local-calls [t abs-defs x]
   (cond
@@ -185,12 +188,10 @@
                    (cons ref (if (contains? abs-defs ref)
                                (cons x args')
                                args')))
-    (stx/binder? t) (let [[_ [x ty] body] t
+    (stx/binder? t) (let [[binder [y ty] body] t
                           ty' (gen-local-calls ty abs-defs x)
                           body' (gen-local-calls body abs-defs x)]
-                      (if (stx/lambda? t)
-                        (list 'λ [x ty'] body')
-                        (list 'Π [x ty'] body')))
+                      (list binder [y ty'] body'))
     (stx/app? t) (let [[t1 t2] t
                        t1' (gen-local-calls t1 abs-defs x)
                        t2' (gen-local-calls t2 abs-defs x)]
