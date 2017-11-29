@@ -53,25 +53,29 @@
          '[x y])))
 
 (deftest test-instantiate-def
-  (is (= (instantiate-def []
+  (is (= (instantiate-def letenv-empty
+                          []
                           '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] [z x]]
                           '((λ [t ✳] t) t1 [t2 t3]))
          '[[[(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] [z x]]))) (λ [t ✳] t)] t1] [t2 t3]]))
 
-  (is (= (instantiate-def []
+  (is (= (instantiate-def letenv-empty
+                          []
                           '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] [z x]]
                           '((λ [t ✳] t) t1 [t2 t3]))
          '[[[(λ [x ✳] (λ [y ✳] (λ [z ✳] [[x y] [z x]]))) (λ [t ✳] t)] t1] [t2 t3]]))
   
-  (is (= (instantiate-def []
+  (is (= (instantiate-def letenv-empty
+                          []
                           '[[x ✳] [y ✳] [z ✳] [t ✳]]
                           '[[x y] [z t]]
                           '((λ [t ✳] t) t1 [t2 t3]))
          '[[[(λ [x ✳] (λ [y ✳] (λ [z ✳] (λ [t ✳] [[x y] [z t]])))) (λ [t ✳] t)] t1] [t2 t3]]))
   
-  (is (= (instantiate-def []
+  (is (= (instantiate-def letenv-empty
+                          []
                           '[[x ✳] [y ✳] [z ✳]]
                           '[[x y] z]
                           '())
@@ -84,6 +88,7 @@
                                                    :params [[x ✳] [y □] [z ✳]]
                                                    :parsed-term [y (λ [t ✳] [x [z t]])]
                                                    :opts {}})})
+                          letenv-empty
                           []
                           '(test [a b] c [t (λ [t] t)]))
          '[[[[(λ [x ✳] (λ [y □] (λ [z ✳] [y (λ [t ✳] [x [z t]])]))) [a b]] c] [t (λ [t] t)]] true]))
@@ -93,6 +98,7 @@
                                                    :arity 3
                                                    :params [[x ✳] [y □] [z ✳]]
                                                    :proof [y (λ [t ✳] [x [z t]])]})})
+                          letenv-empty
                           []
                           '(test [a b] c [t (λ [t] t)]))
          '[(test [a b] c [t (λ [t] t)]) false]))
@@ -101,6 +107,7 @@
                                                  '{:arity 3
                                                    :tag :axiom
                                                    :params [[x ✳] [y □] [z ✳]]})})
+                          letenv-empty
                           []
                           '(test [a b] c [t (λ [t] t)]))
          '[(test [a b] c [t (λ [t] t)]) false]))
@@ -111,6 +118,7 @@
                                                    :params [[x ✳] [y □] [z ✳]]
                                                    :parsed-term [y (λ [t ✳] [x [z t]])]
                                                    :opts {}})})
+                          letenv-empty
                           []
                           '(test [a b] c))
          '[[[(λ [x ✳] (λ [y □] (λ [z ✳] [y (λ [t ✳] [x [z t]])]))) [a b]] c] true])))
