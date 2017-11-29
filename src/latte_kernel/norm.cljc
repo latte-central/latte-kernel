@@ -253,9 +253,10 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn instantiate-def
   "Substitute in the `body` of a definition the parameters `params` 
   by the actual arguments `args`. This is done by generating an application."
-  [ctx params body args]
+  [let-env ctx params body args]
   (let [def-term (stx/binderify 'λ params body)
-        def-term' (stx/noclash (into #{} (map first ctx)) def-term)]
+        forbid (into #{} (concat (map first ctx) (map first let-env)))
+        def-term' (stx/noclash forbid def-term)]
     (stx/appify def-term' args)))
 
 ;;{
@@ -278,8 +279,8 @@ potentially rewritten version of `t` and `red?` is `true`
   in only looked for in `def-env`.
 
   By default it is also looked for in the current namespace (in Clojure only)."
-  ([def-env ctx t] (delta-reduction def-env ctx t false))
-  ([def-env ctx t local?]
+  ([def-env let-env ctx t] (delta-reduction def-env let-env ctx t false))
+  ([def-env let-env ctx t local?]
    ;; (println "[delta-reduction] t=" t)
    (if (not (stx/ref? t))
      (throw (ex-info "Cannot delta-reduce: not a reference term (please report)."
@@ -307,7 +308,7 @@ potentially rewritten version of `t` and `red?` is `true`
              ;; the definition is opaque
              [t false]
              ;; the definition is transparent
-             [(instantiate-def ctx (:params sdef) (:parsed-term sdef) args)
+             [(instantiate-def let-env ctx (:params sdef) (:parsed-term sdef) args)
               true])
            ;; no parsed term for definitoin
            (throw (ex-info "Cannot unfold term reference: no parsed term (please report)"
@@ -364,7 +365,8 @@ potentially rewritten version of `t` and `red?` is `true`
            [ty' rcount1] (delta-step def-env let-env ctx ty local? rcount)
            [xval' rcount2] (delta-step def-env let-env ctx xval local? rcount1)
            [body' rcount3] (delta-step def-env (letenv-put let-env x xval') ctx body local? rcount2)]
-       [(list 'let [x ty' xval'] body') rcount3])
+       ;; let must been removed
+       [body' rcount3])
      ;; application
      (stx/app? t)
      (let [[left right] t
@@ -376,7 +378,7 @@ potentially rewritten version of `t` and `red?` is `true`
      ;; reference
      (stx/ref? t)
      (let [[def-name & args] t
-           [t' red?] (delta-reduction def-env ctx t)]
+           [t' red?] (delta-reduction def-env let-env ctx t)]
        (if red?
          (recur def-env let-env ctx t' local? (inc rcount))
          ;; only reduce the arguments if the top is not a delta-redex
@@ -406,6 +408,7 @@ potentially rewritten version of `t` and `red?` is `true`
 ;;
 ;; We finally define a few normalization functions:
 ;;   - normalize using beta-reduction only: [[beta-normalize]]
+
 ;;   - normalize using delta-reduction only: [[delta-normalize]]
 ;;   - normalize using delta-reduction with
 ;;     the local environment only: [[delta-normalize-local]]
