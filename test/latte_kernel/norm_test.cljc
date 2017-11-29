@@ -116,7 +116,7 @@
          '[[[(λ [x ✳] (λ [y □] (λ [z ✳] [y (λ [t ✳] [x [z t]])]))) [a b]] c] true])))
 
 (deftest test-delta-step
-  (is (= (delta-step {} [] 'x)
+  (is (= (delta-step {} letenv-empty [] 'x)
          '[x 0]))
       
   (is (= (delta-step (defenv/mkenv {'test (defenv/map->Definition
@@ -125,6 +125,7 @@
                                               :params [[x ✳]]
                                               :parsed-term [x x]
                                               :opts {}})})
+                     letenv-empty
                      []
                      '[y (test [t t])])
          '[[y [(λ [x ✳] [x x]) [t t]]] 1]))
@@ -135,6 +136,7 @@
                                               :params [[x ✳] [y ✳]]
                                               :parsed-term [x [y x]]
                                               :opts {}})})
+                     letenv-empty
                      []
                      '[y (test [t t] u)])
          '[[y [[(λ [x ✳] (λ [y ✳] [x [y x]])) [t t]] u]] 1]))
@@ -145,6 +147,7 @@
                                               :params [[x ✳] [y ✳]]
                                               :parsed-term [x [y x]]
                                               :opts {:opaque true}})})
+                     letenv-empty
                      []
                      '[y (test [t t] u)])
          '[[y (test [t t] u)] 0])))

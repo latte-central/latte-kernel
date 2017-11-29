@@ -341,58 +341,63 @@ potentially rewritten version of `t` and `red?` is `true`
  environment `def-env`. If the optional flag `local?` is `true` only the
   local environment is used, otherwise (the default case) the definitions
   are also searched in the current namespace (in Clojure only)."
-  ([def-env ctx t] (delta-step def-env ctx t false 0))
-  ([def-env ctx t local? rcount]
+  ([def-env let-env ctx t] (delta-step def-env let-env ctx t false 0))
+  ([def-env let-env ctx t local? rcount]
    ;; (println "[delta-step] t=" t)
    (cond
+     ;; variable
+     (stx/variable? t)
+     (if-let [t' (letenv-lookup let-env t)]
+       [t' (inc rcount)]
+       [t rcount])
      ;; binder
      (stx/binder? t)
      (let [[binder [x ty] body] t
            ;; 1) try reduction in binding type
-           [ty' rcount1] (delta-step def-env ctx ty local? rcount)
+           [ty' rcount1] (delta-step def-env let-env ctx ty local? rcount)
            ;; 2) also try reduction in body
-           [body' rcount2] (delta-step def-env (cons [x ty'] ctx) body local? rcount1)]
+           [body' rcount2] (delta-step def-env let-env (cons [x ty'] ctx) body local? rcount1)]
        [(list binder [x ty'] body') rcount2])
      ;; let abstraction
      (stx/let? t)
      (let [[_ [x ty xval] body] t
-           [ty' rcount1] (delta-step def-env ctx ty local? rcount)
-           [xval' rcount2] (delta-step def-env ctx xval local? rcount1)
-           [body' rcount3] (delta-step def-env (cons [x ty'] ctx) body local? rcount2)]
+           [ty' rcount1] (delta-step def-env let-env ctx ty local? rcount)
+           [xval' rcount2] (delta-step def-env let-env ctx xval local? rcount1)
+           [body' rcount3] (delta-step def-env (letenv-put let-env x xval') ctx body local? rcount2)]
        [(list 'let [x ty' xval'] body') rcount3])
      ;; application
      (stx/app? t)
      (let [[left right] t
            ;; 1) try left reduction
-           [left' rcount1] (delta-step def-env ctx left local? rcount)
+           [left' rcount1] (delta-step def-env let-env ctx left local? rcount)
            ;; 2) also try right reduction
-           [right' rcount2] (delta-step def-env ctx right local? rcount1)]
+           [right' rcount2] (delta-step def-env let-env ctx right local? rcount1)]
        [[left' right'] rcount2])
      ;; reference
      (stx/ref? t)
      (let [[def-name & args] t
            [t' red?] (delta-reduction def-env ctx t)]
        (if red?
-         (recur def-env ctx t' local? (inc rcount))
+         (recur def-env let-env ctx t' local? (inc rcount))
          ;; only reduce the arguments if the top is not a delta-redex
          ;; (but still a reference)
-         (let [[args' rcount'] (delta-step-args def-env ctx args local? rcount)]
+         (let [[args' rcount'] (delta-step-args def-env let-env ctx args local? rcount)]
            [(list* def-name args') rcount'])))
      ;; ascription
      (stx/ascription? t)
      (let [[_ ty term] t
-           [ty' rcount1] (delta-step def-env ctx ty local? rcount)
-           [term' rcount2] (delta-step def-env ctx term local? rcount1)]
+           [ty' rcount1] (delta-step def-env let-env ctx ty local? rcount)
+           [term' rcount2] (delta-step def-env let-env ctx term local? rcount1)]
        [(list :latte-kernel.syntax/ascribe ty' term') rcount2])
      ;; other cases
      :else [t rcount])))
 
 (defn delta-step-args
   "Applies the delta-reduction on the terms `ts`."
-  [def-env ctx ts local? rcount]
+  [def-env let-env ctx ts local? rcount]
   (loop [ts ts, ts' [], rcount rcount]
     (if (seq ts)
-      (let [[t' rcount'] (delta-step def-env ctx (first ts) local? rcount)]
+      (let [[t' rcount'] (delta-step def-env let-env ctx (first ts) local? rcount)]
         (recur (rest ts) (conj ts' t') rcount'))
       [ts' rcount])))
 
@@ -416,7 +421,7 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn delta-normalize
   "Normalize term `t` for delta-reduction."
   [def-env ctx t]
-  (let [[t' rcount] (delta-step def-env ctx t)]
+  (let [[t' rcount] (delta-step def-env letenv-empty ctx t)]
     ;;(println "[INFO] Number of delta-reductions=" rcount)
     t'))
 
@@ -424,7 +429,7 @@ potentially rewritten version of `t` and `red?` is `true`
   "Normalize term `t` for delta-reduction using only
   environment `def-env` (and *not* the current namespace)."
   [def-env ctx t]
-  (let [[t' rcount] (delta-step def-env ctx t true)]
+  (let [[t' rcount] (delta-step def-env letenv-empty ctx t true)]
     ;;(println "[INFO] Number of (local) delta-reductions=" rcount)
     t'))
 
@@ -454,9 +459,9 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn beta-delta-normalize
   "Apply the general normalization strategy of LaTTe on term `t`.
   The result is defined as *the normal form* of `t`."
-  [def-env ctx let-env t]
+  [def-env let-env ctx t]
   ;;(println "[beta-delta-normalize]: t=" t)
-  (let [[t' delta-count] (delta-step def-env ctx t)
+  (let [[t' delta-count] (delta-step def-env let-env ctx t)
         [t'' beta-count] (beta-step let-env t')]
     ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
     t''))
@@ -468,10 +473,10 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn normalize
   "Normalize term `t` in (optional) environment `def-env` and (optional) context `ctx`.
   The result is *the normal form* of `t`."
-  ([t] (normalize defenv/empty-env [] letenv-empty t))
-  ([def-env t] (normalize def-env [] letenv-empty t))
-  ([def-env ctx t] (normalize def-env ctx letenv-empty t))
-  ([def-env ctx let-env t] (beta-delta-normalize def-env ctx let-env t)))
+  ([t] (normalize defenv/empty-env letenv-empty [] t))
+  ([def-env t] (normalize def-env letenv-empty [] t))
+  ([def-env ctx t] (normalize def-env letenv-empty ctx t))
+  ([def-env let-env ctx t] (beta-delta-normalize def-env let-env ctx t)))
 
 ;;{
 ;; ## Beta-equivalence
@@ -489,15 +494,15 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn beta-eq?
   "Are terms `t1` and `t2` equivalent, i.e. with the
 same normal form (up-to alpha-convertion)?"
-  ([t1 t2] (beta-eq? defenv/empty-env [] letenv-empty t1 t2))
-  ([def-env t1 t2] (beta-eq? def-env [] letenv-empty t1 t2))
-  ([def-env ctx t1 t2] (beta-eq? def-env ctx letenv-empty t1 t2))
-  ([def-env ctx let-env t1 t2]
+  ([t1 t2] (beta-eq? defenv/empty-env letenv-empty [] t1 t2))
+  ([def-env t1 t2] (beta-eq? def-env letenv-empty [] t1 t2))
+  ([def-env ctx t1 t2] (beta-eq? def-env letenv-empty ctx t1 t2))
+  ([def-env let-env ctx t1 t2]
    ;;(println "[normalize] t1=" (unparse t1))
    ;;(println "[normalize] t2=" (unparse t2))
-   (let [t1' (normalize def-env ctx let-env t1)
+   (let [t1' (normalize def-env let-env ctx t1)
          ;; _ (println "[normalize] t1'=" (unparse t1'))
-         t2' (normalize def-env ctx let-env t2)]
+         t2' (normalize def-env let-env ctx t2)]
      ;;(println "[normalize] t2'=" (unparse t2'))
      (stx/alpha-eq? t1' t2'))))
 
