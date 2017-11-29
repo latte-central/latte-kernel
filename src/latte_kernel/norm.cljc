@@ -251,7 +251,7 @@ potentially rewritten version of `t` and `red?` is `true`
              [implicit-term true]))
          (> (count args) (:arity sdef))
          (throw (ex-info "Too many arguments to instantiate definition."
-                         {:term t :def-name name :nb-params (count (:arity sdef)) :nb-args (count args)}))
+                         {:term t :def-name name :nb-params (:arity sdef) :nb-args (count args)}))
          (definition? sdef)
          ;; unfolding a defined term
          (if (:parsed-term sdef)
