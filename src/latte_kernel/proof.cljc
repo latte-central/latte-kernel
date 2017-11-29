@@ -50,7 +50,7 @@
 (declare update-def-uses)
 
 (defn elab-have [def-env ctx var-deps def-uses name ty term meta]
-  (println "  => have step: " name)
+  ;;(println "  => have step: " name)
   (let [[status, term-type, term'] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
       [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
@@ -380,7 +380,7 @@
 
 (defn check-proof
   [def-env ctx thm-name thm-type steps]
-  (println "[check proof] " thm-name)
+  ;;(println "[check proof] " thm-name)
   (let [proof (compile-proof steps)
         [status res] (elab-proof def-env ctx proof)]
     (if (= status :ko)
