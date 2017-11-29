@@ -364,7 +364,9 @@ potentially rewritten version of `t` and `red?` is `true`
      (let [[_ [x ty xval] body] t
            [ty' rcount1] (delta-step def-env let-env ctx ty local? rcount)
            [xval' rcount2] (delta-step def-env let-env ctx xval local? rcount1)
-           [body' rcount3] (delta-step def-env (letenv-put let-env x xval') ctx body local? rcount2)]
+           ;; XXX: the let variable is both in the let environment and in the context
+           ;;      (the context is needed for the typing of implicit arguments)
+           [body' rcount3] (delta-step def-env (letenv-put let-env x xval') (cons [x ty'] ctx) body local? rcount2)]
        ;; let must been removed
        [body' rcount3])
      ;; application
