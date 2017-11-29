@@ -40,6 +40,9 @@
 
 (defn mkenv [env] [env {}])
 
+(defn local-definitions [env]
+(second env))
+
 (defn register-definition
   ([def-env rdef] (register-definition def-env rdef false))
   ([def-env rdef local?]

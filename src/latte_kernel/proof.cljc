@@ -49,7 +49,15 @@
 (declare update-var-deps)
 (declare update-def-uses)
 
+;; We make the have step in a small function for "debugging-friendliness".
+(declare elab-have-impl)
+
 (defn elab-have [def-env ctx var-deps def-uses name ty term meta]
+  ;;(println "  => have step: " name)
+  (let [[status res] (elab-have-impl def-env ctx var-deps def-uses name ty term meta)]
+[status res]))
+
+(defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
   (let [[status, term-type, term'] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
@@ -220,21 +228,74 @@
       [:ok [def-env term proof-type]])))
 
 
-(defn elab-print [def-env ctx term meta]
+;; ## Proof debuggin aids
+
+(defn show-term [t meta]
+  (let [pprint? (get meta :pprint true)
+        unparse? (get meta :unparse true)]
+    (unparser/show-term t pprint? unparse?)))
+
+(defn elab-print-term [def-env ctx term meta]
   (println "============================")
-  (let [[term' _] (norm/delta-step def-env ctx term)]
-    (pp/pprint (unparser/unparse term')))
+  (let [delta? (get meta :delta true)
+        norm? (get meta :norm false)
+        term' (if delta?
+                (first (norm/delta-step def-env ctx term))
+                term)
+        term'' (if norm?
+                 (norm/beta-red term')
+                 term')]
+    (println (show-term term'' meta)))
   (println "============================"))
 
 (defn elab-print-type [def-env ctx term meta]
   (println "============================")
-  (let [[status ty _] (typing/type-of-term def-env ctx term)]
+  (let [[status ty _] (typing/type-of-term def-env ctx term)
+        norm? (get meta :norm false)
+        ty' (if norm?
+              (norm/beta-red ty)
+              ty)]
     (when (= status :ko)
       (throw (ex-info "Cannot type term for print-type."
-                      {:term term})))
-    (print "type of: ") (pp/pprint term)
-    (pp/pprint (unparser/unparse ty)))
+                      {:term (unparser/unparse term)})))
+    (print "type of: ") (println (show-term term meta))
+    (println (show-term ty' meta)))
   (println "============================"))
+
+
+(defn show-def [ddef meta]
+  (cond
+    (defenv/definition? ddef)
+    (str (:params ddef) ":=\n" (show-term (:parsed-term ddef) meta)
+         "\n:: " (show-term (:type ddef) meta))
+    (or (defenv/theorem? ddef)
+        (defenv/axiom? ddef))
+    (str (:params ddef) "\n::" (show-term (:type ddef) meta))
+    :else
+    "<hidden>"))
+
+(defn show-deftype [ddef]
+  (cond
+    (defenv/definition? ddef) "definition"
+    (defenv/axiom? ddef) "axiom"
+    (defenv/theorem? ddef) "theorem"
+    (defenv/implicit? ddef) "implicit"
+    :else "unknown"))
+
+(defn elab-print-def [def-env name meta]
+  (println "============================")
+  (let [[status ddef] (defenv/fetch-definition def-env name true)]
+    (if (= status :ko)
+      (println "<<<no such definition>>>")
+      (println name (str "(" (show-deftype ddef) "):") (show-def ddef meta))))
+  (println "============================"))
+
+(defn elab-print-defenv [def-env meta]
+  (println "============================")
+  (println "local definitions:")
+  (doseq [[name ddef] (defenv/local-definitions def-env)]
+    (println name (str "(" (show-deftype ddef) "):") (show-def ddef meta)))
+(println "============================"))
 
 ;;{
 ;; ## Proof elabortation
@@ -310,7 +371,7 @@
               :meta meta
               :cause term}]
         (elab-qed def-env ctx term meta)))
-    :print
+    :print-term
     (let [[term-expr meta] args
           [status-term term] (parse/parse-term def-env term-expr)]
       (if (= status-term :ko)
@@ -318,7 +379,7 @@
               :term-expr term-expr
               :meta meta
               :cause term}]
-        (do (elab-print def-env ctx term meta)
+        (do (elab-print-term def-env ctx term meta)
             [:cont [def-env ctx var-deps def-uses]])))
     :print-type
     (let [[term-expr meta] args
@@ -330,6 +391,14 @@
               :cause term}]
         (do (elab-print-type def-env ctx term meta)
             [:cont [def-env ctx var-deps def-uses]])))
+     :print-def
+    (let [[name meta] args]
+      (do (elab-print-def def-env name meta)
+          [:cont [def-env ctx var-deps def-uses]]))
+    :print-defenv
+    (let [[meta] args]
+      (do (elab-print-defenv def-env meta)
+          [:cont [def-env ctx var-deps def-uses]]))
     ;; else
     (throw (ex-info "Unknown step kind in proof script."
                     {:step step
