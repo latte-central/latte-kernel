@@ -380,13 +380,14 @@ potentially rewritten version of `t` and `red?` is `true`
      ;; reference
      (stx/ref? t)
      (let [[def-name & args] t
-           [t' red?] (delta-reduction def-env let-env ctx t)]
+           [args' rcount'] (delta-step-args def-env let-env ctx args local? rcount)
+           t' (list* def-name args')
+           [t'' red?] (delta-reduction def-env let-env ctx t')]
        (if red?
-         (recur def-env let-env ctx t' local? (inc rcount))
+         (recur def-env let-env ctx t'' local? (inc rcount))
          ;; only reduce the arguments if the top is not a delta-redex
          ;; (but still a reference)
-         (let [[args' rcount'] (delta-step-args def-env let-env ctx args local? rcount)]
-           [(list* def-name args') rcount'])))
+         [t' rcount']))
      ;; ascription
      (stx/ascription? t)
      (let [[_ ty term] t
