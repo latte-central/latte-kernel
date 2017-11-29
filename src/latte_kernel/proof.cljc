@@ -391,7 +391,7 @@
               :cause term}]
         (do (elab-print-type def-env ctx term meta)
             [:cont [def-env ctx var-deps def-uses]])))
-     :print-def
+    :print-def
     (let [[name meta] args]
       (do (elab-print-def def-env name meta)
           [:cont [def-env ctx var-deps def-uses]]))
@@ -440,7 +440,7 @@
                      proof-body
                      (map (fn [[x _]]
                             [:discharge x meta]) (reverse params))))
-           (contains? #{:have :qed :print :print-type} (ffirst proof))
+           (contains? #{:have :qed :print-term :print-type :print-def :print-defenv} (ffirst proof))
            (list (first proof))
            :else
            (throw (ex-info "Compilation failed: unsupported proof step." {:step (first proof)})))
