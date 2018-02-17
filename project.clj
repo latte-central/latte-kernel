@@ -8,16 +8,16 @@
           :metadata {:doc/format :markdown}
           ;;:namespaces []
           }
-  :plugins [[lein-cljsbuild "1.1.5"]]
+  :plugins [[lein-cljsbuild "1.1.7"]]
   :cljsbuild {
               :builds [{:source-paths ["src-cljs"]
                         :compiler {:output-to "resources/public/js/main.js"
                                    :optimizations :whitespace
                                    :pretty-print true}}]}
   :profiles {:dev {:dependencies
-                   [[org.clojure/clojure "1.9.0-RC1"]
+                   [[org.clojure/clojure "1.9.0"]
                     [org.clojure/clojurescript "1.9.946"]
-                    [com.cemerick/piggieback "0.2.1"]
+                    [com.cemerick/piggieback "0.2.2"]
                     ]}
-             :test {:dependencies [[org.clojure/clojure "1.9.0-RC1"]]}})
+             :test {:dependencies [[org.clojure/clojure "1.9.0"]]}})
 
