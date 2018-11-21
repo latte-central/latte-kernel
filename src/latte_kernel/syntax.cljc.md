@@ -7,20 +7,20 @@
 
 ```
 
-;; # The syntax of type theory
+# The syntax of type theory
 ;;
-;; In this namespace we encode the internal representation of
-;; the lambda-terms.
+In this namespace we encode the internal representation of
+the lambda-terms.
 
 
 
-;; ## Lambda terms
+## Lambda terms
 ;;
-;; The lambda-terms of LaTTe are composed of:
+The lambda-terms of LaTTe are composed of:
 
 
 
-;;   - the sorts *kind* `□` and *type* `✳`
+  - the sorts *kind* `□` and *type* `✳`
 
 ```clojure
 (defn kind?
@@ -41,7 +41,7 @@
 
 ```
 
-;;   - occurrences of *variables*
+  - occurrences of *variables*
 
 ```clojure
 (defn variable?
@@ -51,8 +51,8 @@
 
 ```
 
-;;   - *lambda abstractions* `(λ [x t] u)`
-;;   - *product abstractions* `(Π [x t] u)`
+  - *lambda abstractions* `(λ [x t] u)`
+  - *product abstractions* `(Π [x t] u)`
 
 ```clojure
 (defn binder?
@@ -83,7 +83,7 @@
 
 ```
 
-;;  - *applications* `[u v]`
+ - *applications* `[u v]`
 
 ```clojure
 (defn app?
@@ -103,7 +103,7 @@
 
 ```
 
-;;  - *references* to named definitions `(f {X1 t1, ..., Xn tn} e1 e2 ... eN)`
+ - *references* to named definitions `(f {X1 t1, ..., Xn tn} e1 e2 ... eN)`
 
 ```clojure
 (defn ref?
@@ -114,14 +114,14 @@
 
 ```
 
-;;  - *ascriptions* `(::ascribe e t)` that term `e` is of type `t`. These are like
-;; explicit type assertions that are used internally and cannot
-;; result from parsing a term in the user-level syntax.
+ - *ascriptions* `(::ascribe e t)` that term `e` is of type `t`. These are like
+explicit type assertions that are used internally and cannot
+result from parsing a term in the user-level syntax.
 
-;; As a safety measure we use the word *ascription* that a user will unlikely
-;; use its own code. Moreover, the keyword is namespaces so these should
-;; be enought to emphasis the fact that ascriptions are *dangerous* and
-;; only used inside the kernel...
+As a safety measure we use the word *ascription* that a user will unlikely
+use its own code. Moreover, the keyword is namespaces so these should
+be enought to emphasis the fact that ascriptions are *dangerous* and
+only used inside the kernel...
 
 
 ```clojure
@@ -134,20 +134,20 @@
 
 ```
 
-;; Note that type ascriptions do not add any expressivity, but
-;; they allow interesting optimizations (ascribed types do not need
-;; to be recomputed).
+Note that type ascriptions do not add any expressivity, but
+they allow interesting optimizations (ascribed types do not need
+to be recomputed).
 
 
 
-;; ... and that's everything you need to capture the
-;; essence of mathematics!
+... and that's everything you need to capture the
+essence of mathematics!
 
 
 
-;; ## Term reducer
+## Term reducer
 ;;
-;; A reducer for terms.
+A reducer for terms.
 ;;
 
 
@@ -192,10 +192,10 @@
 
 ```
 
-;; ## Free and bound variables
+## Free and bound variables
 ;;
-;; In `(lambda [x t] [x y])` there is one *bound occurrence* of
-;; variable `x` and one *free occurrence* of variable `y`.
+In `(lambda [x t] [x y])` there is one *bound occurrence* of
+variable `x` and one *free occurrence* of variable `y`.
 
 
 ```clojure
@@ -236,18 +236,18 @@
 
 ```
 
-;; ## Substitution
+## Substitution
 ;;
-;; The substitution of free occurrences of variables by
-;; terms might be thought of as a simple thing but it is *not*.
-;; The algorithm is rather tricky because one has to avoid
-;; nameclash. Instead of a locally-nameless solution, which yields
-;; a much simpler algorithm we rely on an explicit renaming scheme,
-;; quite similar to what can be found in e.g. HOL light.
+The substitution of free occurrences of variables by
+terms might be thought of as a simple thing but it is *not*.
+The algorithm is rather tricky because one has to avoid
+nameclash. Instead of a locally-nameless solution, which yields
+a much simpler algorithm we rely on an explicit renaming scheme,
+quite similar to what can be found in e.g. HOL light.
 ;;
-;; The advantage of explicit renaming is that it is much more
-;; robust in further algorithms (especially type inference which
-;; is very cumbersome with nameless representations).
+The advantage of explicit renaming is that it is much more
+robust in further algorithms (especially type inference which
+is very cumbersome with nameless representations).
 
 
 ```clojure
@@ -270,7 +270,7 @@ The `forbid` argument says what names are forbidden."
 
 ```
 
-;; The following is the core of the substitution algorithm.
+The following is the core of the substitution algorithm.
 
 
 ```clojure
@@ -340,14 +340,14 @@ Names generated fresh along the substitution cannot be members of `forbid`.
 
 ```
 
-;; ## Alpha-equivalence
+## Alpha-equivalence
 ;;
-;; Comparing lambda-terms should be up to *alpha-equivalence*.
-;; To recover a structural equality, a nameless representation
-;; of lambda-terms can be used. Each bound variable is renamed
-;; in a canonical way using so-called *Debruijn indices*.
+Comparing lambda-terms should be up to *alpha-equivalence*.
+To recover a structural equality, a nameless representation
+of lambda-terms can be used. Each bound variable is renamed
+in a canonical way using so-called *Debruijn indices*.
 
-;; The normalization process is described below.
+The normalization process is described below.
 
 
 ```clojure
@@ -392,8 +392,8 @@ Names generated fresh along the substitution cannot be members of `forbid`.
 
 ```
 
-;; Now alpha-equivalence of lambda-terms simply
-;; boils down to the equality of their nameless representation.
+Now alpha-equivalence of lambda-terms simply
+boils down to the equality of their nameless representation.
 
 
 ```clojure
