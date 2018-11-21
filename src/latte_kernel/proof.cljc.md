@@ -12,28 +12,28 @@
 
 ```
 
-# The Proof checker
-;;
-At the lowest level, a LaTTe proof script is represented
-by a sequence of **proof statements**, either:
- - a **variable declaration** `[:declare x T <meta>]` declaring variable `x` of type `T`
- - a **local definition** `[:have <a> T t <meta>]` defining reference `<a>` by term `T` and
-   of type `T`  (if inferred then the type is the underscore symbol `_`). The name can be replaced by
-   an underscore symbol `_` in which case the definition is not recorded.
- - a **discharge** `[:discharge x <meta>]` of variable `x` (previously introduced by a `:declare` form)
- - a **commitment** `[:qed t <meta>]` yielding the proof term `t` to ultimately submit to the proof checker.
-;;
-In all these cases, the `<meta>` argument is a map containing optional metadata.
-;;
-The *elaborator* takes a sequence of proof statements, performs incremental checks
-and generate the output term after the `:qed` statement.
-;;
+ # The Proof checker
+
+ At the lowest level, a LaTTe proof script is represented
+ by a sequence of **proof statements**, either:
+  - a **variable declaration** `[:declare x T <meta>]` declaring variable `x` of type `T`
+  - a **local definition** `[:have <a> T t <meta>]` defining reference `<a>` by term `T` and
+    of type `T`  (if inferred then the type is the underscore symbol `_`). The name can be replaced by
+    an underscore symbol `_` in which case the definition is not recorded.
+  - a **discharge** `[:discharge x <meta>]` of variable `x` (previously introduced by a `:declare` form)
+  - a **commitment** `[:qed t <meta>]` yielding the proof term `t` to ultimately submit to the proof checker.
+
+ In all these cases, the `<meta>` argument is a map containing optional metadata.
+
+ The *elaborator* takes a sequence of proof statements, performs incremental checks
+ and generate the output term after the `:qed` statement.
 
 
 
-## Variable declarations
-;;
-We begin by the simplest proof statement.
+
+ ## Variable declarations
+
+ We begin by the simplest proof statement.
 
 
 ```clojure
@@ -46,8 +46,8 @@ We begin by the simplest proof statement.
 
 ```
 
-## Local definitions
-;;
+ ## Local definitions
+
 
 
 ```clojure
@@ -136,11 +136,11 @@ We begin by the simplest proof statement.
 
 ```
 
-## Variable discharge
-;;
-This is the most complex kind of proof step, at least if
-efficiency is a concern (which it is for proof checking)
-;;
+ ## Variable discharge
+
+ This is the most complex kind of proof step, at least if
+ efficiency is a concern (which it is for proof checking)
+
 
 
 ```clojure
@@ -219,12 +219,12 @@ efficiency is a concern (which it is for proof checking)
 
 ```
 
-## Proof checking
-;;
-All proofs must terminate by a `:qed` action that
-consists in submitting a term and a type.
-The type of the term and the submitted type must
-corresponds, i.e. be equal.
+ ## Proof checking
+
+ All proofs must terminate by a `:qed` action that
+ consists in submitting a term and a type.
+ The type of the term and the submitted type must
+ corresponds, i.e. be equal.
 
 
 ```clojure
@@ -308,12 +308,12 @@ corresponds, i.e. be equal.
 
 ```
 
-## Proof elabortation
-;;
-The proof elaborator simply iterates over the proof steps
-and dispatch to the adequate elaboration function.
-;;
-All the parsing issues are managed by the elaborator. 
+ ## Proof elabortation
+
+ The proof elaborator simply iterates over the proof steps
+ and dispatch to the adequate elaboration function.
+
+ All the parsing issues are managed by the elaborator. 
 
 
 ```clojure

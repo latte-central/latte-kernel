@@ -7,21 +7,21 @@
   
 ```
 
-# Type checking
-;;
-Type checking, and more precisely **type inference**, is the *heart* of a
-proof assistant based on type theory.
-;;
-In this namespace all the type-checking rules are implemented by dedicated
-functions.
+ # Type checking
+
+ Type checking, and more precisely **type inference**, is the *heart* of a
+ proof assistant based on type theory.
+
+ In this namespace all the type-checking rules are implemented by dedicated
+ functions.
 
 
 
-## Type context
-;;
-We simply use a vector for the type context, which allows to
-maintain the scoping rules at the price of some inefficiency
-(fetching is O(n)). 
+ ## Type context
+
+ We simply use a vector for the type context, which allows to
+ maintain the scoping rules at the price of some inefficiency
+ (fetching is O(n)). 
 
 
 ```clojure
@@ -44,10 +44,10 @@ maintain the scoping rules at the price of some inefficiency
 
 ```
 
-## Synthesis rules
-;;
-All the type inference rules are given below.
-;;
+ ## Synthesis rules
+
+ All the type inference rules are given below.
+
 
 
 ```clojure
@@ -61,7 +61,7 @@ All the type inference rules are given below.
 
 ```
 
-The following function is the main entry point for type inference.
+ The following function is the main entry point for type inference.
 
 
 ```clojure
@@ -105,9 +105,9 @@ that implicits can be erased."
 
 ```
 
-Type-checking is a derived form of type inference. Given a term `t`
-and a type `T`, the first step is to infer the type of `t`, say `U`,
-and then check that it is beta-equivalent to the expected type `T`.
+ Type-checking is a derived form of type inference. Given a term `t`
+ and a type `T`, the first step is to infer the type of `t`, say `U`,
+ and then check that it is beta-equivalent to the expected type `T`.
 
 
 ```clojure
@@ -125,17 +125,17 @@ and then check that it is beta-equivalent to the expected type `T`.
 
 ```
 
-;;
-### The type of types
-;;
-The type of *the type of types* `✳` (or `:type`) is the kind `□` (or `:kind`).
-;;
-**Remark**: LaTTe uses an *impredicative* type theory, marked by the fact that
-the kind `□` itself has no type.
- 
-    --------------------
-    E |- Type ::> Kind
-;;
+
+ ### The type of types
+
+ The type of *the type of types* `✳` (or `:type`) is the kind `□` (or `:kind`).
+
+ **Remark**: LaTTe uses an *impredicative* type theory, marked by the fact that
+ the kind `□` itself has no type.
+  
+     --------------------
+     E |- Type ::> Kind
+
 
 
 ```clojure
@@ -146,16 +146,16 @@ the kind `□` itself has no type.
 
 ```
 
-;;
- ### The type of variables
-;;
- The type of a variable is to be found in the context.
- And it must be associated to a type or a kind.
-;;
-;;
-       ty::>Type or t::>Kind in E
-    ------------------------------
-       E,x::ty |- x ::> ty
+
+  ### The type of variables
+
+  The type of a variable is to be found in the context.
+  And it must be associated to a type or a kind.
+
+
+        ty::>Type or t::>Kind in E
+     ------------------------------
+        E,x::ty |- x ::> ty
 
 
 ```clojure
@@ -179,15 +179,15 @@ the kind `□` itself has no type.
 
 ```
 
-;;
-### The type of products
-;;
- The type of a product is a *sort*, either the type of types or the
-type of kinds.
-;;
-   E |- A ::> s1     E,x:A |- B ::> s2
-   -----------------------------------
-    E |- prod x:A . B  ::>  s2
+
+ ### The type of products
+
+  The type of a product is a *sort*, either the type of types or the
+ type of kinds.
+
+    E |- A ::> s1     E,x:A |- B ::> s2
+    -----------------------------------
+     E |- prod x:A . B  ::>  s2
 
 
 ```clojure
@@ -214,16 +214,16 @@ type of kinds.
 
 ```
 
-;;
-### The type of abstractions
-;;
-The type of an abstraction is simply the coresponding
-product, on of the beauties of type theory.
-;;
-;;
-   E,x:A |- t ::> B  E |- prod x:A. B ::> s
-   --------------------------------------------
-   E |- lambda x:A . t  ::>  prod x:A . B
+
+ ### The type of abstractions
+
+ The type of an abstraction is simply the coresponding
+ product, on of the beauties of type theory.
+
+
+    E,x:A |- t ::> B  E |- prod x:A. B ::> s
+    --------------------------------------------
+    E |- lambda x:A . t  ::>  prod x:A . B
 
 
 
@@ -257,17 +257,17 @@ product, on of the beauties of type theory.
 
 ```
 
-;;
-### The type of applications
-;;
-The typing of an application is a little bit more demanding,
-especially because it involves the substitution of the
-bound variable by the operand in the return type.
-;;
-;;
-      E |- rator ::> prod x:A . B    E|- rand :: A
-   -------------------------------------------------
-         E |- rator rand : B [rand/x]
+
+ ### The type of applications
+
+ The typing of an application is a little bit more demanding,
+ especially because it involves the substitution of the
+ bound variable by the operand in the return type.
+
+
+       E |- rator ::> prod x:A . B    E|- rand :: A
+    -------------------------------------------------
+          E |- rator rand : B [rand/x]
 
 
 ```clojure
@@ -301,36 +301,36 @@ bound variable by the operand in the return type.
 
 ```
 
-;;
-### The type of references
-;;
-A reference to a defined term in LaTTe is like a 'function call' in a
-programming language. As such, in order to type a reference
-one has to unfold the reference by the defined term.
-The type is then inferred from the unfolded term.
-;;
-;;
-   D |- ref :: [x1 t1] [x2 t2] ... [xN tN] -> t
-   E |- e1 :: t1   E, x1:t1 |- e2 :: t2
-   ...
-   E, x1:t1, ..., xM-1:tM-1 |- eM :: tM
--------------------------------------------------------------------------------------
-     D, E |- (ref e1 e2 ... eM)
-             ::> (prod [xM+1 tM+1] ... (prod [xN tN] t [e1/x1, e2/x2, ...eM/xM]) ...)
-;;
+
+ ### The type of references
+
+ A reference to a defined term in LaTTe is like a 'function call' in a
+ programming language. As such, in order to type a reference
+ one has to unfold the reference by the defined term.
+ The type is then inferred from the unfolded term.
+
+
+    D |- ref :: [x1 t1] [x2 t2] ... [xN tN] -> t
+    E |- e1 :: t1   E, x1:t1 |- e2 :: t2
+    ...
+    E, x1:t1, ..., xM-1:tM-1 |- eM :: tM
+ -------------------------------------------------------------------------------------
+      D, E |- (ref e1 e2 ... eM)
+              ::> (prod [xM+1 tM+1] ... (prod [xN tN] t [e1/x1, e2/x2, ...eM/xM]) ...)
 
 
 
-A reference is of the form `(ref e1 e2 ... eM)` where `ref` is a name and the `ei`'s are arbitrary expressions.
-It can be a reference to either:
- - a defined term such as a parametric definition or an axiom
- - a theorem, which is a particular case of a defined term
- - an implicit
-;;
-Both the two first cases are handled by the function `type-of-refdef` below. The only difference
-is that a theorem is a defined term only if it has been demonstrated. Put in other terms, it
-is forbidden to reference a theorem with no-proof. The third case allows to perform arbibrary
-computations during the type synthesis phase, it is handled by the `type-of-implicit` function.
+
+ A reference is of the form `(ref e1 e2 ... eM)` where `ref` is a name and the `ei`'s are arbitrary expressions.
+ It can be a reference to either:
+  - a defined term such as a parametric definition or an axiom
+  - a theorem, which is a particular case of a defined term
+  - an implicit
+
+ Both the two first cases are handled by the function `type-of-refdef` below. The only difference
+ is that a theorem is a defined term only if it has been demonstrated. Put in other terms, it
+ is forbidden to reference a theorem with no-proof. The third case allows to perform arbibrary
+ computations during the type synthesis phase, it is handled by the `type-of-implicit` function.
 
 
 ```clojure
@@ -369,13 +369,13 @@ computations during the type synthesis phase, it is handled by the `type-of-impl
 
 ```
 
-#### Typing defined terms
-;;
-The standard processing of a reference is to construct the lambda-term corresponding
-to the unfolding of a defined term. This is by substituting the parameters of the
-defined term by the arguments of the reference. LaTTe allows the partial unfolding
-of the defined terms, thus at the end we generalise for the remaining
-uninstantiated parameters (as lambda-abstractions).
+ #### Typing defined terms
+
+ The standard processing of a reference is to construct the lambda-term corresponding
+ to the unfolding of a defined term. This is by substituting the parameters of the
+ defined term by the arguments of the reference. LaTTe allows the partial unfolding
+ of the defined terms, thus at the end we generalise for the remaining
+ uninstantiated parameters (as lambda-abstractions).
 
 
 ```clojure
@@ -416,9 +416,9 @@ uninstantiated parameters (as lambda-abstractions).
 
 ```
 
-The function below realizes the substitution of the parameters by
-their corresponding argument. The substitution `sub` is represented
-as a map.
+ The function below realizes the substitution of the parameters by
+ their corresponding argument. The substitution `sub` is represented
+ as a map.
 
 
 ```clojure
@@ -442,7 +442,7 @@ as a map.
 
 ```
 
-The following function generalizes the remaining uninstantiated parameters.
+ The following function generalizes the remaining uninstantiated parameters.
 
 
 ```clojure

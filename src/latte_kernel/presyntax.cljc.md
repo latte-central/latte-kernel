@@ -7,20 +7,20 @@ by LaTTe."
 
 ```
 
-# The LaTTe language (rich) syntax
+ # The LaTTe language (rich) syntax
 
-The internal language of LaTTe is a very simple
-lambda-calculus. In this namespace is defined
-the richer external syntax forming the user
-inputs.
-
-
+ The internal language of LaTTe is a very simple
+ lambda-calculus. In this namespace is defined
+ the richer external syntax forming the user
+ inputs.
 
 
-## Reserved symbols
 
-There are a few symbols that are reserved and thus
-not usable as variable names, definitions, etc.
+
+ ## Reserved symbols
+
+ There are a few symbols that are reserved and thus
+ not usable as variable names, definitions, etc.
 
 
 
@@ -30,16 +30,16 @@ not usable as variable names, definitions, etc.
 
 ```
 
-The symbols above are well explained in the
-book "Type theory and formal proof: an introduction".
+ The symbols above are well explained in the
+ book "Type theory and formal proof: an introduction".
 
- - □ (or `:kind`) is a sort, the type of all kinds (Page 87)
- - ✳ (or `:type`) is a sort, the type of all types (Page 70)
- - λ is the symbol of lambda abstractions (Page 1)
- - Π is the symbol of product abstractions (Page 72)
- - ⟶ is the arrow type (Page 34)
- - ∃ is the existential quantifier (Page 247)
- - ∀ is the universal quantifier (Page 246)
+  - □ (or `:kind`) is a sort, the type of all kinds (Page 87)
+  - ✳ (or `:type`) is a sort, the type of all types (Page 70)
+  - λ is the symbol of lambda abstractions (Page 1)
+  - Π is the symbol of product abstractions (Page 72)
+  - ⟶ is the arrow type (Page 34)
+  - ∃ is the existential quantifier (Page 247)
+  - ∀ is the universal quantifier (Page 246)
 
 
 ```clojure
@@ -57,15 +57,15 @@ book "Type theory and formal proof: an introduction".
 
 ```
 
-## Main parsing function
-;;
-This is the main parsing function, that
-dispatches given four subcases depending
-on the term to parse being:
-  - the sort `:kind`
-  - the sort `:type`
-  - a sequential term, covering all parenthesized expressions
-  - an isolated symbol
+ ## Main parsing function
+
+ This is the main parsing function, that
+ dispatches given four subcases depending
+ on the term to parse being:
+   - the sort `:kind`
+   - the sort `:type`
+   - a sequential term, covering all parenthesized expressions
+   - an isolated symbol
 
 
 ```clojure
@@ -88,13 +88,13 @@ on the term to parse being:
 
 ```
 
-**Remark**: that errors are always returned as a map with
-at least a key `:msg` for the error message, the other key,value pairs
-depend on the type of error message.
+ **Remark**: that errors are always returned as a map with
+ at least a key `:msg` for the error message, the other key,value pairs
+ depend on the type of error message.
 
 
 
-The following is the main parsing function in the API.
+ The following is the main parsing function in the API.
 
 
 ```clojure
@@ -108,14 +108,14 @@ The following is the main parsing function in the API.
 
 ```
 
-## Symbol parsing
-;;
-A symbol can be either:
- - a reserved symbol, in which case an error is returned
-(it cannot be used at an isolated place)
- - an occurrence of a bound variable
- - the name of a registered definition of arity 0
- - an occurrence of a free variable
+ ## Symbol parsing
+
+ A symbol can be either:
+  - a reserved symbol, in which case an error is returned
+ (it cannot be used at an isolated place)
+  - an occurrence of a bound variable
+  - the name of a registered definition of arity 0
+  - an occurrence of a free variable
 
 
 ```clojure
@@ -131,15 +131,15 @@ A symbol can be either:
 
 ```
 
-## Compound term parsing
-;;
-In LaTTe a compound term may be:
-  - a lambda abstraction
-  - a product abstraction
-  - an arrow type
-  - an existential
-  - a defined term, i.e. a "call" to a definition
-  - an application
+ ## Compound term parsing
+
+ In LaTTe a compound term may be:
+   - a lambda abstraction
+   - a product abstraction
+   - an arrow type
+   - an existential
+   - a defined term, i.e. a "call" to a definition
+   - an application
 
 
 ```clojure
@@ -203,17 +203,17 @@ In LaTTe a compound term may be:
 
 ```
 
-## Abstractions
-;;
-There are two kinds of abstractions in LaTTe:
-  - lambda abstractions, i.e. unary unanymous functions of the form `(λ [x t] u)`
-  - product abstractions, a.k.a. "Pi-types" (also) universal quantifications of the form `(Π [x t] u)` 
-;;
-A simple but useful syntactic sugar is proposed:
-;;
-`(λ [x y z t] u)` is the same as `(λ [x t] (λ [y t] (λ [z t] u)))`
-;;
-(and similarly for products).
+ ## Abstractions
+
+ There are two kinds of abstractions in LaTTe:
+   - lambda abstractions, i.e. unary unanymous functions of the form `(λ [x t] u)`
+   - product abstractions, a.k.a. "Pi-types" (also) universal quantifications of the form `(Π [x t] u)` 
+
+ A simple but useful syntactic sugar is proposed:
+
+ `(λ [x y z t] u)` is the same as `(λ [x t] (λ [y t] (λ [z t] u)))`
+
+ (and similarly for products).
 
 
 ```clojure
@@ -276,10 +276,10 @@ A simple but useful syntactic sugar is proposed:
 
 ```
 
-## Arrow types
-;;
-The arrow type `(==> t u)` is the type of functions
-from values of type `t` to values of type `u`.
+ ## Arrow types
+
+ The arrow type `(==> t u)` is the type of functions
+ from values of type `t` to values of type `u`.
 
 
 ```clojure
@@ -310,11 +310,11 @@ from values of type `t` to values of type `u`.
 
 ```
 
-## Defined terms
-;;
-A defined term references a registered definition.
-It can be a *notation* in which case it gets expanded
-or it can be mathematical definition.
+ ## Defined terms
+
+ A defined term references a registered definition.
+ It can be a *notation* in which case it gets expanded
+ or it can be mathematical definition.
 
 
 ```clojure
@@ -342,13 +342,13 @@ or it can be mathematical definition.
 
 ```
 
-## Applications
-;;
-An application is simply the application of a function to a
-sequence of arguments, i.e. something of the form `(f e1 e2 ... eN)`.
-;;
-Internally, this will become a set of binary applications, of the form:
-`[...[[f e1] e2]... eN]`
+ ## Applications
+
+ An application is simply the application of a function to a
+ sequence of arguments, i.e. something of the form `(f e1 e2 ... eN)`.
+
+ Internally, this will become a set of binary applications, of the form:
+ `[...[[f e1] e2]... eN]`
 
 ```clojure
   

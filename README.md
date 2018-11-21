@@ -55,5 +55,12 @@ Some auxiliary files are also used (in non-literate forms):
 
 The kernel is a basis to develop proof assistants, not to be "consumed" directly. The literate files also explain how to develop such a kernel.
 
+The (several) unit tests (in `test/latte_kernel`) can be executed using the following command:
+
+```
+lein test
+```
+
+
 ----
 This software is Copyright (C) 2018 Frederic Peschanski, under the MIT License (cf. `LICENSE` file)

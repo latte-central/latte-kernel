@@ -8,72 +8,72 @@
 
 ```
 
-# Normalization
-;;
-The semantics of the lambda-calculus relies on a fundamental rewrite rule: *beta-reduction*.
-;;
-The process of *normalization* is the repeated application of the beta-reduction rule until
-it is not possible to do so. A normalization algorithm applies a *rewrite strategy* to
-apply the beta-reductions in some (most often) deterministic way.
-;;
-Because LaTTe extends the λ-calculus with explicit definitions, a dedicated rewriting process
-is defined for unfolding definitions when needed. This is based on another reduction rule
-named *delta-reduction*.
-;;
-Thus unlike the classical λ-calculus, we need to handle three reduction principles at once
-in the normalization process.
-;;
-A type theory requires the normalization process to ensure two fundamental propertie:
-;;
-  1. *strong normalization*: it is not possible to rewrite a given term infinitely, which
-  means that the normalization algorithm must terminate.
-;;
-  2. *confluence*: different strategies can be followed for reducing a given term - 
-  the normalization process is non-deterministics - but the ultimate result must be the same (up-to alpha-equivalence)
-;;
-Strong normalization is as its name implies a very strong constraint, and in general
-separate λ-calculi aimed at logical reasoning - that enjoy the property - and those
-that are aimed at programming - for which the requirement is much too strong because
-partial functions are not supported. Confluence in the programming case is associated
-to a given strategy: strict or lazy (sometimes associated to a form of parallelism).
-In the logic case, the normalization process is confluent regardless of the chosen strategy.
-;;
-;;
-The LaTTe calculus is a type theory aimed at logical reasoning and thus enjoys the two properties.
-There is no formal proof of it, but despite all of our effort we never observed any failure
-as of today. Moreover, the formal definition of the calculus is available in the
-*Type Theory and Formal Proof: an Introduction* (TTFP) book. There strong normalization and
-confluence are discussed at length.
-;;
-By way of consequence, for each term `t` the normalization process produces a term `t'` that
-is unique up-to alpha-equivalence. This term is named the *normal form* of `t`.
-;;
-We will now describe the normalization process in details.
-;;
+ # Normalization
+
+ The semantics of the lambda-calculus relies on a fundamental rewrite rule: *beta-reduction*.
+
+ The process of *normalization* is the repeated application of the beta-reduction rule until
+ it is not possible to do so. A normalization algorithm applies a *rewrite strategy* to
+ apply the beta-reductions in some (most often) deterministic way.
+
+ Because LaTTe extends the λ-calculus with explicit definitions, a dedicated rewriting process
+ is defined for unfolding definitions when needed. This is based on another reduction rule
+ named *delta-reduction*.
+
+ Thus unlike the classical λ-calculus, we need to handle three reduction principles at once
+ in the normalization process.
+
+ A type theory requires the normalization process to ensure two fundamental propertie:
+
+   1. *strong normalization*: it is not possible to rewrite a given term infinitely, which
+   means that the normalization algorithm must terminate.
+
+   2. *confluence*: different strategies can be followed for reducing a given term - 
+   the normalization process is non-deterministics - but the ultimate result must be the same (up-to alpha-equivalence)
+
+ Strong normalization is as its name implies a very strong constraint, and in general
+ separate λ-calculi aimed at logical reasoning - that enjoy the property - and those
+ that are aimed at programming - for which the requirement is much too strong because
+ partial functions are not supported. Confluence in the programming case is associated
+ to a given strategy: strict or lazy (sometimes associated to a form of parallelism).
+ In the logic case, the normalization process is confluent regardless of the chosen strategy.
+
+
+ The LaTTe calculus is a type theory aimed at logical reasoning and thus enjoys the two properties.
+ There is no formal proof of it, but despite all of our effort we never observed any failure
+ as of today. Moreover, the formal definition of the calculus is available in the
+ *Type Theory and Formal Proof: an Introduction* (TTFP) book. There strong normalization and
+ confluence are discussed at length.
+
+ By way of consequence, for each term `t` the normalization process produces a term `t'` that
+ is unique up-to alpha-equivalence. This term is named the *normal form* of `t`.
+
+ We will now describe the normalization process in details.
 
 
 
 
 
-## Beta-reduction
 
-At the heart of a λ-calculus lies *beta-reduction*.
-The reduction rule is based on a principle of substitution for (free occurrences of) variables
-by arbitrary terms, which is far from being a simple thing.
+ ## Beta-reduction
 
-Here is an example of a somewhat tricky example (resulting from an old tricky bug in the LaTTe kernel):
+ At the heart of a λ-calculus lies *beta-reduction*.
+ The reduction rule is based on a principle of substitution for (free occurrences of) variables
+ by arbitrary terms, which is far from being a simple thing.
 
-```
- ((lambda [z :type] (lambda [x :type] (x y))) x)
-  ~~> (lambda [x :type] (x x)    is wrong
-;;
-  ((lambda [z :type] (lambda [x :type] (x z))) x)
-= ((lambda [z :type] (lambda [y :type] (y z))) x)
-  ~~> (lambda [y :type] (y x)    is correct
-```
-;;
-What is called a *redex* (reducible expression) is simply the application of
-a λ-abstraction on a term.
+ Here is an example of a somewhat tricky example (resulting from an old tricky bug in the LaTTe kernel):
+
+ ```
+  ((lambda [z :type] (lambda [x :type] (x y))) x)
+   ~~> (lambda [x :type] (x x)    is wrong
+
+   ((lambda [z :type] (lambda [x :type] (x z))) x)
+ = ((lambda [z :type] (lambda [y :type] (y z))) x)
+   ~~> (lambda [y :type] (y x)    is correct
+ ```
+
+ What is called a *redex* (reducible expression) is simply the application of
+ a λ-abstraction on a term.
 
 
 ```clojure
@@ -96,13 +96,13 @@ a λ-abstraction on a term.
 
 ```
 
-#### The normalization strategy
-;;
-The most important principle in the normalization process
-is the way *redexes* are discovered. For this, a *strategy*
-must be implemented. It is a kind of a *black art* of not
-spending too much time looking for them, but also ensuring
-that all of them are found. LaTTe focuses on the latter.
+ #### The normalization strategy
+
+ The most important principle in the normalization process
+ is the way *redexes* are discovered. For this, a *strategy*
+ must be implemented. It is a kind of a *black art* of not
+ spending too much time looking for them, but also ensuring
+ that all of them are found. LaTTe focuses on the latter.
 
 ```clojure
   
@@ -180,30 +180,30 @@ potentially rewritten version of `t` and `red?` is `true`
 
 ```
 
-## Delta-reduction (unfolding of definitions)
-;;
-If beta-reduction is at the heart of computing with
-values in the lambda-calculus, the *delta-reduction* is
-the corresponding principle for computing with *names*.
-;;
-From the point of view of calculability, names are not
-needed: they don't add any expressive power to the
-language. As such, they are not part of the theoretical
-lambda-calculus. However in practice, names play a
-central role in computation.
-;;
-From the point of view of LaTTe, the use of names
-is important for two reasons:
-;;
-  1. Mathematical definitions and theorems need to be named so that they can
- be further referenced, that's a basic fact of mathematics.
-;;
-  2. Named computation can be performed much more efficiently than relying
-on beta-reduction, this will be made clear later on.
-;;
-The rewrite rule of delta-reduction corresponds to the unfolding
-of a pameterized definition, based on the substitution of the parameters
-by actual arguments. The process is called *instantiation*.
+ ## Delta-reduction (unfolding of definitions)
+
+ If beta-reduction is at the heart of computing with
+ values in the lambda-calculus, the *delta-reduction* is
+ the corresponding principle for computing with *names*.
+
+ From the point of view of calculability, names are not
+ needed: they don't add any expressive power to the
+ language. As such, they are not part of the theoretical
+ lambda-calculus. However in practice, names play a
+ central role in computation.
+
+ From the point of view of LaTTe, the use of names
+ is important for two reasons:
+
+   1. Mathematical definitions and theorems need to be named so that they can
+  be further referenced, that's a basic fact of mathematics.
+
+   2. Named computation can be performed much more efficiently than relying
+ on beta-reduction, this will be made clear later on.
+
+ The rewrite rule of delta-reduction corresponds to the unfolding
+ of a pameterized definition, based on the substitution of the parameters
+ by actual arguments. The process is called *instantiation*.
 
 
 ```clojure
@@ -224,10 +224,10 @@ by actual arguments. The process is called *instantiation*.
 
 ```
 
-Note that for the sake of efficiency, we do not unfold theorems (by their proof)
-hence at the computational level a theorem is not equivalent to its proof, which
-is of course a good thing because of *proof irrelevance*. However an error is
-raised if one tries to reduce with a yet unproven theorem.
+ Note that for the sake of efficiency, we do not unfold theorems (by their proof)
+ hence at the computational level a theorem is not equivalent to its proof, which
+ is of course a good thing because of *proof irrelevance*. However an error is
+ raised if one tries to reduce with a yet unproven theorem.
 
 
 ```clojure
@@ -288,11 +288,11 @@ raised if one tries to reduce with a yet unproven theorem.
 
 ```
 
-### Delta-reduction strategy
-;;
-The strategy we adopt for delta-reduction is close to the one usesd
-for beta-reduction. Of course we are not looking for beta but *delta-redexes*,
- i.e. *"call"* to definitions.
+ ### Delta-reduction strategy
+
+ The strategy we adopt for delta-reduction is close to the one usesd
+ for beta-reduction. Of course we are not looking for beta but *delta-redexes*,
+  i.e. *"call"* to definitions.
 
 
 ```clojure
@@ -352,12 +352,12 @@ for beta-reduction. Of course we are not looking for beta but *delta-redexes*,
 
 ```
 
-## Normalization
-;;
-We finally define a few normalization functions:
-  - normalize using beta-reduction only: [[beta-normalize]]
-  - normalize using delta-reduction only: [[delta-normalize]]
-  - normalize using delta-reduction with the local environment only: [[delta-normalize-local]]
+ ## Normalization
+
+ We finally define a few normalization functions:
+   - normalize using beta-reduction only: [[beta-normalize]]
+   - normalize using delta-reduction only: [[delta-normalize]]
+   - normalize using delta-reduction with the local environment only: [[delta-normalize-local]]
 
 
 ```clojure
@@ -385,26 +385,26 @@ We finally define a few normalization functions:
 
 ```
 
-The heart of the general normalization process is
-the following function. It orders the strategies
-in the following way:
-  1. apply delta-reduction first
-  3. then apply beta-reduction
-  4. try again the whole process if the term was rewritten
-     or just return the result.
-;;
-The LaTTe *normal forms* are defined by this function, i.e.
-these are the terms for which the function acts as an identity.
-This is a formal definition, but its mathematical properties
-are not easy to derive from the code. However it has been
-thoroughly tested. It is also *safe* in the sense that at worst
-it will lead to too many distinctions, but there is no risk
-of confusion.
-;;
-**Remark**: some optimizations could be performed here, but
-we found out that even small change in this definition
-could easily lead to dramatic effects, so we are very
-conservative in this part of the kernel.
+ The heart of the general normalization process is
+ the following function. It orders the strategies
+ in the following way:
+   1. apply delta-reduction first
+   3. then apply beta-reduction
+   4. try again the whole process if the term was rewritten
+      or just return the result.
+
+ The LaTTe *normal forms* are defined by this function, i.e.
+ these are the terms for which the function acts as an identity.
+ This is a formal definition, but its mathematical properties
+ are not easy to derive from the code. However it has been
+ thoroughly tested. It is also *safe* in the sense that at worst
+ it will lead to too many distinctions, but there is no risk
+ of confusion.
+
+ **Remark**: some optimizations could be performed here, but
+ we found out that even small change in this definition
+ could easily lead to dramatic effects, so we are very
+ conservative in this part of the kernel.
 
 
 ```clojure
@@ -420,7 +420,7 @@ conservative in this part of the kernel.
     
 ```
 
-The following is the main user-level function for normalization.
+ The following is the main user-level function for normalization.
 
 
 ```clojure
@@ -433,16 +433,16 @@ The following is the main user-level function for normalization.
 
 ```
 
-## Beta-equivalence
-;;
-The main objective of having a normalization algorithm is to be
-able to compare terms for a dedicated notion of equivalence.
-In the lambda-calculus this is generally called *beta-equivalence*
-and we will convey the same name here. However it is clear that
-we also mean equivalent for our general normalization procedure
-(involving delta also).
-Note also that the resulting normal forms are compared for
-alpha-equivalence so that bound variables do not get in the way.
+ ## Beta-equivalence
+
+ The main objective of having a normalization algorithm is to be
+ able to compare terms for a dedicated notion of equivalence.
+ In the lambda-calculus this is generally called *beta-equivalence*
+ and we will convey the same name here. However it is clear that
+ we also mean equivalent for our general normalization procedure
+ (involving delta also).
+ Note also that the resulting normal forms are compared for
+ alpha-equivalence so that bound variables do not get in the way.
 
 
 ```clojure
