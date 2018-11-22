@@ -136,3 +136,12 @@
                     '(λ [z ✳] z)))))
 
 
+(deftest test-top-assumption
+  (is (= (top-assumption '(Π [x T] U)) '[T U]))
+  (is (= (top-assumption '(λ [x T] U)) '[nil (λ [x T] U)]))
+  )
+
+(deftest test-assumptions
+  (is (= (assumptions '(Π [x T] U)) '[T]))
+  (is (= (assumptions '(Π [x T] (Π [y U] V))) '[T U]))
+  )

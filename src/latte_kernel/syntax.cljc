@@ -377,4 +377,32 @@ Names generated fresh along the substitution cannot be members of `forbid`.
      (alpha-norm t2)))
 
 
+;;{
+;; ## Assumptions
+;;
+;; The next facility is to extract assumptions from a given term.
+;; An assumption is simply the type of a product variable.
+;; e.g. in `(Π [x T] U)` the top-level assumption is the expression `T`.
+;;}
 
+(defn top-assumption
+  "Fetch the top-level assumption of term `t` if its a product,
+  and returns a pair composed of the assumption and the remaining of the term.
+  Otherwise returns `[nil t]`."
+  [t]
+  (if (prod? t)
+    (let [[_ [_ ty] body] t]
+      [ty body])
+    [nil t]))
+
+(defn assumptions
+  "Fetch all the assumptions of term `t` as a vector. The vector
+  is of course empty if there is no such assumption."
+  [t]
+  (loop [t t, v []]
+    (let [[top t'] (top-assumption t)]
+      (if (nil? top)
+        v
+        (recur t' (conj v top))))))
+          
+           
