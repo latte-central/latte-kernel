@@ -306,7 +306,31 @@
            [:discharge f {:line 1}]
            [:discharge B {:line 1}]
            [:discharge A {:line 1}]
-           [:qed <a> {:line 4}]))))
+           [:qed <a> {:line 4}])))
+
+  (is (= (compile-proof '[:type :type (==> A B)]
+                        '[[:assume {:line 1}
+                           [A _
+                            B _
+                            f _
+                            x A]
+                           [:have <a> (==> A B) f {:line 2}]
+                           [:have <b> B (<a> x) {:line 3}]]
+                          [:qed <a> {:line 4}]])
+         
+         '([:declare A :type {:line 1}]
+           [:declare B :type {:line 1}]
+           [:declare f (==> A B) {:line 1}]
+           [:declare x A {:line 1}]
+           [:have <a> (==> A B) f {:line 2}]
+           [:have <b> B (<a> x) {:line 3}]
+           [:discharge x {:line 1}]
+           [:discharge f {:line 1}]
+           [:discharge B {:line 1}]
+           [:discharge A {:line 1}]
+           [:qed <a> {:line 4}])))
+
+  )
 
 (deftest test-proof
   (is (= (elab-proof defenv/empty-env []
