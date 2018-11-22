@@ -448,7 +448,7 @@
                                                                                                                                     :assumption x})))
                                     ;; XXX: the first explicit assumption cancels the implicit assumes for the whole proof
                                     (recur (rest params) '() (conj declares [:declare x ty meta]))))
-                                (do (println "declares = " declares) declares)))
+                                declares))
                             proof-body
                             (map (fn [[x _]]
                                    [:discharge x meta]) (reverse params)))
