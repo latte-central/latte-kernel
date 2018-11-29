@@ -434,35 +434,53 @@
       [:ko {:msg "Proof incomplete."}])))
 
 (defn compile-proof
-  [proof]
-  (if (seq proof)
-    (do (when (not (seq (first proof)))
-          (throw (ex-info "Compilation failed: malformed proof step." {:step (first proof)})))
-        (concat 
-         (cond
-           (string? (first proof))
-           (list)
-           (= (ffirst proof) :assume)
-           (let [[_ meta params & body] (first proof)
-                 params (u/zip params)
-                 proof-body (compile-proof body)]
-             (concat (map (fn [[x ty]]
-                            [:declare x ty meta]) params)
-                     proof-body
-                     (map (fn [[x _]]
-                            [:discharge x meta]) (reverse params))))
-           (contains? #{:have :qed :print-term :print-type :print-def :print-defenv} (ffirst proof))
-           (list (first proof))
-           :else
-           (throw (ex-info "Compilation failed: unsupported proof step." {:step (first proof)})))
-         (compile-proof (rest proof))))
-    ;; the end
-    (list)))
+  "Compilation of the specified `proof` script. The `goal-assumptions` is a vector of assumptions
+  that can be used for the implicit `:assume` steps  (using underscore)."
+  ([proof] (compile-proof () proof))
+  ([goal-assumptions proof]
+   (if (seq proof)
+     (do (when (not (seq (first proof)))
+           (throw (ex-info "Compilation failed: malformed proof step." {:step (first proof)})))
+         (let [[steps goal-assumptions']
+               (cond
+                 (string? (first proof)) [(list) goal-assumptions]
+                 (= (ffirst proof) :assume)
+                 (let [[_ meta params & body] (first proof)
+                       params (u/zip params)
+                       proof-body (compile-proof body)]
+                   [(concat (loop [params params, goal-assumptions goal-assumptions, declares []]
+                              (if (seq params)
+                                (let [[x ty] (first params)]
+                                  (if (= ty '_)
+                                    ;; the case for implicit assumptions
+                                    (if (seq goal-assumptions)
+                                      (recur (rest params) (rest goal-assumptions) (conj declares [:declare x (first goal-assumptions) meta]))
+                                      (throw (ex-info "Compilation failed: wrong implicit assume step, no such assumption in goal" {:step (first proof)
+                                                                                                                                    :assumption x})))
+                                    ;; XXX: the first explicit assumption cancels the implicit assumes for the whole proof
+                                    (recur (rest params) '() (conj declares [:declare x ty meta]))))
+                                declares))
+                            proof-body
+                            (map (fn [[x _]]
+                                   [:discharge x meta]) (reverse params)))
+                    ;; no more assumptions after an assume
+                    ()])
+                   (contains? #{:have :qed :print-term :print-type :print-def :print-defenv} (ffirst proof))
+                   ;; XXX: cannot use goal assumptions after a non-assume step
+                 [(list (first proof)) ()]
+                 :else
+                 (throw (ex-info "Compilation failed: unsupported proof step." {:step (first proof)})))]
+           ;; in the let        
+           (concat 
+            steps
+            (compile-proof goal-assumptions' (rest proof)))))
+     ;; the end
+     (list))))
 
 (defn check-proof
   [def-env ctx thm-name thm-type steps]
   ;;(println "[check proof] " thm-name)
-  (let [proof (compile-proof steps)
+  (let [proof (compile-proof (stx/assumptions thm-type) steps)
         [status res] (elab-proof def-env ctx proof)]
     (if (= status :ko)
       [status res]
