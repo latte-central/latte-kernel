@@ -2,6 +2,8 @@
 
 The (very) small kernel of the LaTTe proof assistant in Clojure(script)
 
+[![Clojars Project](https://img.shields.io/clojars/v/latte-kernel.svg)](https://clojars.org/latte-kernel)
+
 ```
   _.--'"'.
   (  ( (   )
