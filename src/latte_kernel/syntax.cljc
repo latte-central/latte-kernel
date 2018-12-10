@@ -237,7 +237,7 @@
   and suffix chosen from ' (quote), '', ''' then -4, -5, etc.
 The `forbid` argument says what names are forbidden."
   ([base forbid] (mk-fresh base 0 forbid))
-  ([base level forbid]
+  ([base ^long level forbid]
    (let [suffix (case level
                   0 ""
                   1 "'"
