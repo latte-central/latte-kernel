@@ -327,7 +327,7 @@ that implicits can be erased."
             (throw (ex-info "Notation should not occur at typing time (please report)"
                             {:notation ddef :term (list* name args)}))
             (and (defenv/theorem? ddef)
-                 (= (:proof ddef) false))
+                 (not (:proof ddef)))
             [:ko {:msg "Theorem has no proof." :thm-name (:name ddef)} nil]
             (defenv/implicit? ddef)
             (type-of-implicit def-env ctx ddef args)
