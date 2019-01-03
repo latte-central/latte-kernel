@@ -1,4 +1,4 @@
-(defproject latte-kernel "1.0b1-SNAPSHOT"
+(defproject latte-kernel "1.0b2-SNAPSHOT"
   :description "The (very) small kernel of the LaTTe proof assistant"
   :url "https://github.com/latte-central/latte-kernel.git"
   :license {:name "MIT Licence"
@@ -15,9 +15,9 @@
                                    :optimizations :whitespace
                                    :pretty-print true}}]}
   :profiles {:dev {:dependencies
-                   [[org.clojure/clojure "1.9.0"]
-                    [org.clojure/clojurescript "1.9.946"]
-                    [com.cemerick/piggieback "0.2.2"]
+                   [[org.clojure/clojure "1.10.0"]
+                    [org.clojure/clojurescript "1.10.439"]
+                    [cider/piggieback "0.3.10"]
                     ]}
-             :test {:dependencies [[org.clojure/clojure "1.9.0"]]}})
+             :test {:dependencies [[org.clojure/clojure "1.10.0"]]}})
 
