@@ -382,7 +382,9 @@ that implicits can be erased."
             ))))))
 
 
-(defn type-of-args [def-env ctx args]
+(defn type-of-args
+  "Compute the type of an argument list."
+  [def-env ctx args]
   (loop [args args, targs [], args' []]
     (if (seq args)
       (let [[status typ arg'] (type-of-term def-env ctx (first args))]
@@ -425,9 +427,25 @@ that implicits can be erased."
       (recur (rest params) (list 'Π (first params) res))
       res)))
 
+(defn type-of-implicit-args
+  "Compute the type of an argument list, for an implicit.
+  If the argument is not a term, then it is kept in the resulting
+  argument list."
+  [def-env ctx args]
+  (loop [args args, targs [], args' []]
+    (if (seq args)
+      (if (stx/term? (first args))
+        (let [[status typ arg'] (type-of-term def-env ctx (first args))]
+          (if (= status :ko)
+            [:ko typ nil]
+            (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
+        ;; not a term (e.g. integer constant), and we pass it "as it is" to the
+        ;; implicit function
+        (recur (rest args) (conj targs (first args)) (conj args' (first args))))
+      [:ok targs args'])))
 
 (defn unfold-implicit [def-env ctx implicit-def args]
-  (let [[status, targs, args'] (type-of-args def-env ctx args)]
+  (let [[status, targs, args'] (type-of-implicit-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs]    
       (try [:ok, (apply (:implicit-fn implicit-def) def-env ctx targs), args']

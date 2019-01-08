@@ -130,6 +130,16 @@
 ;; essence of mathematics!
 ;;}
 
+(defn term?
+  "Checks if `v` is a LaTTe term."
+  [v]
+  (or (sort? v)
+      (variable? v)
+      (binder? v)
+      (app? v)
+      (ref? v)
+      (ascription? v)))
+
 ;;{
 ;; ## Term reducer
 ;;
