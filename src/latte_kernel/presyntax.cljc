@@ -77,7 +77,10 @@ by LaTTe."
      (type? t) [:ok '✳]
      (sequential? t) (parse-compound-term def-env t bound)
      (symbol? t) (parse-symbol-term def-env t bound)
-     :else [:ko {:msg "Cannot parse term" :term t}])))
+     ;; parse-through by default (for implicit arguments)
+     :else [:ok t])))
+;; or a parse error?
+;; :else [:ko {:msg "Cannot parse term" :term t}])))
 
 ;;{
 ;; **Remark**: that errors are always returned as a map with
