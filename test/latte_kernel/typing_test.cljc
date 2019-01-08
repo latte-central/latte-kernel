@@ -161,6 +161,25 @@
                        '(equal a b))
          '[:ok (Π [P (Π [⇧ U] ✳)] (Π [⇧' [P a]] [P b])) (equal% U a b)]))) 
 
+(def eq-implicit-cst (defenv/map->Implicit
+                       {:implicit-fn (fn [def-env ctx n [x T] [y U]]
+                                       (print "n =" n)
+                                       (list 'equal% T x y))}))
+
+(deftest test-type-of-refdef-implicit-cst
+
+  (is (= (type-of-term (defenv/mkenv {'equal% fake-eq
+                                      'equal eq-implicit-cst})
+                       '[[U ✳] [a U] [b U]]
+                       '(equal 4 a b))
+         '[:ok (Π [P (Π [⇧ U] ✳)] (Π [⇧' [P a]] [P b])) (equal% U a b)])
+
+      #?(:clj (is (= (with-out-str (type-of-term (defenv/mkenv {'equal% fake-eq
+                                                                'equal eq-implicit-cst})
+                                                 '[[U ✳] [a U] [b U]]
+                                                 '(equal 4 a b)))
+                     "n = 4")))))
+
 (deftest test-rebuild-type
   (is (= (rebuild-type defenv/empty-env '[[bool ✳] [t bool] [y bool]]
                        '(Π [x bool] bool))
