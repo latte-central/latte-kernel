@@ -86,6 +86,9 @@ that implicits can be erased."
           (stx/ascription? t)
           (let [[_ e u] t]
             (type-of-ascribe def-env ctx e u))
+          ;; host constants
+          (stx/host-constant? t) (throw (ex-info "Host constant should not be remaining while typing (please report)"
+                                                 {:term t}))
           ;; applications
           (stx/app? t) (type-of-app def-env ctx (first t) (second t))
           :else
@@ -434,14 +437,13 @@ that implicits can be erased."
   [def-env ctx args]
   (loop [args args, targs [], args' []]
     (if (seq args)
-      (if (stx/term? (first args))
+      (if (not (stx/host-constant? (first args)))
         (let [[status typ arg'] (type-of-term def-env ctx (first args))]
           (if (= status :ko)
             [:ko typ nil]
             (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
-        ;; not a term (e.g. integer constant), and we pass it "as it is" to the
-        ;; implicit function
-        (recur (rest args) (conj targs (first args)) (conj args' (first args))))
+        ;; a host-constant that we  pass "as it is" to the implicit function
+        (recur (rest args) (conj targs (second (first args))) (conj args' (second (first args)))))
       [:ok targs args'])))
 
 (defn unfold-implicit [def-env ctx implicit-def args]

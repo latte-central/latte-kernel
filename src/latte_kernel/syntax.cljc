@@ -125,6 +125,13 @@
 ;; to be recomputed).
 ;;}
 
+(defn host-constant?
+  "Is `t` a constant provided by the host ?"
+  [t]
+  (and (vector? t)
+       (= (count t) 2)
+       (= (first t) ::host-constant)))
+
 ;;{
 ;; ... and that's everything you need to capture the
 ;; essence of mathematics!
@@ -138,7 +145,8 @@
       (binder? v)
       (app? v)
       (ref? v)
-      (ascription? v)))
+      (ascription? v)
+      (host-constant? v)))
 
 ;;{
 ;; ## Term reducer
@@ -183,6 +191,7 @@
                (if-let [ref-fn (get red-funs :ref)]
                  (ref-fn args-val dname)
                  args-val))
+    (host-constant? t) t
     :else (throw (ex-info "Cannot term reduce: unknown (sub-)term" {:term t}))))
 
 ;;{

@@ -55,7 +55,7 @@
   (is (= (parse-binding defenv/empty-env '[x] #{})
          '[:ko {:msg "Binding must have at least 2 elements", :term [x]}]))
 
-  (is (= (parse-binding defenv/empty-env '[x y :bad] #{})
+  #_(is (= (parse-binding defenv/empty-env '[x y :bad] #{})
          '[:ko {:msg "Wrong binding type", :term [x y :bad], :from {:msg "Cannot parse term", :term :bad}}])))
 
 (deftest test-parse-lambda-term
