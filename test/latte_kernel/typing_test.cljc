@@ -3,7 +3,6 @@
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
             [latte-kernel.defenv :as defenv]
-            [latte-kernel.syntax :as stx]
             [latte-kernel.presyntax :as parse]
             [latte-kernel.typing :refer :all]))
 
@@ -172,13 +171,13 @@
   (is (= (type-of-term (defenv/mkenv {'equal% fake-eq
                                       'equal eq-implicit-cst})
                        '[[U ✳] [a U] [b U]]
-                       '(equal [::stx/host-constant 4] a b))
+                       '(equal [::parse/host-constant 4] a b))
          '[:ok (Π [P (Π [⇧ U] ✳)] (Π [⇧' [P a]] [P b])) (equal% U a b)])
 
       #?(:clj (is (= (with-out-str (type-of-term (defenv/mkenv {'equal% fake-eq
                                                                 'equal eq-implicit-cst})
                                                  '[[U ✳] [a U] [b U]]
-                                                 '(equal [::stx/host-constant 4] a b)))
+                                                 '(equal [::parse/host-constant 4] a b)))
                      "n = 4")))))
 
 (deftest test-rebuild-type

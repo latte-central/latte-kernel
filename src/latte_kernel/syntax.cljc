@@ -1,7 +1,8 @@
 
 (ns latte-kernel.syntax
   "The internal representation of lambda-terms."
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [latte-kernel.presyntax :as prestx]))
 
 
 ;;{
@@ -130,7 +131,7 @@
   [t]
   (and (vector? t)
        (= (count t) 2)
-       (= (first t) ::host-constant)))
+       (= (first t) ::prestx/host-constant)))
 
 ;;{
 ;; ... and that's everything you need to capture the

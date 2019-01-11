@@ -2,7 +2,8 @@
   (:require [latte-kernel.utils :as u]
             [latte-kernel.syntax :as stx]
             [latte-kernel.norm :as norm]
-            [latte-kernel.defenv :as defenv]))
+            [latte-kernel.defenv :as defenv]
+            [latte-kernel.presyntax :as prestx]))
   
 ;;{
 ;; # Type checking
