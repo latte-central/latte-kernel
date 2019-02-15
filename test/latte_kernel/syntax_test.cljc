@@ -2,11 +2,15 @@
 (ns latte-kernel.syntax-test
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
+            [latte-kernel.presyntax :as prestx]
             [latte-kernel.syntax :refer :all]))
 
 (deftest test-term-reduce
   (is (= (term-reduce {} 42 '(λ [x t] (test x y z)))
          42))
+
+  (is (= (term-reduce {} nil '[::prestx/host-constant 42])
+         [::prestx/host-constant 42]))
 
   (is (= (term-reduce {:var (fn [vs v] (conj vs v))} #{} '(λ [x t] (test x y z)))
          '#{x y z t})))
