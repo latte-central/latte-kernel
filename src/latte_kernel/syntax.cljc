@@ -158,6 +158,7 @@
 
 (defn term-reduce [red-funs init t]
   (cond
+    (host-constant? t) t
     (kind? t) (if-let [kind-fn (get red-funs :kind)]
                 (kind-fn init)
                 init)
@@ -192,7 +193,6 @@
                (if-let [ref-fn (get red-funs :ref)]
                  (ref-fn args-val dname)
                  args-val))
-    (host-constant? t) t
     :else (throw (ex-info "Cannot term reduce: unknown (sub-)term" {:term t}))))
 
 ;;{
