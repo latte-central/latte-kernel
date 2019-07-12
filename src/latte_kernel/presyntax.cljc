@@ -23,7 +23,7 @@ by LaTTe."
 ;;}
 
 (def +reserved-symbols+
-  '#{□ ✳ λ Π ⟶ ∃ ∀ lambda forall exists})
+  '#{□ ✳ λ Π Σ ⟶ ∃ ∀ lambda forall sigma exists pair pr1 pr2})
 
 ;;{
 ;; The symbols above are well explained in the
@@ -33,6 +33,9 @@ by LaTTe."
 ;;  - ✳ (or `:type`) is a sort, the type of all types (Page 70)
 ;;  - λ is the symbol of lambda abstractions (Page 1)
 ;;  - Π is the symbol of product abstractions (Page 72)
+;; - Σ is the symbol for depnedent pairs abstraction
+;; - pair the pair constructor (pari a b)
+;; - pr1 pr2 the projections
 ;;  - ⟶ is the arrow type (Page 34)
 ;;  - ∃ is the existential quantifier (Page 247)
 ;;  - ∀ is the universal quantifier (Page 246)
@@ -127,6 +130,7 @@ by LaTTe."
 ;; In LaTTe a compound term may be:
 ;;   - a lambda abstraction
 ;;   - a product abstraction
+;;   - a sigma abstraction
 ;;   - an arrow type
 ;;   - an existential
 ;;   - a defined term, i.e. a "call" to a definition
@@ -145,6 +149,23 @@ by LaTTe."
       (= t '∀)
       (= t 'forall)))
 
+(defn sigma-kw?
+  "Sigma abstraction?"
+  [t]
+  (or (= t 'Σ)
+      (= t 'sigma)))
+
+(defn pair-kw?
+  "A pair"
+  [t]
+  (= t 'pair))
+
+(defn projection-kw?
+  "Projectin symbol"
+  [t]
+  (or (= t 'pr1)
+      (= t 'pr2)))
+
 (defn arrow-kw?
   "Arrow type?"
   [t]
@@ -159,6 +180,9 @@ by LaTTe."
 
 (declare parse-lambda-term
          parse-product-term
+         parse-sigma-term
+         parse-pair-term
+         parse-projection-term
          parse-arrow-term
          parse-defined-term
          parse-application-term)
@@ -172,6 +196,9 @@ by LaTTe."
     (cond
       (lambda-kw? (first t)) (parse-lambda-term def-env t bound)
       (product-kw? (first t)) (parse-product-term def-env t bound)
+      (sigma-kw? (first t)) (parse-sigma-term def-env t bound)
+      (pair-kw? (first t)) (parse-pair-term def-env t bound)
+      (projection-kw? (first t)) (parse-projection-term def-env t bound)
       (arrow-kw? (first t)) (parse-arrow-term def-env t bound)
       :else
       (if (and (or (symbol? (first t)) (var? (first t)))
@@ -196,8 +223,11 @@ by LaTTe."
 ;;
 ;; There are two kinds of abstractions in LaTTe:
 ;;   - lambda abstractions, i.e. unary unanymous functions of the form `(λ [x t] u)`
-;;   - product abstractions, a.k.a. "Pi-types" (also) universal quantifications of the form `(Π [x t] u)` 
+;;   - product abstractions, a.k.a. "Pi-types" (also) universal quantifications of the form `(Π [x t] u)`
 ;;
+;;   - sigma abstraction, the type of dependent pairs
+;;     but also the (shorthand) existential quantifier or subtypes
+;;     of the form `(Σ [x t] u)`
 ;; A simple but useful syntactic sugar is proposed:
 ;;
 ;; `(λ [x y z t] u)` is the same as `(λ [x t] (λ [y t] (λ [z t] u)))`
@@ -293,6 +323,36 @@ by LaTTe."
             (recur (rest ts) (list 'Π ['⇧ (first ts)] res))
             [:ok res]))))))
 
+;; Σ types, pairs and projections
+;;
+(defn parse-sigma-term
+  "Parse a production abstraction."
+  [def-env t bound]
+  (parse-binder-term def-env 'Σ t bound))
+
+(defn parse-pair-term
+  "Parse a production abstraction."
+  [def-env t bound]
+  (if (not= 3 (count t))
+    [:ko {:msg "A pair must be of the form '(pair a b)'" :term t}]
+    (let [[status terms] (parse-terms def-env (rest t) bound)]
+      (if (= :ko status)
+        [:ko {:msg "Cannot parse element of the pair" :term t :from terms}]
+        (let [[a b] terms]
+          (assert (= 2 (count terms)))
+          ;; TODO: FIND SYMBOL (p a b) (: a b)
+          [:ok (list 'pair a b)])))))
+
+(defn parse-projection-term
+  "Parse a production abstraction."
+  [def-env t bound]
+  (if (not= 2 (count t))
+    [:ko {:msg "A projection must be of the form '(pair a b)'" :term t}]
+    (let [[status t'] (parse-term def-env (second t) bound)]
+      (if (= :ko status)
+        [:ko {:msg "Cannot parse projectand" :term t :from t'}]
+          ;; TODO: FIND SYMBOL (π1 a b) (𝝅 a b)
+        [:ok (list (first t) t')]))))
 
 ;;{
 ;; ## Defined terms
