@@ -53,7 +53,7 @@
   "Is `t` a binding abstraction?"
   [t]
   (and (list? t)
-       (contains? '#{λ Π} (first t))))
+       (contains? '#{λ Π Σ} (first t))))
 
 (defn binderify
   "Generate an abstraction for `binder` from a sequences of `bindings` and a `body`."
@@ -75,6 +75,24 @@
   (and (seq? t)
        (= (first t) 'Π)))
 
+(defn sigma?
+  "Is `t` a sigma abstraction?"
+  [t]
+  (and (seq? t)
+       (= (first t) 'Σ)))
+
+(defn pair?
+  "Is it a pair?"
+  [t]
+  (and (seq? t)
+       (= (first t) 'pair)))
+
+(defn projection?
+  "Is it a projection?"
+  [t]
+  (and (seq? t)
+       (or (= (first t) 'pr1)
+           (= (first t) 'pr2))))
 ;;{
 ;;  - *applications* `[u v]`
 ;;}
@@ -100,7 +118,7 @@
   "Is `t` a reference?"
   [t]
   (and (seq? t)
-       (not (contains? '#{λ Π ::ascribe} (first t)))))
+       (not (contains? '#{λ Π Σ pair pr1 pr2 ::ascribe} (first t)))))
 
 ;;{
 ;;  - *ascriptions* `(::ascribe e t)` that term `e` is of type `t`. These are like
@@ -144,6 +162,8 @@
   (or (sort? v)
       (variable? v)
       (binder? v)
+      (pair? v)
+      (projection? v)
       (app? v)
       (ref? v)
       (ascription? v)
@@ -168,8 +188,34 @@
     (variable? t) (if-let [var-fn (get red-funs :var)]
                     (var-fn init t)
                     init)
+    (pair? t) (let [[_ t1 t2] t
+                    ;; if t2 depends on t1, do like in app?
+                    val1 (term-reduce red-funs init t1)
+                    val2 (term-reduce red-funs init t2)]
+                #_
+                (throw (ex-info "Term Reduce for pairs not implemented yet"
+                                {:term t
+                                 :red-funs red-funs
+                                 :init init
+                                 :reduced-left val1
+                                 :reduced-right val2}))
+                init)
+    (projection? t) (let [[_ t'] t
+                          t'' (term-reduce red-funs init t')]
+                      #_
+                      (throw (ex-info "Term reduce for projections not implement yet"
+                                      {:term t
+                                       :ref-funs red-funs
+                                       :init init
+                                       :reduced t''}))
+                      init)
     (binder? t) (let [[_ [x ty] body] t
-                      bind-kind (if (lambda? t) :lambda :prod)
+                      bind-kind (cond
+                                  (lambda? t) :lambda
+                                  (prod? t) :prod
+                                  (sigma? t) :sigma
+                                  :else
+                                  (throw (ex-info "Wrong binder term" {:term t})))
                       ty-val (term-reduce red-funs init ty)
                       body-val (term-reduce red-funs ty-val body)]
                   (if-let [binder-fn (get red-funs bind-kind)]
@@ -212,6 +258,10 @@
                              (disj (free-vars body) x)))
     (app? t) (set/union (free-vars (first t))
                         (free-vars (second t)))
+
+    (pair? t) (set/union (free-vars (second t))
+                         (free-vars (second (rest t))))
+    (projection? t) (free-vars (second t))
     (ascription? t) (let [[_ e u] t]
                   (set/union (free-vars e)
                              (free-vars u)))
@@ -227,6 +277,9 @@
                   (set/union (vars ty) (vars body)))
     (app? t) (set/union (vars (first t))
                         (vars (second t)))
+    (pair? t) (set/union (vars (second t))
+                         (vars (second (rest t))))
+    (projection? t) (vars (second t))
     (ascription? t) (let [[_ e u] t]
                   (set/union (vars e) (vars u)))
     (ref? t) (apply set/union (map vars (rest t)))
@@ -300,6 +353,16 @@ Names generated fresh along the substitution cannot be members of `forbid`.
           (let [[rator forbid'] (subst- (first t) sub forbid rebind)
                 [rand forbid''] (subst- (second t) sub forbid' rebind)]
             [[rator rand] forbid''])
+          ;; pairs
+          (pair? t)
+          (let [[pr1 forbid'] (subst- (second t) sub forbid rebind)
+                [pr2 forbid''] (subst- (second (rest t)) sub forbid' rebind)]
+            [(list 'pair pr1 pr2) forbid''])
+          ;; projections
+          (projection? t)
+          (let [[prfn t'] t
+                [t'' forbid'] (subst- t' sub forbid rebind)]
+            [(list prfn t'') forbid'])
           ;; ascriptions
           (ascription? t)
           (let [[_ e u] t
@@ -352,7 +415,7 @@ Names generated fresh along the substitution cannot be members of `forbid`.
   (cond
     ;; variables
     (variable? t) [(get sub t t) level]
-    ;; binders (λ, Π)
+    ;; binders (λ, Π, Σ)
     (binder? t)
     (let [[binder [x ty] body] t
           x' (symbol (str "_" level))
@@ -365,6 +428,16 @@ Names generated fresh along the substitution cannot be members of `forbid`.
     (let [[left' level'] (alpha-norm- (first t) sub level)
           [right' level''] (alpha-norm- (second t) sub level')]
       [[left' right'] level''])
+    ;; pairs
+    (pair? t)
+    (let [[pr1 level'] (alpha-norm- (second t) sub level)
+          [pr2 level''] (alpha-norm- (second (rest t)) sub level')]
+      [(list 'pair pr1 pr2) level''])
+    ;; projections
+    (projection? t)
+    (let [[prfn t'] t
+          [t'' level'] (alpha-norm- t' sub level)]
+      [(list prfn t'') level'])
     ;; ascription
     (ascription? t)
     (let [[_ e _] t
