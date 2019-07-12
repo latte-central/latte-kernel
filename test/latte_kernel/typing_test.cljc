@@ -45,6 +45,9 @@
   (is (= (type-of-term defenv/empty-env [] '(Π [x ✳] x))
          '[:ok ✳ (Π [x ✳] x)]))
 
+  (is (= (type-of-term defenv/empty-env [] '(Σ [x ✳] x))
+         '[:ok ✳ (Σ [x ✳] x)]))
+
   (is (= (type-of-term defenv/empty-env [] '(Π [x ✳] ✳))
          '[:ok □ (Π [x ✳] ✳)]))
 
@@ -59,6 +62,29 @@
                 :term □,
                 :from {:msg "Kind has not type", :term □}}
            nil])))
+
+(deftest test-type-of-pair-and-projections
+  (is (= (type-of-term defenv/empty-env '[[A ✳] [B ✳] [u A] [v B]]
+                       '(pair u v))
+         '[:ok (Σ [x A] B) (pair u v)]))
+
+  (is (= (type-of-term defenv/empty-env '[[A ✳] [B ✳] [p (Σ [t A] B)]]
+                       '(pr1 p))
+         '[:ok A p]))
+
+  (is (= (type-of-term defenv/empty-env '[[A ✳] [B ✳] [p (Σ [t A] B)]]
+                       '(pr2 p))
+         '[:ok B p]))
+
+  ;; TODO: add tests for real dependent pairs:
+  ;; why do these throw with No such definition '{:term (P t), :def-name P}' ?
+  #_#_
+  (is (= (type-of-term defenv/empty-env '[[T ✳] [P (==> T ✳)] [p (Σ [t T] (P t))]]
+                       '(pr2 p))
+         '[:ok (P (pr1 p)) (pr2 p)]))
+  (is (= (type-of-term defenv/empty-env '[[T ✳] [P (==> T ✳)] [x T] [y (P x)]]
+                       '(pair x y))
+         '[:ok (Σ [t T] (P t)) nil])))
 
 (deftest test-type-of-abs
   (is (= (type-of-term defenv/empty-env '[[bool ✳] [t bool] [y bool]]

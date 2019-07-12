@@ -50,6 +50,8 @@
 (declare type-of-type
          type-of-var
          type-of-prod
+         type-of-pair
+         type-of-projection
          type-of-abs
          type-of-app
          type-of-ref
@@ -79,8 +81,15 @@ that implicits can be erased."
           (let [[binder [x ty] body] t]
             (case binder
               λ (type-of-abs def-env ctx x ty body)
-              Π (type-of-prod def-env ctx x ty body)
+              Π (type-of-prod def-env ctx 'Π x ty body)
+              Σ (type-of-prod def-env ctx 'Σ x ty body)
               (throw (ex-info "No such binder (please report)" {:term t :binder binder}))))
+          ;; pairs
+          (stx/pair? t)
+          (type-of-pair def-env ctx (second t) (second (rest t)))
+          ;; projections
+          (stx/projection? t)
+          (type-of-projection def-env ctx (first t) (second t))
           ;; references
           (stx/ref? t) (type-of-ref def-env ctx (first t) (rest t))
           ;; ascriptions
@@ -181,9 +190,9 @@ that implicits can be erased."
 ;;}
 
 (defn type-of-prod
-  "Infer the type of a product with bound variable `x` of
+  "Infer the type of a product or sigma with bound variable `x` of
   type `A` in body `B`."
-  [def-env ctx x A B]
+  [def-env ctx binder x A B]
   (let [[status sort1 A'] (type-of-term def-env ctx A)]
     (if (= status :ko)
       [:ko {:msg "Cannot calculate domain type of product." :term A :from sort1} nil]
@@ -198,8 +207,7 @@ that implicits can be erased."
                 ;; (println "sort2' = " sort2' " sort? " (stx/sort? sort2'))
                 (if (not (stx/sort? sort2'))
                   [:ko {:msg "Not a valid codomain type in product (not a sort)" :term B :type sort2} nil]
-                  [:ok sort2 (list 'Π [x A'] B')])))))))))
-
+                  [:ok sort2 (list binder [x A'] B')])))))))))
 
 ;;{
 ;;
@@ -216,7 +224,7 @@ that implicits can be erased."
 
 
 (defn type-of-abs
-  "Infer the type of an  with bound variable `x` of
+  "Infer the type of a lambda abstraction with bound variable `x` of
   type `A` in body `B`."
   [def-env ctx x A t]
   (let [[status err A'] (type-of-term def-env ctx A)]
@@ -241,6 +249,42 @@ that implicits can be erased."
                     :type sort}]
               [:ok tprod (list 'λ [x A'] t')])))))))
 
+(defn type-of-pair
+  "Calculates the type of a pair"
+  [def-env ctx a b]
+  (let [[status A a'] (type-of-term def-env ctx a)]
+    (if (= :ko status)
+      [:ko {:msg "Cannot infer type of left term in pair"
+            :term '(pair a b) :from A}
+           nil]
+      (let [[status B b'] (type-of-term def-env ctx b)]
+        (if (= :ko status)
+          [:ko {:msg "Cannot infer type of right term in pair"
+                :term '(pair a b) :from B}
+               nil]
+          (let [x'' (stx/mk-fresh 'x (into #{} (map first) ctx))
+                B' (stx/subst B a x'')
+                tsigma (list 'Σ [x'' A] B')]
+            [:ok tsigma (list 'pair a' b')]))))))
+
+(defn type-of-projection [def-env ctx prfn t]
+  (let [[status T t'] (type-of-term def-env ctx t)]
+    (if (= status :ko)
+      [:ko {:msg "Cannot calculate type of projectand." :term t :from T} nil]
+      (let [T' (norm/normalize def-env ctx T)]
+        (if (not (stx/sigma? T'))
+          [:ko {:msg "Projectand not of Sigma type" :term t :from T'} nil]
+          (let [[_ [x T1] T2] T']
+            (case prfn
+              pr1
+              [:ok T1 t']
+              pr2 (let [tn (norm/normalize def-env ctx t)]
+                    (if (stx/pair? tn)
+                      (let [[_ t1 _] tn]
+                        ;; (println "lucky! normalises to a pair: " tn "from: " t)
+                        [:ok (stx/subst T2 x t1) t'])
+                      [:ok (stx/subst T2 x (list 'pr1 t)) t']))
+              (throw (ex-info "Invalid projection call: '" t "'" {:prfn prfn})))))))))
 
 ;;{
 ;;
