@@ -83,7 +83,7 @@
                                    (not (norm/beta-eq? def-env ctx term-type have-type))
                                    [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
                                          :have-name name
-                                         :expected-type ty ;; or have-type ?
+                                         :expected-type have-type ;; or ty ?
                                          :synthetized-type term-type
                                          :meta meta}]
                                    :else

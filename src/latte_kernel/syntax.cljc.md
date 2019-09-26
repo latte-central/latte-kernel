@@ -2,7 +2,8 @@
 ```clojure
 (ns latte-kernel.syntax
   "The internal representation of lambda-terms."
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [latte-kernel.presyntax :as prestx]))
 
 
 ```
@@ -139,11 +140,33 @@
  to be recomputed).
 
 
+```clojure
+(defn host-constant?
+  "Is `t` a constant provided by the host ?"
+  [t]
+  (and (vector? t)
+       (= (count t) 2)
+       (= (first t) ::prestx/host-constant)))
+
+```
 
  ... and that's everything you need to capture the
  essence of mathematics!
 
 
+```clojure
+(defn term?
+  "Checks if `v` is a LaTTe term."
+  [v]
+  (or (sort? v)
+      (variable? v)
+      (binder? v)
+      (app? v)
+      (ref? v)
+      (ascription? v)
+      (host-constant? v)))
+
+```
 
  ## Term reducer
 
@@ -154,6 +177,7 @@
 ```clojure
 (defn term-reduce [red-funs init t]
   (cond
+    (host-constant? t) t
     (kind? t) (if-let [kind-fn (get red-funs :kind)]
                 (kind-fn init)
                 init)
@@ -256,7 +280,7 @@
   and suffix chosen from ' (quote), '', ''' then -4, -5, etc.
 The `forbid` argument says what names are forbidden."
   ([base forbid] (mk-fresh base 0 forbid))
-  ([base level forbid]
+  ([base ^long level forbid]
    (let [suffix (case level
                   0 ""
                   1 "'"

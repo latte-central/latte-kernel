@@ -3,7 +3,8 @@
   (:require [latte-kernel.utils :as u]
             [latte-kernel.syntax :as stx]
             [latte-kernel.norm :as norm]
-            [latte-kernel.defenv :as defenv]))
+            [latte-kernel.defenv :as defenv]
+            [latte-kernel.presyntax :as prestx]))
   
 ```
 
@@ -93,6 +94,9 @@ that implicits can be erased."
           (stx/ascription? t)
           (let [[_ e u] t]
             (type-of-ascribe def-env ctx e u))
+          ;; host constants
+          (stx/host-constant? t) (throw (ex-info "Host constant should not be remaining while typing (please report)"
+                                                 {:term t}))
           ;; applications
           (stx/app? t) (type-of-app def-env ctx (first t) (second t))
           :else
@@ -348,7 +352,7 @@ that implicits can be erased."
             (throw (ex-info "Notation should not occur at typing time (please report)"
                             {:notation ddef :term (list* name args)}))
             (and (defenv/theorem? ddef)
-                 (= (:proof ddef) false))
+                 (not (:proof ddef)))
             [:ko {:msg "Theorem has no proof." :thm-name (:name ddef)} nil]
             (defenv/implicit? ddef)
             (type-of-implicit def-env ctx ddef args)
@@ -405,7 +409,9 @@ that implicits can be erased."
             ))))))
 
 
-(defn type-of-args [def-env ctx args]
+(defn type-of-args
+  "Compute the type of an argument list."
+  [def-env ctx args]
   (loop [args args, targs [], args' []]
     (if (seq args)
       (let [[status typ arg'] (type-of-term def-env ctx (first args))]
@@ -452,9 +458,24 @@ that implicits can be erased."
       (recur (rest params) (list 'Π (first params) res))
       res)))
 
+(defn type-of-implicit-args
+  "Compute the type of an argument list, for an implicit.
+  If the argument is not a term, then it is kept in the resulting
+  argument list."
+  [def-env ctx args]
+  (loop [args args, targs [], args' []]
+    (if (seq args)
+      (if (not (stx/host-constant? (first args)))
+        (let [[status typ arg'] (type-of-term def-env ctx (first args))]
+          (if (= status :ko)
+            [:ko typ nil]
+            (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
+        ;; a host-constant that we  pass "as it is" to the implicit function
+        (recur (rest args) (conj targs (second (first args))) (conj args' (second (first args)))))
+      [:ok targs args'])))
 
 (defn unfold-implicit [def-env ctx implicit-def args]
-  (let [[status, targs, args'] (type-of-args def-env ctx args)]
+  (let [[status, targs, args'] (type-of-implicit-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs]    
       (try [:ok, (apply (:implicit-fn implicit-def) def-env ctx targs), args']
@@ -475,11 +496,9 @@ that implicits can be erased."
       (type-of-term def-env ctx implicit-term))))
 
 (defn rebuild-type [def-env ctx ty]
-  #_(let [vfresh (gensym "fresh")]
-      (let [[status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
-        [status ty']))
-  [:ok ty] ;; XXX : remove type rebuilding everywhere
-  )
+  (let [vfresh (gensym "fresh")]
+    (let [[status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
+      [status ty'])))
 
 (defn type-of
   ([t] (type-of defenv/empty-env [] t))
