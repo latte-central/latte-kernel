@@ -2,7 +2,7 @@
 
 The (very) small kernel of the LaTTe proof assistant in Clojure(script)
 
-[![Clojars Project](https://img.shields.io/clojars/v/latte-kernel.svg)](https://clojars.org/latte-kernel)
+[![CircleCI](https://circleci.com/gh/latte-central/latte-kernel.svg?style=svg)](https://circleci.com/gh/latte-central/latte-kernel)[![Clojars Project](https://img.shields.io/clojars/v/latte-kernel.svg)](https://clojars.org/latte-kernel)
 
 ```
   _.--'"'.

@@ -1,1 +1,17 @@
-{:paths ["src"]}
+{:paths ["src"]
+ :deps
+ {org.clojure/clojure {:mvn/version "1.10.1"}
+  org.clojure/clojurescript {:mvn/version "1.10.439"}}
+
+ :aliases
+ {:codox
+  {:extra-paths ["src" "codox"]
+   :main-opts ["-m" "codox"]
+   :extra-deps {codox {:mvn/version "0.10.7"}}}
+
+  :test
+  {:extra-paths ["test"]
+   :extra-deps {lambdaisland/kaocha {:mvn/version "0.0-541"}}
+   :main-opts ["-m" "kaocha.runner"
+               "--reporter" "kaocha.report/documentation"
+               "--plugin" "kaocha.plugin/print-invocations"]}}}
