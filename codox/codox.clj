@@ -13,9 +13,8 @@
    :name "LaTTe"
    :license {:name "MIT Licence"
              :url "http://opensource.org/licenses/MIT"}
-   #_#_
    :root-path "src"
-   :description "LaTTe : a Laboratory for Type Theory Experiments"
+   :description "The (very) small kernel of the LaTTe proof assistant"
    :version "1.0b7-SNAPSHOT"})
 
 (defn -main []
