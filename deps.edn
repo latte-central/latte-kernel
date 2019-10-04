@@ -11,7 +11,8 @@
 
   :test
   {:extra-paths ["test"]
-   :extra-deps {lambdaisland/kaocha {:mvn/version "0.0-541"}}
+   :extra-deps {lambdaisland/kaocha {:mvn/version "0.0-541"}
+                nubank/matcher-combinators {:mvn/version "1.2.1"}}
    :main-opts ["-m" "kaocha.runner"
                "--reporter" "kaocha.report/documentation"
                "--plugin" "kaocha.plugin/print-invocations"]}}}

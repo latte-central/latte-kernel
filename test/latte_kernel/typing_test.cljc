@@ -1,7 +1,8 @@
 
 (ns latte-kernel.typing-test
-  (:require #?(:clj [clojure.test :refer :all]
-               :cljs [cljs.test :as t :refer-macros [is deftest testing]])
+  (:require #?@(:clj [[clojure.test :refer :all]
+                      [matcher-combinators.test]]
+                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
             [latte-kernel.defenv :as defenv]
             [latte-kernel.presyntax :as parse]
             [latte-kernel.typing :refer :all]))
@@ -23,14 +24,14 @@
                 :term x,
                 :from {:msg "No such variable in type context", :term bool}}
            nil]))
-  
+
   (is (= (type-of-term defenv/empty-env '[[y x] [x bool]] 'y)
          '[:ko {:msg "Cannot calculate type of variable.",
                 :term y,
                 :from {:msg "Cannot calculate type of variable.",
                        :term x,
                        :from {:msg "No such variable in type context", :term bool}}}
-          nil]))
+           nil]))
 
   (is (= (type-of-term defenv/empty-env '[[x ✳]] 'x)
          '[:ok ✳ x]))
@@ -113,8 +114,21 @@
 (deftest test-type-of-app
   (is (= (type-of-term defenv/empty-env '[[bool ✳] [y bool]]
                        '[(λ [x bool] x) y])
-         '[:ok bool [(λ [x bool] x) y]])))
+         '[:ok bool [(λ [x bool] x) y]]))
 
+  ;; typing fails on operand
+  (is (match? '[:ko
+                {:msg "Cannot calculate operand (right-hand) type in application.",
+                 :term [(λ [x A] x) y],
+                 :from {:msg "Cannot calculate type of variable.",
+                        :term y,
+                        :from {:msg "No such variable in type context",
+                               :term bool}}}
+                nil]
+              (type-of-term defenv/empty-env
+                            '[[A ✳] [y bool]]
+                            '[(λ [x A] x) y]))))
+  ;; TODO: typing fails on operator
 
 (deftest test-type-of-refdef
   (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
@@ -124,14 +138,14 @@
                        '[[a ✳] [b ✳]]
                        '(test a b))
          '[:ok ✳ (test a b)]))
-  
-    (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
-                                              '{:params [[x ✳] [y ✳]]
-                                                :type ✳
-                                                :arity 2})})
+
+  (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
+                                             '{:params [[x ✳] [y ✳]]
+                                               :type ✳
+                                               :arity 2})})
                        '[[a ✳] [b ✳]]
                        '(test a))
-           '[:ok (Π [y ✳] ✳) (test a)]))
+         '[:ok (Π [y ✳] ✳) (test a)]))
 
   (is (= (type-of-term (defenv/mkenv {'test (defenv/map->Definition
                                               '{:params [[x ✳] [y ✳]]
@@ -159,7 +173,7 @@
                                       'equal eq-implicit})
                        '[[U ✳] [a U] [b U]]
                        '(equal a b))
-         '[:ok (Π [P (Π [⇧ U] ✳)] (Π [⇧' [P a]] [P b])) (equal% U a b)]))) 
+         '[:ok (Π [P (Π [⇧ U] ✳)] (Π [⇧' [P a]] [P b])) (equal% U a b)])))
 
 (def eq-implicit-cst (defenv/map->Implicit
                        {:implicit-fn (fn [def-env ctx n [x T] [y U]]
@@ -184,6 +198,3 @@
   (is (= (rebuild-type defenv/empty-env '[[bool ✳] [t bool] [y bool]]
                        '(Π [x bool] bool))
          '[:ok (Π [x bool] bool)])))
-
-
-
