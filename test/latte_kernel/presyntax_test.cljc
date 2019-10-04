@@ -98,8 +98,8 @@
   (is (= (parse-term defenv/empty-env '(⟶ :type :type))
          '[:ok (Π [⇧ ✳] ✳)]))
 
-  (is (= (parse-term defenv/empty-env '(⟶ sigma tau mu))
-         '[:ok (Π [⇧ sigma] (Π [⇧ tau] mu))])))
+  (is (= (parse-term defenv/empty-env '(⟶ σ τ μ))
+         '[:ok (Π [⇧ σ] (Π [⇧ τ] μ))])))
 
 (deftest test-parse-defined-term
   (is (= (parse-term (defenv/mkenv {'ex (defenv/map->Definition {:arity 2})})
