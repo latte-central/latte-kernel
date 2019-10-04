@@ -2,7 +2,7 @@
 
 The (very) small kernel of the LaTTe proof assistant in Clojure(script)
 
-[![CircleCI](https://circleci.com/gh/latte-central/latte-kernel.svg?style=svg)](https://circleci.com/gh/latte-central/latte-kernel)[![Clojars Project](https://img.shields.io/clojars/v/latte-kernel.svg)](https://clojars.org/latte-kernel)
+[![CircleCI](https://circleci.com/gh/latte-central/latte-kernel.svg?style=svg)](https://circleci.com/gh/latte-central/latte-kernel) [![Clojars Project](https://img.shields.io/clojars/v/latte-kernel.svg)](https://clojars.org/latte-kernel)
 
 ```
   _.--'"'.
@@ -47,7 +47,7 @@ The following files compose the kernel:
  - `norm.cljc[.md]`: the (beta/delta)-reduction rules, normal forms and equivalences
  - `typing.cljc[.md]`: the type inference algorithm
  - `proof.cljc[.md]`: the internal representation of declarative proofs, and the proof checker implementation
- 
+
 Some auxiliary files are also used (in non-literate forms):
  - `utils.cljc`: misc. utilities
  - `defenv.cljc`: the representation of named abstractions (mathematical definitions, theorems, etc.)
@@ -57,12 +57,17 @@ Some auxiliary files are also used (in non-literate forms):
 
 The kernel is a basis to develop proof assistants, not to be "consumed" directly. The literate files also explain how to develop such a kernel.
 
-The (several) unit tests (in `test/latte_kernel`) can be executed using the following command:
+The (several) unit tests (in `test/latte_kernel`) can be executed using the following lein command:
 
-```
+```sh
 lein test
 ```
 
+or via the clojure deps `:test` profile
+
+```sh
+clj -A:test
+```
 
 ----
 This software is Copyright (C) 2018 Frederic Peschanski, under the MIT License (cf. `LICENSE` file)
