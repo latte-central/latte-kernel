@@ -1,4 +1,3 @@
-
 (ns latte-kernel.syntax-test
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
@@ -18,41 +17,41 @@
 (deftest test-free-vars
   (is (= (free-vars 'x)
          #{'x}))
-  
+
   (is (= (free-vars '[x y])
          #{'x 'y}))
-  
+
   (is (= (free-vars '(λ [x t] [x [y z]]))
          #{'t 'y 'z}))
-  
+
   (is (= (free-vars '(Π [x t] [x [y z]]))
          #{'t 'y 'z}))
-  
+
   (is (= (free-vars '(λ [x t] (test x y z)))
          '#{t y z}))
 
   (is (= (free-vars '(:latte-kernel.syntax/ascribe x [y z]))
          '#{x y z}))
-  
+
   (is (= (free-vars '(λ [x y] (:latte-kernel.syntax/ascribe x [y z])))
          '#{y z})))
 
 (deftest test-vars- ;; nameclash
   (is (= (vars 'x)
        #{'x}))
-  
+
   (is (= (vars '[x y])
          #{'x 'y}))
-  
+
   (is (= (vars '(λ [x t] (test x [y z])))
          #{'t 'x 'y 'z}))
-  
+
   (is (= (vars '(Π [x t] (test x [y z])))
          #{'t 'x 'y 'z}))
 
   (is (= (vars '(:latte-kernel.syntax/ascribe x [y z]))
          '#{x y z}))
-  
+
   (is (= (vars '(λ [x y] (:latte-kernel.syntax/ascribe x [y z])))
          '#{x y z})))
 
@@ -71,10 +70,10 @@
 
   (is (= (bound-vars '(Π [x t] (test x [y z])))
          #{'x}))
-  
+
   (is (= (bound-vars '(:latte-kernel.syntax/ascribe x [y z]))
          '#{}))
-  
+
   (is (= (bound-vars '(λ [x y] (:latte-kernel.syntax/ascribe x [y z])))
          '#{x})))
 
@@ -108,11 +107,11 @@
          '(λ [x' ✳] (test x' y (λ [x'' ✳] (test x'' y z)) y))))
 
   (is (= (subst '(λ [x ✳] (test x y (λ [x ✳] (test x y x')) y)) {'x :replace-x
-                                                                 'x' :replace-x' })
+                                                                 'x' :replace-x'})
          '(λ [x'' ✳] (test x'' y (λ [x''' ✳] (test x''' y :replace-x')) y))))
 
   (is (= (subst '(test x y (λ [x ✳] (test x y x')) y) {'x :replace-x
-                                                       'x' :replace-x' })
+                                                       'x' :replace-x'})
          '(test :replace-x y (λ [x'' ✳] (test x'' y :replace-x')) y)))
 
   (is  ;; XXX: this comes from a very subtile bug !
@@ -131,21 +130,17 @@
          '[x (λ [_1 ✳] (test _1 y [_1 z]))])))
 
 (deftest test-alpha-eq?
-  (is (= (alpha-eq? '(λ [x ✳] x)
-                    '(λ [y ✳] y))
-         true))
+  (is (alpha-eq? '(λ [x ✳] x)
+                 '(λ [y ✳] y)))
   ;; the type part of an ascription is not
   ;; considered for alpha-equivalence
-  (is (= (alpha-eq? '(:latte-kernel.syntax/ascribe (λ [x ✳] x) (∀ [A □] A))
-                    '(λ [z ✳] z)))))
-
+  (is (alpha-eq? '(:latte-kernel.syntax/ascribe (λ [x ✳] x) (∀ [A □] A))
+                 '(λ [z ✳] z))))
 
 (deftest test-top-assumption
   (is (= (top-assumption '(Π [x T] U)) '[T U]))
-  (is (= (top-assumption '(λ [x T] U)) '[nil (λ [x T] U)]))
-  )
+  (is (= (top-assumption '(λ [x T] U)) '[nil (λ [x T] U)])))
 
 (deftest test-assumptions
   (is (= (assumptions '(Π [x T] U)) '[T]))
-  (is (= (assumptions '(Π [x T] (Π [y U] V))) '[T U]))
-  )
+  (is (= (assumptions '(Π [x T] (Π [y U] V))) '[T U])))

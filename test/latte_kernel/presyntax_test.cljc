@@ -62,8 +62,8 @@
   (is (= (parse-term defenv/empty-env '(λ [x :type] x))
          '[:ok (λ [x ✳] x)]))
 
-  (is (= (parse-term defenv/empty-env '(λ [x y :type] x)))
-      '[:ok (λ [x ✳] (λ [y ✳] x))])
+  (is (= (parse-term defenv/empty-env '(λ [x y :type] x))
+         '[:ok (λ [x ✳] (λ [y ✳] x))]))
 
   (is (= (parse-term defenv/empty-env '(λ [x x :type] x))
          '[:ko {:msg "Wrong bindings in λ form",
@@ -117,8 +117,8 @@
   (is (= (left-binarize '(a b c))
          '[[a b] c]))
 
-  (is (= (left-binarize '(a b c d e)))
-      '[[[[a b] c] d] e]))
+  (is (= (left-binarize '(a b c d e))
+         '[[[[a b] c] d] e])))
 
 (deftest test-parse-application-term
   (is (= (parse-term defenv/empty-env '(x y) '#{x y})
@@ -132,4 +132,3 @@
 
   (is (= (parse-term defenv/empty-env '(λ [x :type] x :type :kind))
          '[:ok (λ [x ✳] [[x ✳] □])])))
-
