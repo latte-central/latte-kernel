@@ -262,9 +262,11 @@ that implicits can be erased."
           [:ko {:msg "Cannot infer type of right term in pair"
                 :term '(pair a b) :from B}
                nil]
-          (let [x'' (stx/mk-fresh 'x (into #{} (map first) ctx))
-                B' (stx/subst B a x'')
-                tsigma (list 'Σ [x'' A] B')]
+          (let [x (stx/mk-fresh 'x (into #{} (map first) ctx))
+                an (norm/normalize def-env ctx a)
+                Bn (norm/normalize def-env ctx B)
+                B' (stx/subst Bn an x)
+                tsigma (list 'Σ [x A] B')]
             [:ok tsigma (list 'pair a' b')]))))))
 
 (defn type-of-projection [def-env ctx prfn t]
