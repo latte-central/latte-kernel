@@ -77,15 +77,16 @@
                        '(pr2 p))
          '[:ok B p]))
 
-  ;; TODO: add tests for real dependent pairs:
-  ;; why do these throw with No such definition '{:term (P t), :def-name P}' ?
-  #_#_
-  (is (= (type-of-term defenv/empty-env '[[T ✳] [P (==> T ✳)] [p (Σ [t T] (P t))]]
-                       '(pr2 p))
-         '[:ok (P (pr1 p)) (pr2 p)]))
-  (is (= (type-of-term defenv/empty-env '[[T ✳] [P (==> T ✳)] [x T] [y (P x)]]
-                       '(pair x y))
-         '[:ok (Σ [t T] (P t)) nil])))
+  (is (= '[:ok [P (pr1 p)] p]
+         (type-of-term defenv/empty-env
+                       '[[p (Σ [t T] [P t])] [P (Π [⇧ T] ✳)] [T ✳]]
+                       '(pr2 p))))
+
+  (is (= '[:ok (Σ [x' T] [P x']) (pair x y)]
+         (type-of-term defenv/empty-env
+                       '[[y [P x]] [x T] [P (Π [⇧ T] ✳)] [T ✳]]
+                       '(pair x y)))))
+
 
 (deftest test-type-of-abs
   (is (= (type-of-term defenv/empty-env '[[bool ✳] [t bool] [y bool]]
