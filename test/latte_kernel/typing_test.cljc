@@ -85,8 +85,12 @@
   (is (= '[:ok (Σ [x' T] [P x']) (pair x y)]
          (type-of-term defenv/empty-env
                        '[[y [P x]] [x T] [P (Π [⇧ T] ✳)] [T ✳]]
-                       '(pair x y)))))
+                       '(pair x y))))
 
+  (is (= '[:ok (Σ [x T] [P x]) (pair (pr1 p) (pr2 p))]
+         (type-of-term defenv/empty-env
+                       '[[p (Σ [t T] [P t])] [P (Π [⇧ T] ✳)] [T ✳]]
+                       '(pair (pr1 p) (pr2 p))))))
 
 (deftest test-type-of-abs
   (is (= (type-of-term defenv/empty-env '[[bool ✳] [t bool] [y bool]]
