@@ -360,9 +360,17 @@ Names generated fresh along the substitution cannot be members of `forbid`.
             [(list 'pair pr1 pr2) forbid''])
           ;; projections
           (projection? t)
-          (let [[prfn t'] t
-                [t'' forbid'] (subst- t' sub forbid rebind)]
-            [(list prfn t'') forbid'])
+          (if (contains? sub t)
+            ;; treat (prᵢ x) atomically for substitution
+            ;; solves issues for typing of a rebuilt pair: (pair (pr1 p) (f (pr1 p))
+            ;; should probably be handled by normalization inside pairs
+            ;; TODO: handle forbid and rebind
+            ;; TODO: find edge cases in which both entire term and projectand
+            ;; could conflict for substituion
+            [(get sub t) forbid]
+            (let [[prfn t'] t
+                  [t'' forbid'] (subst- t' sub forbid rebind)]
+              [(list prfn t'') forbid']))
           ;; ascriptions
           (ascription? t)
           (let [[_ e u] t
