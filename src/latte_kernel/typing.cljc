@@ -279,13 +279,13 @@ that implicits can be erased."
           (let [[_ [x T1] T2] T']
             (case prfn
               pr1
-              [:ok T1 t']
+              [:ok T1 (list 'pr1 t')]
               pr2 (let [tn (norm/normalize def-env ctx t)]
                     (if (stx/pair? tn)
                       (let [[_ t1 _] tn]
                         ;; (println "lucky! normalises to a pair: " tn "from: " t)
-                        [:ok (stx/subst T2 x t1) t'])
-                      [:ok (stx/subst T2 x (list 'pr1 t)) t']))
+                        [:ok (stx/subst T2 x t1) (list 'pr2 t')])
+                      [:ok (stx/subst T2 x (list 'pr1 t)) (list 'pr2 t')]))
               (throw (ex-info "Invalid projection call: '" t "'" {:prfn prfn})))))))))
 
 ;;{

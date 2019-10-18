@@ -71,13 +71,13 @@
 
   (is (= (type-of-term defenv/empty-env '[[A ✳] [B ✳] [p (Σ [t A] B)]]
                        '(pr1 p))
-         '[:ok A p]))
+         '[:ok A (pr1 p)]))
 
   (is (= (type-of-term defenv/empty-env '[[A ✳] [B ✳] [p (Σ [t A] B)]]
                        '(pr2 p))
-         '[:ok B p]))
+         '[:ok B (pr2 p)]))
 
-  (is (= '[:ok [P (pr1 p)] p]
+  (is (= '[:ok [P (pr1 p)] (pr2 p)]
          (type-of-term defenv/empty-env
                        '[[p (Σ [t T] [P t])] [P (Π [⇧ T] ✳)] [T ✳]]
                        '(pr2 p))))
