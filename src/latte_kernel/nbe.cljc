@@ -2,7 +2,7 @@
   (:require [latte-kernel.syntax :as stx]))
 
 (defn evaluation
-  "From LaTTe internal syntax to nbe-specific syntax, recursively.
+  "Convert from LaTTe internal syntax to nbe-specific syntax, recursively.
   All terms are just translated into pair with a special keyword,
   excepts lambdas which are turned into real Clojure functions, quoted to avoid
   calling nested function in bottom-up manner."
@@ -36,7 +36,8 @@
     (let [[_ [x tx] body] t]
       [::pi
        (with-meta (evaluation body (conj bound x))
-         {::var-name x, ::var-type (evaluation tx bound)})])
+         {::var-name (keyword "latte-kernel.nbe" (str x))
+          ::var-type (evaluation tx bound)})])
 
     ;; reference
     (stx/ref? t)
@@ -69,8 +70,11 @@
       ::lambda (let [f (second t)
                      var-type (normalisation (::var-type (meta f)))]
                  [::lambda (vary-meta f assoc ::var-type var-type)])
-      ::pi (let [var-type (::var-type (normalisation (meta (second t))))]
-             (normalisation (vary-meta t assoc ::var-type var-type)))
+      ::pi (let [body (second t)
+                 var-name (::var-name (meta body))
+                 var-type (normalisation (::var-type (meta body)))]
+             [::pi (with-meta (normalisation body)
+                     {::var-type var-type, ::var-name var-name})])
       ::app (let [[_ l r] t
                   l' (normalisation l)
                   r' (normalisation r)]
@@ -84,21 +88,21 @@
 (defn quotation
   "From nbe-specific syntax to normal LaTTe internal syntax."
   [t]
-  {:post [(stx/term? %), (nil? (meta %))]}
+  {:post [(stx/term? %)]}
   (if (or (stx/variable? t) (stx/host-constant? t))
     t
     (case (first t)
       (::sort ::var) (symbol (name (second t)))
-      ::lambda (let [[_ f] t
+      ::lambda (let [f (second t)
                      var-name (-> f meta ::var-name name symbol)
                      var-type (-> f meta ::var-type quotation)]
                  ;; f has never been called, so the body wasn't reduced.
                  ;; We call it with the associated variable to unfold everything
                  (list 'λ [var-name var-type] (quotation (normalisation ((eval f) var-name)))))
-      ::pi (let [[_ body] t
+      ::pi (let [body (second t)
                  var-name (-> body meta ::var-name name symbol)
-                 var-type (-> body meta ::var-type quotation name symbol)]
-             ['Π [var-name var-type] (quotation body)])
+                 var-type (-> body meta ::var-type quotation)]
+             (list 'Π [var-name var-type] (quotation body)))
       ::app [(quotation (second t)) (quotation (last t))]
       ::ref (vec (cons (second t) (nth t 2)))
       ::asc (list ::stx/ascribe (quotation (second t)) (quotation (last t))))))
@@ -106,4 +110,6 @@
 (defn norm
   "Compose above functions to create the 'normalisation by evaluation' process."
   [t]
+  {:pre [(stx/term? t)]
+   :post [(stx/term? %), (nil? (meta %))]}
   ((comp quotation normalisation evaluation) t))

@@ -9,8 +9,7 @@
          [::nbe/var ::nbe/a]))
 
   (is (= (evaluation '(λ [a ✳] a))
-         [::nbe/lambda
-          '(fn [a] a)]))
+         [::nbe/lambda '(fn [a] a)]))
 
   (let [[kw1 [kw2 f] v] (evaluation '[(λ [a ✳] a) b])]
     (is (= kw1 ::nbe/app))
@@ -55,7 +54,19 @@
      (is (= v4 ::nbe/y))
      (is (= ap ::nbe/app))
      (is (= l ::nbe/lambda))
-     (is (= f '(fn [x] x)))))
+     (is (= f '(fn [x] x))))
+
+  (let [[kw v] (evaluation '(Π [⇧ A] B))]
+    (is (= kw ::nbe/pi))
+    (is (= v [::nbe/var ::nbe/B]))
+    (is (= (meta v) {::nbe/var-name ::nbe/⇧, ::nbe/var-type [::nbe/var ::nbe/A]})))
+
+  (is (= (evaluation '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))
+         [:latte-kernel.nbe/pi
+          [:latte-kernel.nbe/pi
+           [:latte-kernel.nbe/pi
+            [:latte-kernel.nbe/pi
+             [:latte-kernel.nbe/pi 'B]]]]])))
 
 (deftest test-normalisation
   (is (= (evaluation 'a)
@@ -114,7 +125,13 @@
 
   (let [[_ [_ v1] [_ v2]] (normalisation (evaluation '(::stx/ascribe z [(λ [x ✳] x) y])))]
     (is (= v1 ::nbe/z))
-    (is (= v2 ::nbe/y))))
+    (is (= v2 ::nbe/y)))
+
+  (is (= (normalisation (evaluation '(Π [⇧ A] B)))
+         (evaluation '(Π [⇧ A] B))))
+
+  (is (= (normalisation (evaluation '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B)))))))
+         (evaluation '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B)))))))))
 
 (deftest test-quotation
   (is (= (quotation [::nbe/var 'y])
@@ -134,7 +151,13 @@
          '(λ [y ✳] y)))
 
   (is (= (quotation [::nbe/asc [::nbe/var ::nbe/z] [::nbe/var ::nbe/y]])
-         '(::stx/ascribe z y))))
+         '(::stx/ascribe z y)))
+
+  (is (= (quotation [::nbe/pi
+                     (with-meta [::nbe/var ::nbe/B]
+                       {::nbe/var-name ::nbe/⇧
+                        ::nbe/var-type [::nbe/var ::nbe/A]})])
+         '(Π [⇧ A] B))))
 
 (deftest test-norm
   (is (= (norm 'a)
@@ -156,7 +179,13 @@
          '[c b]))
 
   (is (= (norm '(λ [x ✳] [(λ [y ✳] (λ [z ✳] [[x y] z])) a]))
-         '(λ [x ✳] (λ [z ✳] [[x a] z])))))
+         '(λ [x ✳] (λ [z ✳] [[x a] z]))))
+
+  (is (= (norm '(Π [⇧ A] B))
+         '(Π [⇧ A] B)))
+
+  (is (= (norm '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))
+         '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))))
 
 (deftest test-equiv-beta-red
   "These tests are the same as those in norm-test"
