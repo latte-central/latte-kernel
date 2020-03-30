@@ -1,4 +1,3 @@
-
 (ns latte-kernel.presyntax-test
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
@@ -8,7 +7,6 @@
 (deftest test-reserved-symbols
   (is (= (reserved-symbol? 'a) false))
   (is (= (reserved-symbol? 'λ) true)))
-
 
 (deftest test-kind
   (is (= (kind? '□) true))

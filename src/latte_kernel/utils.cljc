@@ -1,5 +1,5 @@
 (ns latte-kernel.utils
- "A set of dummy utilities.")
+  "A set of dummy utilities.")
 
 (defn vconcat
   "Concatenates vectors `v1` and `v2`.
@@ -12,7 +12,7 @@
 
 (defn vcons
   "Conses element `e` in front of vector `v`.
-   (linear time)"
+  (linear time)"
   [e v]
   (vconcat [e] v))
 
@@ -37,13 +37,13 @@
 
 (defn nano-time []
   "Fetch the current time (with high precision).
-Returns 0 in clojurescript."
+  Returns 0 in clojurescript."
   #?(:clj (System/nanoTime)
      :cljs 0))
 
 (defn zip
   "Zip a sequence of even-numbered elements to a sequence of pairs,
-i.e. (zip '(x1 y2 x2 y2 ...)) = ([x1 y1] [x2 y2] ...)"
+  i.e. (zip '(x1 y2 x2 y2 ...)) = ([x1 y1] [x2 y2] ...)"
   [s]
   (if (seq s)
     (if (seq (rest s))
@@ -51,6 +51,7 @@ i.e. (zip '(x1 y2 x2 y2 ...)) = ([x1 y1] [x2 y2] ...)"
       (throw (ex-info "Cannot zip sequence with odd number of elements." {:seq s})))
     s))
 
-(defn vremove [pred v]
+(defn vremove
   "Remove all elements recognizing `pred` in vector `v`."
-  (into [] (remove pred v)))
+  [pred v]
+  (vec (remove pred v)))

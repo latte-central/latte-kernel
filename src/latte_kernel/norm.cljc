@@ -26,7 +26,7 @@
 ;;   1. *strong normalization*: it is not possible to rewrite a given term infinitely, which
 ;;   means that the normalization algorithm must terminate.
 ;;
-;;   2. *confluence*: different strategies can be followed for reducing a given term - 
+;;   2. *confluence*: different strategies can be followed for reducing a given term -
 ;;   the normalization process is non-deterministics - but the ultimate result must be the same (up-to alpha-equivalence)
 ;;
 ;; Strong normalization is as its name implies a very strong constraint, and in general
@@ -100,19 +100,19 @@
 ;; spending too much time looking for them, but also ensuring
 ;; that all of them are found. LaTTe focuses on the latter.
 ;;}
-  
-  
+
+
 (declare beta-step-args)
 
 (defn beta-step
   "A call to this function will reduce a (somewhat)
   arbitrary number of *redexes* in term `t`
-   using a mostly bottom-up strategy, and reducing
- all terms at the same level (e.g. definition arguments).
+  using a mostly bottom-up strategy, and reducing
+  all terms at the same level (e.g. definition arguments).
 
-The return value is a pair `[t' red?]` with `t'` the
-potentially rewritten version of `t` and `red?` is `true`
- iff at least one redex was found and reduced."
+  The return value is a pair `[t' red?]` with `t'` the
+  potentially rewritten version of `t` and `red?` is `true`
+  iff at least one redex was found and reduced."
   ([t] (beta-step t 0))
   ([t rcount]
    (cond
@@ -153,7 +153,7 @@ potentially rewritten version of `t` and `red?` is `true`
      :else [t rcount])))
 
 (defn beta-step-args
-  "Apply the reduction strategy on the terms `ts` 
+  "Apply the reduction strategy on the terms `ts`
   in *\"parallel\"*. This is one place
   where many redexes can be found at once.
   This returns a pair composed of the rewritten
@@ -201,7 +201,7 @@ potentially rewritten version of `t` and `red?` is `true`
 ;;}
 
 (defn instantiate-def
-  "Substitute in the `body` of a definition the parameters `params` 
+  "Substitute in the `body` of a definition the parameters `params`
   by the actual arguments `args`."
   [params body args]
   ;;(println "[instantiate-def] params=" params "body=" body "args=" args)
@@ -402,7 +402,7 @@ potentially rewritten version of `t` and `red?` is `true`
         [t'' beta-count] (beta-step t')]
     ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
     t''))
-    
+
 ;;{
 ;; The following is the main user-level function for normalization.
 ;;}
@@ -429,7 +429,7 @@ potentially rewritten version of `t` and `red?` is `true`
 
 (defn beta-eq?
   "Are terms `t1` and `t2` equivalent, i.e. with the
-same normal form (up-to alpha-convertion)?"
+  same normal form (up-to alpha-convertion)?"
   ([t1 t2]
    (let [t1' (normalize t1)
          t2' (normalize t2)]
@@ -442,4 +442,3 @@ same normal form (up-to alpha-convertion)?"
    (let [t1' (normalize def-env ctx t1)
          t2' (normalize def-env ctx t2)]
      (stx/alpha-eq? t1' t2'))))
-

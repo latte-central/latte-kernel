@@ -210,7 +210,7 @@ by LaTTe."
 
  There are two kinds of abstractions in LaTTe:
    - lambda abstractions, i.e. unary unanymous functions of the form `(λ [x t] u)`
-   - product abstractions, a.k.a. "Pi-types" (also) universal quantifications of the form `(Π [x t] u)` 
+   - product abstractions, a.k.a. "Pi-types" (also) universal quantifications of the form `(Π [x t] u)`
 
  A simple but useful syntactic sugar is proposed:
 
@@ -350,11 +350,11 @@ by LaTTe."
  An application is simply the application of a function to a
  sequence of arguments, i.e. something of the form `(f e1 e2 ... eN)`.
 
- Internally, this will become a set of binary applications, of the form:
+ Internally, this will become a set of unary applications, of the form:
  `[...[[f e1] e2]... eN]`
 
 ```clojure
-  
+
 (defn left-binarize
   "Binarization (sic!) of an application."
   [t]

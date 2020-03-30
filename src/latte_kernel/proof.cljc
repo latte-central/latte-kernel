@@ -55,7 +55,7 @@
 (defn elab-have [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
   (let [[status res] (elab-have-impl def-env ctx var-deps def-uses name ty term meta)]
-[status res]))
+   [status res]))
 
 (defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
@@ -83,8 +83,8 @@
                                          :meta meta}]
                                    :else
                                    ;;[:ok term-type] ;; XXX: the have-type is mode "declarative" (?)
-                                   [:ok have-type] ;; largely faster in bad cases !
-                                   )))]
+                                   [:ok have-type])))] ;; largely faster in bad cases !
+
         (if (= status :ko)
           [:ko (assoc rec-ty :meta meta)]
           (if (= name '_)
@@ -112,8 +112,8 @@
           ;;                                    (conj deps name)
           ;;                                    deps)]))
           ;; ^^^ old version ^^^
-          (recur (rest vdeps) (conj res [v (conj deps name)]))
-          )
+          (recur (rest vdeps) (conj res [v (conj deps name)])))
+
         res))))
 
 (defn ref-uses-in-term [t]
@@ -295,7 +295,7 @@
   (println "local definitions:")
   (doseq [[name ddef] (defenv/local-definitions def-env)]
     (println name (str "(" (show-deftype ddef) "):") (show-def ddef meta)))
-(println "============================"))
+ (println "============================"))
 
 ;;{
 ;; ## Proof elabortation
@@ -303,7 +303,7 @@
 ;; The proof elaborator simply iterates over the proof steps
 ;; and dispatch to the adequate elaboration function.
 ;;
-;; All the parsing issues are managed by the elaborator. 
+;; All the parsing issues are managed by the elaborator.
 ;;}
 
 (defn print-state [msg def-env ctx var-deps def-uses]
@@ -313,7 +313,7 @@
   (println "  var-deps=" var-deps)
   (println "  def-uses=" def-uses))
 
-(defn elab-proof-step [def-env ctx var-deps def-uses step args] 
+(defn elab-proof-step [def-env ctx var-deps def-uses step args]
   (case step
     :declare
     (let [[v ty-expr meta] args
@@ -454,13 +454,13 @@
                                    [:discharge x meta]) (reverse params)))
                     ;; no more assumptions after an assume
                     ()])
-                   (contains? #{:have :qed :print-term :print-type :print-def :print-defenv} (ffirst proof))
+                 (contains? #{:have :qed :print-term :print-type :print-def :print-defenv} (ffirst proof))
                    ;; XXX: cannot use goal assumptions after a non-assume step
                  [(list (first proof)) ()]
                  :else
                  (throw (ex-info "Compilation failed: unsupported proof step." {:step (first proof)})))]
-           ;; in the let        
-           (concat 
+           ;; in the let
+           (concat
             steps
             (compile-proof goal-assumptions' (rest proof)))))
      ;; the end
@@ -483,8 +483,3 @@
                   :thm-type thm-type'
                   :proof-type proof-type}]
             [:ok [proof-term proof-type]]))))))
-
-
-
-
-

@@ -5,9 +5,9 @@
             :url "http://opensource.org/licenses/MIT"}
   ;; :dependencies []
   :codox {:output-path "docs"
-          :metadata {:doc/format :markdown}
+          :metadata {:doc/format :markdown}}
           ;;:namespaces []
-          }
+
   :plugins [[lein-cljsbuild "1.1.7"]]
   :cljsbuild {
               :builds [{:source-paths ["src-cljs"]
@@ -19,7 +19,6 @@
                     [org.clojure/clojurescript "1.10.439"]
                     [cider/piggieback "0.3.10"]
                     [lambdaisland/kaocha "0.0-541"]
-                    [nubank/matcher-combinators "1.2.1"]
-                    ]}
-             :test {:dependencies [[org.clojure/clojure "1.10.1"]]}})
+                    [nubank/matcher-combinators "1.2.1"]]}
 
+             :test {:dependencies [[org.clojure/clojure "1.10.1"]]}})
