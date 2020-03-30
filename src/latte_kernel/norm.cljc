@@ -1,9 +1,8 @@
 (ns latte-kernel.norm
   "Normalization and beta-equivalence."
-  (:require [latte-kernel.utils :as utils :refer [vconcat]]
-            [latte-kernel.syntax :as stx]
-            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]))
-
+  (:require [latte-kernel.syntax :as stx]
+            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]
+            [latte-kernel.nbe :as nbe]))
 
 ;;{
 ;; # Normalization
@@ -80,17 +79,6 @@
   (and (stx/app? t)
        (stx/lambda? (first t))))
 
-
-(defn beta-reduction
-  "The basic rule of *beta-reduction* for term `t`.
-  Note that the term `t` must already be a *redex*
-  so that the rewrite can be performed."
-  [t]
-  (if (redex? t)
-    (let [[[_ [x _] body] rand] t]
-      (stx/subst body x rand))
-    (throw (ex-info "Cannot beta-reduce. Not a redex" {:term t}))))
-
 ;;{
 ;; #### The normalization strategy
 ;;
@@ -101,76 +89,10 @@
 ;; that all of them are found. LaTTe focuses on the latter.
 ;;}
 
-
-(declare beta-step-args)
-
-(defn beta-step
-  "A call to this function will reduce a (somewhat)
-  arbitrary number of *redexes* in term `t`
-  using a mostly bottom-up strategy, and reducing
-  all terms at the same level (e.g. definition arguments).
-
-  The return value is a pair `[t' red?]` with `t'` the
-  potentially rewritten version of `t` and `red?` is `true`
-  iff at least one redex was found and reduced."
-  ([t] (beta-step t 0))
-  ([t rcount]
-   (cond
-     ;; binder
-     (stx/binder? t)
-     (let [[binder [x ty] body] t
-           ;; 1) try reduction in binding type
-           [ty' rcount1] (beta-step ty rcount)
-           ;; 2) also try reduction in body
-           [body' rcount2] (beta-step body rcount1)]
-       [(list binder [x ty'] body') rcount2])
-     ;; application
-     (stx/app? t)
-     (let [[left right] t
-           ;; 1) try left reduction
-           [left' rcount1] (beta-step left rcount)
-           ;; 2) also try right reduction
-           [right' rcount2] (beta-step right rcount1)]
-       (if (stx/lambda? left')
-         ;; we have a redex
-         (recur (beta-reduction [left' right']) (inc rcount2))
-         ;; or we stay with an application
-         [[left' right'] rcount2]))
-     ;; reference
-     (stx/ref? t)
-     (let [[def-name & args] t
-           [args' rcount'] (beta-step-args args rcount)]
-       (if (not= rcount' rcount)
-         (recur (list* def-name args') rcount')
-         [t rcount]))
-     ;; ascriptions
-     (stx/ascription? t)
-     (let [[_ ty term] t
-           [ty' rcount1] (beta-step ty rcount)
-           [term' rcount2] (beta-step term rcount1)]
-       [(list :latte-kernel.syntax/ascribe ty' term') rcount2])
-     ;; other cases
-     :else [t rcount])))
-
-(defn beta-step-args
-  "Apply the reduction strategy on the terms `ts`
-  in *\"parallel\"*. This is one place
-  where many redexes can be found at once.
-  This returns a pair composed of the rewritten
-  terms and a flag telling if at least one reduction
-  took place."
-  [ts rcount]
-  (loop [ts ts, ts' [], rcount rcount]
-    (if (seq ts)
-      (let [[t' rcount'] (beta-step (first ts) rcount)]
-        (recur (rest ts) (conj ts' t') rcount'))
-      [ts' rcount])))
-
 (defn beta-red
   "Reduce term `t` according to the normalization strategy."
   [t]
-  (let [[t' _] (beta-step t)]
-    t'))
+  (nbe/norm t))
 
 
 ;;{
@@ -348,13 +270,6 @@
 ;;   - normalize using delta-reduction with the local environment only: [[delta-normalize-local]]
 ;;}
 
-(defn beta-normalize
-  "Normalize term `t` for beta-reduction."
-  [t]
-  (let [[t' rcount] (beta-step t)]
-    ;;(println "[INFO] Number of beta-reductions=" rcount)
-    t'))
-
 (defn delta-normalize
   "Normalize term `t` for delta-reduction."
   [def-env ctx t]
@@ -398,10 +313,9 @@
   The result is defined as *the normal form* of `t`."
   [def-env ctx t]
   ;;(println "[beta-delta-normalize]: t=" t)
-  (let [[t' delta-count] (delta-step def-env ctx t)
-        [t'' beta-count] (beta-step t')]
+  (let [[t' _] (delta-step def-env ctx t)]
     ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
-    t''))
+    (nbe/norm t')))
 
 ;;{
 ;; The following is the main user-level function for normalization.

@@ -4,10 +4,6 @@
             [latte-kernel.defenv :as defenv]
             [latte-kernel.norm :refer :all]))
 
-(deftest test-beta-reduction
-  (is (= (beta-reduction '[(λ [x ✳] [x x]) y])
-         '[y y])))
-
 (deftest test-beta-red
   (is (= (beta-red '[(λ [x ✳] x) y])
          'y))
