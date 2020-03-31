@@ -1,10 +1,14 @@
 ```clojure
 (ns latte-kernel.norm
   "Normalization and beta-equivalence."
-  (:require [latte-kernel.utils :as utils :refer [vconcat]]
-            [latte-kernel.syntax :as stx]
-            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]))
+  (:require [latte-kernel.syntax :as stx]
+            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]
+            [latte-kernel.nbe :as nbe]))
 
+(def norm-type
+  ;:beta-norm)
+  ;:nbe)
+  :both)
 
 ```
 
@@ -83,7 +87,6 @@
   (and (stx/app? t)
        (stx/lambda? (first t))))
 
-
 (defn beta-reduction
   "The basic rule of *beta-reduction* for term `t`.
   Note that the term `t` must already be a *redex*
@@ -103,7 +106,6 @@
  must be implemented. It is a kind of a *black art* of not
  spending too much time looking for them, but also ensuring
  that all of them are found. LaTTe focuses on the latter.
-
 
 
 ```clojure
@@ -174,9 +176,15 @@
 (defn beta-red
   "Reduce term `t` according to the normalization strategy."
   [t]
-  (let [[t' _] (beta-step t)]
-    t'))
-
+  (case norm-type
+    :beta-norm (first (beta-step t))
+    :nbe (nbe/norm t)
+    :both (let [[beta-t _] (beta-step t)
+                nbe-t (nbe/norm t)]
+            (if (stx/alpha-eq? beta-t nbe-t)
+              beta-t
+              (throw (ex-info "Terms not alpha-equivalent in nbe/beta-norm."
+                       {:beta-term beta-t, :nbe-term nbe-t}))))))
 
 ```
 
@@ -361,13 +369,6 @@
 
 
 ```clojure
-(defn beta-normalize
-  "Normalize term `t` for beta-reduction."
-  [t]
-  (let [[t' rcount] (beta-step t)]
-    ;;(println "[INFO] Number of beta-reductions=" rcount)
-    t'))
-
 (defn delta-normalize
   "Normalize term `t` for delta-reduction."
   [def-env ctx t]
@@ -413,10 +414,17 @@
   The result is defined as *the normal form* of `t`."
   [def-env ctx t]
   ;;(println "[beta-delta-normalize]: t=" t)
-  (let [[t' delta-count] (delta-step def-env ctx t)
-        [t'' beta-count] (beta-step t')]
+  (let [[t' _] (delta-step def-env ctx t)]
     ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
-    t''))
+    (case norm-type
+      :beta-norm (first (beta-step t'))
+      :nbe (nbe/norm t')
+      :both (let [[beta-t _] (beta-step t')
+                  nbe-t (nbe/norm t')]
+              (if (stx/alpha-eq? beta-t nbe-t)
+                beta-t
+                (throw (ex-info "Terms not alpha-equivalent in nbe/beta-norm."
+                         {:beta-term beta-t, :nbe-term nbe-t})))))))
 
 ```
 
