@@ -66,8 +66,8 @@
   and type context `ctx`.
   The returned value is of the form `[:ok <type> t']` if the inferred
   type is `<type>`, or `[:ko <info> nil]` in case of failure, with `<info>`
- an error map.  The term `t'` returned is the rewrite of the term so
-that implicits can be erased."
+  an error map.  The term `t'` returned is the rewrite of the term so
+  that implicits can be erased."
   [def-env ctx t]
   (let [[status ty t']
         (cond
@@ -181,8 +181,7 @@ that implicits can be erased."
 ;;}
 
 (defn type-of-prod
-  "Infer the type of a product with bound variable `x` of
-  type `A` in body `B`."
+  "Infer the type of a product with bound variable `x` of type `A` in body `B`."
   [def-env ctx x A B]
   (let [[status sort1 A'] (type-of-term def-env ctx A)]
     (if (= status :ko)
@@ -257,8 +256,7 @@ that implicits can be erased."
 ;;}
 
 (defn type-of-app
-  "Infer the type of an application with operator `rator` and
-  operand `rand`."
+  "Infer the type of an application with operator `rator` and operand `rand`."
   [def-env ctx rator rand]
   (let [[status trator rator'] (type-of-term def-env ctx rator)]
     (if (= status :ko)

@@ -1,4 +1,3 @@
-
 (ns latte-kernel.unparser-test
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
@@ -13,11 +12,3 @@
 
   (is (= (prod-impl-unparser '(Π [⇧ A] (==> B C D)))
          '[(==> A B C D) true])))
-
-
-
-
-
-
-
-

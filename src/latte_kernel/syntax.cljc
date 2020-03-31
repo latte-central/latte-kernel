@@ -1,4 +1,3 @@
-
 (ns latte-kernel.syntax
   "The internal representation of lambda-terms."
   (:require [clojure.set :as set]
@@ -108,8 +107,8 @@
 ;; result from parsing a term in the user-level syntax.
 
 ;; As a safety measure we use the word *ascription* that a user will unlikely
-;; use its own code. Moreover, the keyword is namespaces so these should
-;; be enought to emphasis the fact that ascriptions are *dangerous* and
+;; use its own code. Moreover, the keyword is namespaced so these should
+;; be enough to emphasis the fact that ascriptions are *dangerous* and
 ;; only used inside the kernel...
 ;;}
 
@@ -127,7 +126,7 @@
 ;;}
 
 (defn host-constant?
-  "Is `t` a constant provided by the host ?"
+  "Is `t` a constant provided by the host?"
   [t]
   (and (vector? t)
        (= (count t) 2)
@@ -213,8 +212,8 @@
     (app? t) (set/union (free-vars (first t))
                         (free-vars (second t)))
     (ascription? t) (let [[_ e u] t]
-                  (set/union (free-vars e)
-                             (free-vars u)))
+                     (set/union (free-vars e)
+                                (free-vars u)))
     (ref? t) (apply set/union (map free-vars (rest t)))
     :else #{}))
 
@@ -228,7 +227,7 @@
     (app? t) (set/union (vars (first t))
                         (vars (second t)))
     (ascription? t) (let [[_ e u] t]
-                  (set/union (vars e) (vars u)))
+                     (set/union (vars e) (vars u)))
     (ref? t) (apply set/union (map vars (rest t)))
     :else #{}))
 
@@ -255,7 +254,7 @@
 (defn mk-fresh
   "Generate a fresh variable name, with prepfix `base`
   and suffix chosen from ' (quote), '', ''' then -4, -5, etc.
-The `forbid` argument says what names are forbidden."
+  The `forbid` argument says what names are forbidden."
   ([base forbid] (mk-fresh base 0 forbid))
   ([base ^long level forbid]
    (let [suffix (case level
@@ -276,8 +275,8 @@ The `forbid` argument says what names are forbidden."
 (declare rebinder)
 
 (defn- subst-
-  "Applies substituion `sub` on term `t`. 
-Names generated fresh along the substitution cannot be members of `forbid`.
+  "Applies substituion `sub` on term `t`.
+  Names generated fresh along the substitution cannot be members of `forbid`.
   Bound variable may be renamed according to the `rebind` map."
   [t sub forbid rebind]
   (let [[t' forbid']
@@ -368,9 +367,8 @@ Names generated fresh along the substitution cannot be members of `forbid`.
     ;; ascription
     (ascription? t)
     (let [[_ e _] t
-          [e' level'] (alpha-norm- e sub level)
+          [e' level'] (alpha-norm- e sub level)]
           ;; the type part is removed during alpha-normalization
-          ]
       [e' level'])
     ;; references
     (ref? t) (let [[args level']
@@ -424,5 +422,3 @@ Names generated fresh along the substitution cannot be members of `forbid`.
       (if (nil? top)
         v
         (recur t' (conj v top))))))
-          
-           

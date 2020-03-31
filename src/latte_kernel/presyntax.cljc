@@ -1,7 +1,7 @@
 
 (ns latte-kernel.presyntax
   "The rich syntax of the lambda-calculus implemented
-by LaTTe."
+  by LaTTe."
   (:require [latte-kernel.defenv :as defenv]))
 
 ;;{
@@ -196,7 +196,7 @@ by LaTTe."
 ;;
 ;; There are two kinds of abstractions in LaTTe:
 ;;   - lambda abstractions, i.e. unary unanymous functions of the form `(λ [x t] u)`
-;;   - product abstractions, a.k.a. "Pi-types" (also) universal quantifications of the form `(Π [x t] u)` 
+;;   - product abstractions, a.k.a. "Pi-types" (also) universal quantifications of the form `(Π [x t] u)`
 ;;
 ;; A simple but useful syntactic sugar is proposed:
 ;;
@@ -333,7 +333,7 @@ by LaTTe."
 ;; Internally, this will become a set of binary applications, of the form:
 ;; `[...[[f e1] e2]... eN]`
 ;;}
-  
+
 (defn left-binarize
   "Binarization (sic!) of an application."
   [t]
@@ -354,6 +354,3 @@ by LaTTe."
       (if (= status :ko)
         [:ko {:msg "Parse error in operand of application" :term t :from ts}]
         [:ok (left-binarize ts)]))))
-
-
-

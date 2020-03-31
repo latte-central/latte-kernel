@@ -5,7 +5,7 @@
             [latte-kernel.norm :as norm]
             [latte-kernel.defenv :as defenv]
             [latte-kernel.presyntax :as prestx]))
-  
+
 ```
 
  # Type checking
@@ -22,7 +22,7 @@
 
  We simply use a vector for the type context, which allows to
  maintain the scoping rules at the price of some inefficiency
- (fetching is O(n)). 
+ (fetching is O(n)).
 
 
 ```clojure
@@ -69,12 +69,12 @@
 (declare unfold-implicit)
 
 (defn type-of-term
-  "Infer the type of term `t` in definitional environment `def-env` 
+  "Infer the type of term `t` in definitional environment `def-env`
   and type context `ctx`.
   The returned value is of the form `[:ok <type> t']` if the inferred
   type is `<type>`, or `[:ko <info> nil]` in case of failure, with `<info>`
- an error map.  The term `t'` returned is the rewrite of the term so
-that implicits can be erased."
+  an error map.  The term `t'` returned is the rewrite of the term so
+  that implicits can be erased."
   [def-env ctx t]
   (let [[status ty t']
         (cond
@@ -136,7 +136,7 @@ that implicits can be erased."
 
  **Remark**: LaTTe uses an *impredicative* type theory, marked by the fact that
  the kind `□` itself has no type.
-  
+
      --------------------
      E |- Type ::> Kind
 
@@ -167,7 +167,7 @@ that implicits can be erased."
   "Infer the type of variable `x` in context `ctx`."
   [def-env ctx x]
   (if-let [ty (ctx-fetch ctx x)]
-    (let [[status sort ty']                         
+    (let [[status sort ty']
           (let [ty' (norm/normalize def-env ctx ty)]
             (if (stx/kind? ty')
               [:ok ty' ty]
@@ -196,8 +196,7 @@ that implicits can be erased."
 
 ```clojure
 (defn type-of-prod
-  "Infer the type of a product with bound variable `x` of
-  type `A` in body `B`."
+  "Infer the type of a product with bound variable `x` of type `A` in body `B`."
   [def-env ctx x A B]
   (let [[status sort1 A'] (type-of-term def-env ctx A)]
     (if (= status :ko)
@@ -276,8 +275,7 @@ that implicits can be erased."
 
 ```clojure
 (defn type-of-app
-  "Infer the type of an application with operator `rator` and
-  operand `rand`."
+  "Infer the type of an application with operator `rator` and operand `rand`."
   [def-env ctx rator rand]
   (let [[status trator rator'] (type-of-term def-env ctx rator)]
     (if (= status :ko)
@@ -286,22 +284,21 @@ that implicits can be erased."
       (let [[status trand rand'] (type-of-term def-env ctx rand)]
         (if (= status :ko)
           [:ko {:msg "Cannot calculate operand (right-hand) type in application."
-                :term [rator rand] :from trand} nil])
-        (let [trator' (norm/normalize def-env ctx trator)]
-          (if (not (stx/prod? trator'))
-            [:ko {:msg "Not a product type for operator (left-hand) in application." :term [rator rand] :operator-type trator}]
-            (let [[_ [x A] B] trator']
-              ;; (println "[type-of-app] trator'=" trator')
-              (if (not (type-check? def-env ctx rand A)) ;; or rand' ? (not (type-check? def-env ctx rand' A))
-                [:ko {:msg "Cannot apply: type domain mismatch" :term [rator rand] :domain A :operand rand}]
-                (do ;;(println "[type-of-app] subst...")
-                  ;;(println "    B = " B)
-                  ;;(println "    x = " x)
-                  ;;(println "    rand = " rand)
-                  (let [res (stx/subst B x rand) ;; or rand' ? (stx/subst B x rand')
-                        ]
-                    ;;(println "   ===> " res)
-                    [:ok res [rator' rand']]))))))))))
+                :term [rator rand] :from trand} nil]
+          (let [trator' (norm/normalize def-env ctx trator)]
+            (if (not (stx/prod? trator'))
+              [:ko {:msg "Not a product type for operator (left-hand) in application." :term [rator rand] :operator-type trator}]
+              (let [[_ [x A] B] trator']
+                ;; (println "[type-of-app] trator'=" trator')
+                (if (not (type-check? def-env ctx rand A)) ;; or rand' ? (not (type-check? def-env ctx rand' A))
+                  [:ko {:msg "Cannot apply: type domain mismatch" :term [rator rand] :domain A :operand rand}]
+                  (do ;;(println "[type-of-app] subst...")
+                    ;;(println "    B = " B)
+                    ;;(println "    x = " x)
+                    ;;(println "    rand = " rand)
+                    (let [res (stx/subst B x rand)] ;; or rand' ? (stx/subst B x rand')
+                      ;;(println "   ===> " res)
+                      [:ok res [rator' rand']])))))))))))
 
 ```
 
@@ -405,8 +402,8 @@ that implicits can be erased."
             ;;     [:ko err nil]
             ;;     [:ok typ' (list* name args')]))
             ;; [:ok typ (list* name args')] ;;  no unfold (???)
-            [:ok typ (list* name args)]
-            ))))))
+            [:ok typ (list* name args)]))))))
+
 
 
 (defn type-of-args
@@ -477,7 +474,7 @@ that implicits can be erased."
 (defn unfold-implicit [def-env ctx implicit-def args]
   (let [[status, targs, args'] (type-of-implicit-args def-env ctx args)]
     (if (= status :ko)
-      [:ko targs]    
+      [:ko targs]
       (try [:ok, (apply (:implicit-fn implicit-def) def-env ctx targs), args']
            (catch Exception exc
              [:ko (merge {:implicit (:name implicit-def)
@@ -516,6 +513,4 @@ that implicits can be erased."
    (let [ty (type-of def-env ctx t)]
      (let [sort (norm/normalize def-env ctx ty)]
        (stx/sort? sort)))))
-
-
 ```

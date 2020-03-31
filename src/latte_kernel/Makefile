@@ -1,4 +1,3 @@
-
 MARKDOWNIZE_PATH = ../../../markdownize
 PYTHON = python3
 
@@ -18,6 +17,3 @@ markdownize: $(OBJS)
 clean:
 	rm -f *~
 	rm -f *.md
-
-
-
