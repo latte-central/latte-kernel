@@ -268,18 +268,6 @@
        (recur base (inc level) forbid)
        candidate))))
 
-(defn fetch-last-fresh
-  "Fetch the last fresh variable name with prefix `base`
-  that was made by the above function."
-  [base vars]
-  (let [fresh (name (mk-fresh base 0 vars))]
-    (cond
-      (= fresh (name base)) base
-      (= \' (last fresh)) (symbol (subs fresh 0 (dec (count fresh))))
-      (= fresh (str base "-4")) (symbol (str base "'''"))
-      :else (let [n (read-string (second (re-find #"-(\d+)" fresh)))]
-              (symbol (str base "-" (dec n)))))))
-
 ;;{
 ;; The following is the core of the substitution algorithm.
 ;;}

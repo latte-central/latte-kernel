@@ -275,7 +275,7 @@
 
 ```clojure
 (defn mk-fresh
-  "Generate a fresh variable name, with prepfix `base`
+  "Generate a fresh variable name, with prefix `base`
   and suffix chosen from ' (quote), '', ''' then -4, -5, etc.
   The `forbid` argument says what names are forbidden."
   ([base forbid] (mk-fresh base 0 forbid))
@@ -407,7 +407,7 @@
     :else [t level]))
 
 (defn alpha-norm
-  "Produce a canonical nameless reprensentation of the lambda-term `t`"
+  "Produce a canonical nameless representation of the lambda-term `t`"
   [t]
   (let [[t' _] (alpha-norm- t {} 1)]
     t'))
