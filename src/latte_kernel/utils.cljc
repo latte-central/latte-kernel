@@ -16,6 +16,11 @@
   [e v]
   (vconcat [e] v))
 
+(def vector*
+  "Creates a new vector containing the items prepended to the rest, the last
+  of which will be treated as a sequence."
+  (comp vec list*))
+
 (defn pair?
   "Is `v` a pair?"
   [v]
@@ -33,7 +38,7 @@
   [coll key]
   (if-let [val (get coll key)]
     val
-    (throw (ex-info "No such value is collection" {:coll coll :key key}))))
+    (throw (ex-info "No such value in collection" {:coll coll :key key}))))
 
 (defn nano-time []
   "Fetch the current time (with high precision).

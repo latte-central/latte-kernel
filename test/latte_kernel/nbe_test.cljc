@@ -2,128 +2,124 @@
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest]])
             [latte-kernel.nbe :as nbe :refer :all]
-            [latte-kernel.syntax :as stx]))
+            [latte-kernel.syntax :as stx]
+            [latte-kernel.norm :as beta-norm]))
 
 (deftest test-evaluation
   (is (= (evaluation 'a)
-         [::nbe/var ::nbe/a]))
+         ::nbe/a))
 
   (is (= (evaluation '(λ [a ✳] a))
-         [::nbe/lambda '(fn [a] a)]))
+         [::nbe/lambda ::nbe/a ::nbe/✳ `(fn [~'a] (normalisation ~'a))]))
 
-  (let [[kw1 [kw2 f] v] (evaluation '[(λ [a ✳] a) b])]
+  (let [[kw1 l v1] (evaluation '[(λ [a ✳] a) b])
+        [kw2 v2 t f] l]
     (is (= kw1 ::nbe/app))
     (is (= kw2 ::nbe/lambda))
-    (is (= (meta f)
-           {::nbe/var-name ::nbe/a
-            ::nbe/var-type [::nbe/sort ::nbe/✳]}))
-    (is (= v [::nbe/var ::nbe/b]))
+    (is (= v2 ::nbe/a))
+    (is (= t ::nbe/✳))
+    (is (= v1 ::nbe/b))
     (is (fn? (eval f)))
-    (is (= ((eval f) v) v)))
+    (is (= ((eval f) v1) v1)))
 
   (is (= (evaluation '[a b])
-         [::nbe/app
-           [::nbe/var ::nbe/a]
-           [::nbe/var ::nbe/b]]))
+         [::nbe/app ::nbe/a ::nbe/b]))
 
-  (let [[a1 [a2 [l1 f1] v1] v2] (evaluation '[[(λ [a ✳] (λ [b ✳] [a b])) c] d])
-        [f arg [l2 f2]] f1]
+  (let [[a1 [a2 l v1] v2] (evaluation '[[(λ [a ✳] (λ [b ✳] [a b])) c] d])
+        [l1 v3 t1 [f arg [n [l2 v4 t2 f2]]]] l]
     (is (= a1 a2 ::nbe/app))
     (is (= l1 ::nbe/lambda))
-    (is (= v1 [::nbe/var ::nbe/c]))
-    (is (= v2 [::nbe/var ::nbe/d]))
-    (is (= f 'fn))
+    (is (= v1 ::nbe/c))
+    (is (= v2 ::nbe/d))
+    (is (= v3 ::nbe/a))
+    (is (= v4 ::nbe/b))
+    (is (= t1 t2 ::nbe/✳))
+    (is (= f `fn))
     (is (= arg '[a]))
+    (is (= n `normalisation))
     (is (= l2 ::nbe/lambda))
-    (is (fn? (eval f1)))
-    (is (= (meta f1)
-           {::nbe/var-name ::nbe/a
-            ::nbe/var-type [::nbe/sort ::nbe/✳]}))
-    (is (= (first f2) 'fn)))
+    (is (fn? (eval (last l))))
+    (is (= (first f2) `fn)))
 
-  (let [[a1 [a2 [a3 f1]]] (evaluation '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c])
-        [l1 [_ _ [l2 [_ _ [l3 [_ _ body]]]]]] f1]
+  (let [[a1 [a2 [a3 f v1] v2] v3] (evaluation '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c])
+        [l1 arg1 _ [_ _ [n1 [l2 arg2 _ [_ _ [n2 [l3 arg3 _ [_ _ [n3 body]]]]]]]]] f]
     (is (= a1 a2 a3 ::nbe/app))
     (is (= l1 l2 l3 ::nbe/lambda))
-    (is (= body 'x)))
+    (is (= n1 n2 n3 `normalisation))
+    (is (= arg1 ::nbe/x))
+    (is (= arg2 ::nbe/x'))
+    (is (= arg3 ::nbe/x''))
+    (is (= body 'x'')))
 
-  (let [[as [v1 v2] [ap [l f] [v3 v4]]] (evaluation '(::stx/ascribe z [(λ [x ✳] x) y]))]
+  (is (= (evaluation '(λ [a ✳] [(λ [b ✳] [a b]) c]))
+         [::nbe/lambda ::nbe/a ::nbe/✳
+          `(fn [~'a]
+             (normalisation [::nbe/app
+                             [::nbe/lambda ::nbe/b ::nbe/✳
+                               (fn [~'b] (normalisation [::nbe/app ~'a ~'b]))]
+                             ::nbe/c]))]))
+
+  (let [[as v1 [ap [l v2 t1 f] v3]] (evaluation '(::stx/ascribe z [(λ [x ✳] x) y]))]
      (is (= as ::nbe/asc))
-     (is (= v1 v3 ::nbe/var))
-     (is (= v2 ::nbe/z))
-     (is (= v4 ::nbe/y))
+     (is (= v1 ::nbe/z))
+     (is (= v2 ::nbe/x))
+     (is (= v3 ::nbe/y))
      (is (= ap ::nbe/app))
      (is (= l ::nbe/lambda))
-     (is (= f '(fn [x] x))))
+     (is (= t1 ::nbe/✳))
+     (is (= f `(fn [~'x] (normalisation ~'x)))))
 
-  (let [[kw v] (evaluation '(Π [⇧ A] B))]
+  (let [[kw v t body] (evaluation '(Π [⇧ A] B))]
     (is (= kw ::nbe/pi))
-    (is (= v [::nbe/var ::nbe/B]))
-    (is (= (meta v) {::nbe/var-name ::nbe/⇧, ::nbe/var-type [::nbe/var ::nbe/A]})))
+    (is (= v ::nbe/⇧))
+    (is (= t ::nbe/A))
+    (is (= body ::nbe/B)))
 
   (is (= (evaluation '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))
-         [:latte-kernel.nbe/pi
-          [:latte-kernel.nbe/pi
-           [:latte-kernel.nbe/pi
-            [:latte-kernel.nbe/pi
-             [:latte-kernel.nbe/pi 'B]]]]])))
+         [::nbe/pi ::nbe/A ::nbe/✳
+          [::nbe/pi ::nbe/B ::nbe/✳
+           [::nbe/pi ::nbe/⇧ [::nbe/pi ::nbe/⇧ ::nbe/A ::nbe/B]
+            [::nbe/pi ::nbe/⇧' ::nbe/A
+             [::nbe/pi ::nbe/⇧'' ::nbe/A ::nbe/B]]]]])))
 
 (deftest test-normalisation
   (is (= (evaluation 'a)
          (normalisation (evaluation 'a))))
 
-  (let [[_ f1] (evaluation '(λ [y ✳] y))
-        [_ f2] (normalisation (evaluation '(λ [y ✳] y)))]
-    (is (= f1 f2))
-    (is (= (meta f1) (meta f2))))
+  (let [l1 (evaluation '(λ [y ✳] y))
+        l2 (normalisation (evaluation '(λ [y ✳] y)))]
+    (is (= (take 3 l1) (take 3 l2))))
 
-  (is (= (normalisation [::nbe/app
-                         [::nbe/lambda
-                           (with-meta '(fn [x] x)
-                             {::nbe/var-name ::nbe/x
-                              ::nbe/var-type [::nbe/sort ::nbe/✳]})]
-                         [::nbe/var 'y]])
-         [::nbe/var 'y]))
+  (is (= (normalisation (evaluation '[(λ [x ✳] x) y]))
+         ::nbe/y))
 
-  (is (= (normalisation [::nbe/app
-                         [::nbe/var 'y]
-                         [::nbe/var 'z]])
-         [::nbe/app
-           [::nbe/var 'y]
-           [::nbe/var 'z]]))
+  (is (= (normalisation [::nbe/app ::nbe/y ::nbe/z])
+         [::nbe/app ::nbe/y ::nbe/z]))
 
   (is (= (normalisation (evaluation '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c]))
          ;; We can see here how long the nbe-specific syntax can become
          (normalisation [::nbe/app
                          [::nbe/app
                           [::nbe/app
-                           [::nbe/lambda
-                            (with-meta
-                             (list 'fn ['x]
-                              [::nbe/lambda
-                               (with-meta
-                                (list 'fn ['x]
-                                  [::nbe/lambda
-                                   (with-meta '(fn [x] x)
-                                     {::nbe/var-name ::nbe/x
-                                      ::nbe/var-type [::nbe/sort ::nbe/✳]})])
-                                {::nbe/var-name ::nbe/x
-                                 ::nbe/var-type [::nbe/sort ::nbe/✳]})])
-                             {::nbe/var-name ::nbe/x
-                              ::nbe/var-type [::nbe/sort ::nbe/✳]})]
-                           [::nbe/var ::nbe/a]]
-                          [::nbe/var ::nbe/b]]
-                         [::nbe/var ::nbe/c]])
-        [::nbe/var ::nbe/c]))
+                           [::nbe/lambda ::nbe/x ::nbe/✳
+                            `(fn [~'x]
+                               (nbe/normalisation
+                                [::nbe/lambda ::nbe/x ::nbe/✳
+                                 (fn [~'x]
+                                   (nbe/normalisation
+                                    [::nbe/lambda ::nbe/x ::nbe/✳
+                                     (fn [~'x] (nbe/normalisation ~'x))]))]))]
+                           ::nbe/a]
+                          ::nbe/b]
+                         ::nbe/c])
+         ::nbe/c))
 
-  (let [[_ f] (normalisation (evaluation '[(λ [x ✳] (λ [y ✳] [x y])) a]))]
+  (let [[_ _ _ f] (normalisation (evaluation '[(λ [x ✳] (λ [y ✳] [x y])) a]))]
     (is (fn? f))
-    (is (= (f [::nbe/var ::nbe/b])
-           [::nbe/app
-            [::nbe/var ::nbe/a]
-            [::nbe/var ::nbe/b]])))
+    (is (= (f ::nbe/b)
+           [::nbe/app ::nbe/a ::nbe/b])))
 
-  (let [[_ [_ v1] [_ v2]] (normalisation (evaluation '(::stx/ascribe z [(λ [x ✳] x) y])))]
+  (let [[_ v1 v2] (normalisation (evaluation '(::stx/ascribe z [(λ [x ✳] x) y])))]
     (is (= v1 ::nbe/z))
     (is (= v2 ::nbe/y)))
 
@@ -134,58 +130,110 @@
          (evaluation '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B)))))))))
 
 (deftest test-quotation
-  (is (= (quotation [::nbe/var 'y])
+  (is (= (quotation ::nbe/y)
+         (quotation 'y)
          'y))
 
-  (is (= (quotation [::nbe/app
-                     [::nbe/var 'y]
-                     [::nbe/var 'z]])
+  (is (= (quotation [::nbe/app ::nbe/y ::nbe/z])
          '[y z]))
 
-  (is (= (quotation [::nbe/lambda
-                 ;; The symbol used for the actual function instanciation
-                 ;; doesn't matter since we use the metadatum to convert back.
-                     (with-meta '(fn [x] x)
-                       {::nbe/var-name ::nbe/y
-                        ::nbe/var-type [::nbe/sort ::nbe/✳]})])
+  (is (= (quotation [::nbe/lambda ::nbe/y ::nbe/✳
+                      (fn [x] x)])
          '(λ [y ✳] y)))
 
-  (is (= (quotation [::nbe/asc [::nbe/var ::nbe/z] [::nbe/var ::nbe/y]])
+  (is (= (quotation [::nbe/asc ::nbe/z ::nbe/y])
          '(::stx/ascribe z y)))
 
-  (is (= (quotation [::nbe/pi
-                     (with-meta [::nbe/var ::nbe/B]
-                       {::nbe/var-name ::nbe/⇧
-                        ::nbe/var-type [::nbe/var ::nbe/A]})])
+  (is (= (quotation [::nbe/pi ::nbe/⇧ ::nbe/A ::nbe/B])
          '(Π [⇧ A] B))))
 
 (deftest test-norm
-  (is (= (norm 'a)
-         'a))
+;   (is (= (norm 'a)
+;          'a))
+;
+;   (is (= (norm '(λ [x ✳] x))
+;          '(λ [x ✳] x)))
+;
+;   (is (= (norm '[[(λ [x ✳] (λ [y ✳] [x y])) z] t])
+;          '[z t]))
+;
+;   (is (= (norm '[(λ [x ✳] (λ [y ✳] [x y])) z])
+;          '(λ [y ✳] [z y])))
+;
+;   (is (= (norm '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c])
+;          'c))
+;
+;   (is (= (norm '[[[(λ [x ✳] (λ [y ✳] (λ [x ✳] [x y]))) a] b] c])
+;          '[c b]))
+;
+;   (is (= (norm '(λ [x ✳] [(λ [y ✳] (λ [z ✳] [[x y] z])) a]))
+;          '(λ [x ✳] (λ [z ✳] [[x a] z]))))
+;
+;   (is (= (norm '[(λ [a ✳] [a b]) c]))
+;       '[c b])
+;
+;   (is (= (norm '(Π [⇧ A] B))
+;          '(Π [⇧ A] B)))
+;
+;   (is (= (norm '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))
+;          '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧' A] (Π [⇧'' A] B)))))))
+;
+;   (let [term '[(λ [y T]
+;                 (Π [α ✳]
+;                  (Π [⇧ (Π [x' (Π [⇧ T] ✳)]
+;                         (Π [⇧' [(λ [x (Π [⇧ T] ✳)]
+;                                  ("prop/and" [X x] [x y]))
+;                                 x']]
+;                          α))]
+;                   α)))
+;                x']]
+;     (is (stx/alpha-eq? (norm term)
+;           (first (beta-norm/beta-step term)))))
+;
+;   (let [term '[(λ [a T] (Π [b T] [b a])) b]]
+;     (is (stx/alpha-eq? (norm term)
+;           (first (beta-norm/beta-step term)))))
+;
+;   (let [term '(Π [a T] (Π [a T] (Π [a T] [a a])))
+;         res1 (stx/alpha-norm (norm term))
+;         res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
+;     (is (= res1 res2)))
+;
+;   (let [term '(Π [x' T]
+;                 [(λ [y T]
+;                   (Π [⇧ (Π [x' ✳] ;3
+;                           (Π [⇧' [(λ [x ✳]
+;                                     ("prop/and" [X x] [x y]))
+;                                   x']]
+;                            y))]
+;                      y))
+;                  x'])
+;         res1 (stx/alpha-norm (norm term))
+;         res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
+;     (is (= res1 res2)))
 
-  (is (= (norm '(λ [x ✳] x))
-         '(λ [x ✳] x)))
+  (let [term '(Π [C' ✳]
+               (Π [⇧ (Π [⇧' (Π [C ✳] (Π [⇧ (Π [⇧' A]
+                                            (Π [⇧'' B]
+                                             C))]
+                                      C))]
+                      (Π [⇧'' C] C'))]
+                C'))
+        res1 (stx/alpha-norm (norm term))
+        res2 (stx/alpha-norm (first (beta-norm/beta-step term)))
+        _ (println "Expected:" res2)
+        _ (println "Actual:  " res1)]
+    (is (= res1 res2))))
 
-  (is (= (norm '[[(λ [x ✳] (λ [y ✳] [x y])) z] t])
-         '[z t]))
+;; smallest bugging form
+; (Π [C' ✳]
+;  (Π [⇧ (Π [⇧' (Π [C ✳] (Π [⇧ (Π [⇧' A]
+;                               (Π [⇧'' B]
+;                                C))]
+;                         C))]
+;         (Π [⇧'' C] C'))]
+;   C'))
 
-  (is (= (norm '[(λ [x ✳] (λ [y ✳] [x y])) z])
-         '(λ [y ✳] [z y])))
-
-  (is (= (norm '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c])
-         'c))
-
-  (is (= (norm '[[[(λ [x ✳] (λ [y ✳] (λ [x ✳] [x y]))) a] b] c])
-         '[c b]))
-
-  (is (= (norm '(λ [x ✳] [(λ [y ✳] (λ [z ✳] [[x y] z])) a]))
-         '(λ [x ✳] (λ [z ✳] [[x a] z]))))
-
-  (is (= (norm '(Π [⇧ A] B))
-         '(Π [⇧ A] B)))
-
-  (is (= (norm '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))
-         '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))))
 
 (deftest test-equiv-beta-red
   "These tests are the same as those in norm-test"

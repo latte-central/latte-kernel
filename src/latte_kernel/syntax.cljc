@@ -252,7 +252,7 @@
 ;;}
 
 (defn mk-fresh
-  "Generate a fresh variable name, with prepfix `base`
+  "Generate a fresh variable name, with prefix `base`
   and suffix chosen from ' (quote), '', ''' then -4, -5, etc.
   The `forbid` argument says what names are forbidden."
   ([base forbid] (mk-fresh base 0 forbid))
@@ -267,6 +267,18 @@
      (if (contains? forbid candidate)
        (recur base (inc level) forbid)
        candidate))))
+
+(defn fetch-last-fresh
+  "Fetch the last fresh variable name with prefix `base`
+  that was made by the above function."
+  [base vars]
+  (let [fresh (name (mk-fresh base 0 vars))]
+    (cond
+      (= fresh (name base)) base
+      (= \' (last fresh)) (symbol (subs fresh 0 (dec (count fresh))))
+      (= fresh (str base "-4")) (symbol (str base "'''"))
+      :else (let [n (read-string (second (re-find #"-(\d+)" fresh)))]
+              (symbol (str base "-" (dec n)))))))
 
 ;;{
 ;; The following is the core of the substitution algorithm.
@@ -380,7 +392,7 @@
     :else [t level]))
 
 (defn alpha-norm
-  "Produce a canonical nameless reprensentation of the lambda-term `t`"
+  "Produce a canonical nameless representation of the lambda-term `t`"
   [t]
   (let [[t' _] (alpha-norm- t {} 1)]
     t'))

@@ -178,8 +178,8 @@
                 nbe-t (nbe/norm t)]
             (if (stx/alpha-eq? beta-t nbe-t)
               beta-t
-              (throw (ex-info "Terms not alpha-equivalent in nbe/beta-norm."
-                       {:beta-term beta-t, :nbe-term nbe-t}))))))
+              (throw (ex-info "Terms not alpha-equivalent in beta-norm."
+                       {:original t :beta-term beta-t, :nbe-term nbe-t}))))))
 
 ;;{
 ;; ## Delta-reduction (unfolding of definitions)
@@ -408,8 +408,8 @@
                   nbe-t (nbe/norm t')]
               (if (stx/alpha-eq? beta-t nbe-t)
                 beta-t
-                (throw (ex-info "Terms not alpha-equivalent in nbe/beta-norm."
-                         {:beta-term beta-t, :nbe-term nbe-t})))))))
+                (throw (ex-info "Terms not alpha-equivalent in beta-delta-norm."
+                         {:original t' :beta-term beta-t, :nbe-term nbe-t})))))))
 
 ;;{
 ;; The following is the main user-level function for normalization.
