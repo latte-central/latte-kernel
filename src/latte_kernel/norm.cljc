@@ -1,9 +1,13 @@
 (ns latte-kernel.norm
   "Normalization and beta-equivalence."
-  (:require [latte-kernel.utils :as utils :refer [vconcat]]
-            [latte-kernel.syntax :as stx]
-            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]))
+  (:require [latte-kernel.syntax :as stx]
+            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]
+            [latte-kernel.nbe :as nbe]))
 
+(def norm-type
+  ;:beta-norm)
+  ;:nbe)
+  :both)
 
 ;;{
 ;; # Normalization
@@ -26,7 +30,7 @@
 ;;   1. *strong normalization*: it is not possible to rewrite a given term infinitely, which
 ;;   means that the normalization algorithm must terminate.
 ;;
-;;   2. *confluence*: different strategies can be followed for reducing a given term - 
+;;   2. *confluence*: different strategies can be followed for reducing a given term -
 ;;   the normalization process is non-deterministics - but the ultimate result must be the same (up-to alpha-equivalence)
 ;;
 ;; Strong normalization is as its name implies a very strong constraint, and in general
@@ -80,7 +84,6 @@
   (and (stx/app? t)
        (stx/lambda? (first t))))
 
-
 (defn beta-reduction
   "The basic rule of *beta-reduction* for term `t`.
   Note that the term `t` must already be a *redex*
@@ -100,19 +103,18 @@
 ;; spending too much time looking for them, but also ensuring
 ;; that all of them are found. LaTTe focuses on the latter.
 ;;}
-  
-  
+
 (declare beta-step-args)
 
 (defn beta-step
   "A call to this function will reduce a (somewhat)
   arbitrary number of *redexes* in term `t`
-   using a mostly bottom-up strategy, and reducing
- all terms at the same level (e.g. definition arguments).
+  using a mostly bottom-up strategy, and reducing
+  all terms at the same level (e.g. definition arguments).
 
-The return value is a pair `[t' red?]` with `t'` the
-potentially rewritten version of `t` and `red?` is `true`
- iff at least one redex was found and reduced."
+  The return value is a pair `[t' red?]` with `t'` the
+  potentially rewritten version of `t` and `red?` is `true`
+  iff at least one redex was found and reduced."
   ([t] (beta-step t 0))
   ([t rcount]
    (cond
@@ -153,7 +155,7 @@ potentially rewritten version of `t` and `red?` is `true`
      :else [t rcount])))
 
 (defn beta-step-args
-  "Apply the reduction strategy on the terms `ts` 
+  "Apply the reduction strategy on the terms `ts`
   in *\"parallel\"*. This is one place
   where many redexes can be found at once.
   This returns a pair composed of the rewritten
@@ -169,9 +171,15 @@ potentially rewritten version of `t` and `red?` is `true`
 (defn beta-red
   "Reduce term `t` according to the normalization strategy."
   [t]
-  (let [[t' _] (beta-step t)]
-    t'))
-
+  (case norm-type
+    :beta-norm (first (beta-step t))
+    :nbe (nbe/norm t)
+    :both (let [[beta-t _] (beta-step t)
+                nbe-t (nbe/norm t)]
+            (if (stx/alpha-eq? beta-t nbe-t)
+              beta-t
+              (throw (ex-info "Terms not alpha-equivalent in beta-norm."
+                       {:original t :beta-term beta-t, :nbe-term nbe-t}))))))
 
 ;;{
 ;; ## Delta-reduction (unfolding of definitions)
@@ -201,7 +209,7 @@ potentially rewritten version of `t` and `red?` is `true`
 ;;}
 
 (defn instantiate-def
-  "Substitute in the `body` of a definition the parameters `params` 
+  "Substitute in the `body` of a definition the parameters `params`
   by the actual arguments `args`."
   [params body args]
   ;;(println "[instantiate-def] params=" params "body=" body "args=" args)
@@ -289,7 +297,7 @@ potentially rewritten version of `t` and `red?` is `true`
 
 (defn delta-step
   "Applies the strategy of *delta-reduction* on term `t` with definitional
- environment `def-env`. If the optional flag `local?` is `true` only the
+  environment `def-env`. If the optional flag `local?` is `true` only the
   local environment is used, otherwise (the default case) the definitions
   are also searched in the current namespace (in Clojure only)."
   ([def-env ctx t] (delta-step def-env ctx t false 0))
@@ -348,13 +356,6 @@ potentially rewritten version of `t` and `red?` is `true`
 ;;   - normalize using delta-reduction with the local environment only: [[delta-normalize-local]]
 ;;}
 
-(defn beta-normalize
-  "Normalize term `t` for beta-reduction."
-  [t]
-  (let [[t' rcount] (beta-step t)]
-    ;;(println "[INFO] Number of beta-reductions=" rcount)
-    t'))
-
 (defn delta-normalize
   "Normalize term `t` for delta-reduction."
   [def-env ctx t]
@@ -398,11 +399,18 @@ potentially rewritten version of `t` and `red?` is `true`
   The result is defined as *the normal form* of `t`."
   [def-env ctx t]
   ;;(println "[beta-delta-normalize]: t=" t)
-  (let [[t' delta-count] (delta-step def-env ctx t)
-        [t'' beta-count] (beta-step t')]
+  (let [[t' _] (delta-step def-env ctx t)]
     ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
-    t''))
-    
+    (case norm-type
+      :beta-norm (first (beta-step t'))
+      :nbe (nbe/norm t')
+      :both (let [[beta-t _] (beta-step t')
+                  nbe-t (nbe/norm t')]
+              (if (stx/alpha-eq? beta-t nbe-t)
+                beta-t
+                (throw (ex-info "Terms not alpha-equivalent in beta-delta-norm."
+                         {:original t' :beta-term beta-t, :nbe-term nbe-t})))))))
+
 ;;{
 ;; The following is the main user-level function for normalization.
 ;;}
@@ -429,7 +437,7 @@ potentially rewritten version of `t` and `red?` is `true`
 
 (defn beta-eq?
   "Are terms `t1` and `t2` equivalent, i.e. with the
-same normal form (up-to alpha-convertion)?"
+  same normal form (up-to alpha-convertion)?"
   ([t1 t2]
    (let [t1' (normalize t1)
          t2' (normalize t2)]
@@ -442,4 +450,3 @@ same normal form (up-to alpha-convertion)?"
    (let [t1' (normalize def-env ctx t1)
          t2' (normalize def-env ctx t2)]
      (stx/alpha-eq? t1' t2'))))
-

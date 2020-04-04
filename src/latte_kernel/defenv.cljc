@@ -41,7 +41,7 @@
 (defn mkenv [env] [env {}])
 
 (defn local-definitions [env]
-(second env))
+  (second env))
 
 (defn register-definition
   ([def-env rdef] (register-definition def-env rdef false))
@@ -70,7 +70,7 @@
   In the Clojure (not Clojurescript) version the definition is also sought in the current namespace.
 
   If the optional argument `local-only?` is set to `true` then the definition is
- looked for in `def-env` and only for definition tagged \"local\". In any case the current namespace
+  looked for in `def-env` and only for definition tagged \"local\". In any case the current namespace
   is not considered. In Clojurescript the namespace is not considered anyways. The flag is `false` by default."
   ([def-env dname] (fetch-definition def-env dname false))
   ([def-env dname local-only?]
