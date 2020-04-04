@@ -1,4 +1,3 @@
-
 (ns latte-kernel.proof-test
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
@@ -24,7 +23,7 @@
 
 (def vdeps3 (let [[_ [_ _ vdeps3]] (elab-declare defenv/empty-env ctx2 vdeps2 {}
                                            'f (second (parse/parse-term defenv/empty-env '(==> A B))) {})]
-            vdeps3))
+             vdeps3))
 
 (def ctx4 (let [[_ [_ ctx4]] (elab-declare defenv/empty-env ctx3 vdeps3 {} 'x 'A {})]
             ctx4))
@@ -34,25 +33,25 @@
 
 (deftest test-elab-declare
   ;; Step 0:
-  ;; local-defs={}   ctx=[]    var-deps=[]    def-uses={} 
-  
+  ;; local-defs={}   ctx=[]    var-deps=[]    def-uses={}
+
   (is (= (elab-declare defenv/empty-env [] [] {} 'A '✳ {})
          '[:ok [[{} {}] ([A ✳]) ([A #{}]) {}]]))
 
   ;; Step 1: [:declare A *]
   ;; local-defs={}   ctx=[[A *]]   var-deps=[[A #{}]]    def-uses={}
-  
+
   (is (= ctx1 '([A ✳])))
 
   (is (= vdeps1 '([A #{}])))
-  
+
   ;; Step 2: [:declare B *]
-  ;; local-defs={}   ctx=[[B *] [A *]]   var-deps=[[B #{}] [A #{}]]    def-uses={} 
+  ;; local-defs={}   ctx=[[B *] [A *]]   var-deps=[[B #{}] [A #{}]]    def-uses={}
   (is (= ctx2 '([B ✳] [A ✳])))
   (is (= vdeps2 '([B #{}] [A #{}])))
-  
+
   ;; Step 3: [:declare f (==> A B)]
-  ;; local-defs={}   ctx=[[f (==> A B)] [B *] [A *]]   var-deps=[[f #{}][B #{}] [A #{}]]  def-uses={} 
+  ;; local-defs={}   ctx=[[f (==> A B)] [B *] [A *]]   var-deps=[[f #{}][B #{}] [A #{}]]  def-uses={}
   (is (= ctx3 '([f (Π [⇧ A] B)] [B ✳] [A ✳])))
   (is (= vdeps3 '([f #{}] [B #{}] [A #{}])))
 
@@ -69,9 +68,8 @@
   (is (= (-> vdeps4
              (update-var-deps '<a> 'f)
              (update-var-deps '<a> (second (parse/parse-term defenv/empty-env '(==> A B)))))
-         '[[x #{<a>}] [f #{<a>}] [B #{<a>}] [A #{<a>}]]))
+         '[[x #{<a>}] [f #{<a>}] [B #{<a>}] [A #{<a>}]])))
 
-  )
 
 (let [state5 (second (elab-have defenv/empty-env ctx4 vdeps4 {} '<a> (second (parse/parse-term defenv/empty-env '(==> A B))) 'f {}))
       [def-env5 ctx5 vdeps5 dfuses5] state5]
@@ -90,7 +88,7 @@
 (deftest test-ref-uses-in-term
   (is (= (ref-uses-in-term (:parsed-term (second (defenv/fetch-definition def-env6 '<a>))))
          #{}))
-  
+
   (is (= (ref-uses-in-term (:parsed-term (second (defenv/fetch-definition def-env6 '<b>))))
          '#{<a>})))
 
@@ -103,20 +101,20 @@
   ;; local-defs={<a>:=f::(==> A B)}
   ;; ctx=[[x A] [f (==> A B)] [B *] [A *]]
   ;; var-deps=[[x #{}][f #{<a>}][B #{<a>}] [A #{<a>}]]  def-uses={<a> #{}}
-  
+
   (is (= ctx5 ctx4))
 
   (is (defenv/registered-definition? def-env5 '<a>))
 
   (is (= (second(defenv/fetch-definition def-env5 '<a> true))
          '#latte_kernel.defenv.Definition{:name <a>, :params [], :arity 0, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
-  
+
   (is (= vdeps5
          '[[x #{<a>}] [f #{<a>}] [B #{<a>}] [A #{<a>}]]))
 
   (is (= dfuses5
          '{<a> #{}}))
-  
+
   ;; Step 6 : [:have <b> B (<a> x)]
   ;; local-defs={<a>:=f::(==> A B)
   ;;             <b>:=(<a> x)::B}
@@ -134,9 +132,8 @@
          '[[x #{<a> <b>}] [f #{<a> <b>}] [B #{<a> <b>}] [A #{<a> <b>}]]))
 
   (is (= dfuses6
-         '{<a> #{<b>}, <b> #{}}))
+         '{<a> #{<b>}, <b> #{}})))
 
-  )
 
 
 (deftest test-abstract-local-defs
@@ -184,10 +181,10 @@
   ;; var-deps=[[f #{<a>}][B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
   (is (= ctx7
          '([f (Π [⇧ A] B)] [B ✳] [A ✳])))
-  
+
   (is (= (second (defenv/fetch-definition def-env7 '<a> true))
          '#latte_kernel.defenv.Definition{:name <a>, :params [[x A]], :arity 1, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
- 
+
   (is (= (second (defenv/fetch-definition def-env7 '<b> true))
          '#latte_kernel.defenv.Definition{:name <b>, :params [[x A]], :arity 1, :parsed-term [(<a> x) x], :type B, :opts {}}))
 
@@ -205,10 +202,10 @@
   ;; var-deps=[[B #{<a>,<b>}] [A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
   (is (= ctx8
          '([B ✳] [A ✳])))
-  
+
   (is (= (second (defenv/fetch-definition def-env8 '<a> true))
          '#latte_kernel.defenv.Definition{:name <a>, :params [[f (Π [⇧ A] B)] [x A]], :arity 2, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
- 
+
   (is (= (second (defenv/fetch-definition def-env8 '<b> true))
          '#latte_kernel.defenv.Definition{:name <b>, :params [[f (Π [⇧ A] B)] [x A]], :arity 2, :parsed-term [(<a> f x) x], :type B, :opts {}}))
 
@@ -226,10 +223,10 @@
   ;; var-deps=[[A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
   (is (= ctx9
          '([A ✳])))
-  
+
   (is (= (second (defenv/fetch-definition def-env9 '<a> true))
          '#latte_kernel.defenv.Definition{:name <a>, :params [[B ✳] [f (Π [⇧ A] B)] [x A]], :arity 3, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
- 
+
   (is (= (second (defenv/fetch-definition def-env9 '<b> true))
          '#latte_kernel.defenv.Definition{:name <b>, :params [[B ✳] [f (Π [⇧ A] B)] [x A]], :arity 3, :parsed-term [(<a> B f x) x], :type B, :opts {}}))
 
@@ -246,10 +243,10 @@
   ;; var-deps=[[A #{<a>}]]  def-uses={<a> #{<b>}, <b> #{}}
   (is (= ctx10
          '()))
-  
+
   (is (= (second (defenv/fetch-definition def-env10 '<a> true))
          '#latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 4, :parsed-term f, :type (Π [⇧ A] B), :opts {}}))
- 
+
   (is (= (second (defenv/fetch-definition def-env10 '<b> true))
          '#latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 4, :parsed-term [(<a> A B f x) x], :type B, :opts {}}))
 
@@ -257,16 +254,15 @@
          '()))
 
   (is (= dfuses10
-         '{<a> #{<b>}, <b> #{}}))
-  
-  )
+         '{<a> #{<b>}, <b> #{}})))
+
 
 
 (deftest test-elab-qed
 
   ;; Step 11 :
   ;; [:qed <a> (forall [A B *] (==> (==> A B) (==> A B)))]
-  
+
   (is (= (elab-qed def-env10 ctx10 '(<a>) {})
          '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 4, :parsed-term f, :type (Π [⇧ A] B), :opts {}}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 4, :parsed-term [(<a> A B f x) x], :type B, :opts {}}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
 
@@ -295,7 +291,7 @@
                            [:have <a> (==> A B) f {:line 2}]
                            [:have <b> B (<a> x) {:line 3}]]
                           [:qed <a> {:line 4}]])
-         
+
          '([:declare A :type {:line 1}]
            [:declare B :type {:line 1}]
            [:declare f (==> A B) {:line 1}]
@@ -317,7 +313,7 @@
                            [:have <a> (==> A B) f {:line 2}]
                            [:have <b> B (<a> x) {:line 3}]]
                           [:qed <a> {:line 4}]])
-         
+
          '([:declare A :type {:line 1}]
            [:declare B :type {:line 1}]
            [:declare f (==> A B) {:line 1}]
@@ -328,9 +324,8 @@
            [:discharge f {:line 1}]
            [:discharge B {:line 1}]
            [:discharge A {:line 1}]
-           [:qed <a> {:line 4}])))
+           [:qed <a> {:line 4}]))))
 
-  )
 
 (deftest test-proof
   (is (= (elab-proof defenv/empty-env []
@@ -343,7 +338,7 @@
                                       [:have <b> B (<a> x) {:line 3}]]
                                      [:qed <a> {:line 4}]]))
          '[:ok [[{} {<a> #latte_kernel.defenv.Definition{:name <a>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 4, :parsed-term f, :type (Π [⇧ A] B), :opts {}}, <b> #latte_kernel.defenv.Definition{:name <b>, :params [[A ✳] [B ✳] [f (Π [⇧ A] B)] [x A]], :arity 4, :parsed-term [(<a> A B f x) x], :type B, :opts {}}}] (<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]]))
-  
+
   (is (= (check-proof defenv/empty-env [] 'my-thm
                       (second (parse/parse-term defenv/empty-env '(forall [A B :type] (==> (==> A B) (==> A A B)))))
                       '[[:assume {:line 1}
@@ -355,8 +350,3 @@
                          [:have <b> B (<a> x) {:line 3}]]
                         [:qed <a> {:line 4}]])
          '[:ok [(<a>) (Π [A ✳] (Π [B ✳] (Π [f (Π [⇧ A] B)] (Π [x A] (Π [⇧ A] B)))))]])))
-
-
-
-
-

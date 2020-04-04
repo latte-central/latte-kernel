@@ -1,4 +1,3 @@
-
 (ns latte-kernel.typing-test
   (:require #?@(:clj [[clojure.test :refer :all]
                       [matcher-combinators.test]]
