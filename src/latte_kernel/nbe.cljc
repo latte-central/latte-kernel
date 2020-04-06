@@ -41,7 +41,9 @@
         [::binder binder x (eva tx) (fn [y] (evaluation (assoc subst x y) body))])
 
       (stx/ref? t)
-      (vector* ::ref (first t) (map eva (rest t)))
+      ;; padding in case the ref has no args, so that [::ref "..."] isn't
+      ;; understood as an application
+      (vector* ::ref ::pad-ref (first t) (map eva (rest t)))
 
       (stx/app? t)
       (vector* ::app (map eva t))
@@ -65,9 +67,9 @@
                   r' (normalisation r)]
               (if (and (vector? l') (= ::binder (first l')))
                 ;; We can apply the function contained in l'
-                (recur ((last l') r'))
+                (recur ((peek l') r'))
                 [::app l' r']))
-      ::ref (vector* ::ref (second t) (map normalisation (drop 2 t)))
+      ::ref (vector* ::ref ::pad-ref (nth t 2) (map normalisation (drop 3 t)))
       ::asc (vector* ::asc (map normalisation (rest t))))))
 
 (defn quotation
@@ -87,7 +89,7 @@
                    (list binder [x' (quot type-x)]
                      (quotation (conj taken x') (normalisation (f x')))))
         ::app (vec (map quot (rest t)))
-        ::ref (cons (second t) (map quot (rest (rest t))))
+        ::ref (cons (nth t 2) (map quot (drop 3 t)))
         ::asc (cons ::stx/ascribe (map quot (rest t)))))))
 
 (defn norm

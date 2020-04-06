@@ -1,5 +1,5 @@
 (ns latte-kernel.nbe-test
-  (:require #?(:clj [clojure.test :refer :all]
+  (:require #?(:clj [clojure.test :refer [is deftest]]
                :cljs [cljs.test :as t :refer-macros [is deftest]])
             [latte-kernel.nbe :as nbe :refer :all]
             [latte-kernel.syntax :as stx]
@@ -173,6 +173,11 @@
                                       C))]
                       (Π [⇧'' C] C'))]
                 C'))
+        res1 (stx/alpha-norm (norm term))
+        res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
+    (is (= res1 res2)))
+
+  (let [term '("core/int")
         res1 (stx/alpha-norm (norm term))
         res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
     (is (= res1 res2))))
