@@ -34,14 +34,16 @@
     (is (= t '✳))
     (is (fn? f)))
 
-  (let [[a1 [a2 [a3 [b1 b2 arg t _] v1] v2] v3] (evaluation '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c])]
+  (let [term '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c]
+        [a1 [a2 [a3 [b1 b2 arg t _] v1] v2] v3] (evaluation term)]
     (is (= a1 a2 a3 ::nbe/app))
     (is (= b1 ::nbe/binder))
     (is (= b2 'λ))
     (is (= arg 'x))
     (is (= t '✳)))
 
-  (let [[as v1 [ap [b1 b2 v2 t1 _] v3]] (evaluation '(::stx/ascribe z [(λ [x ✳] x) y]))]
+  (let [term '(::stx/ascribe z [(λ [x ✳] x) y])
+        [as v1 [ap [b1 b2 v2 t1 _] v3]] (evaluation term)]
      (is (= as ::nbe/asc))
      (is (= v1 'z))
      (is (= v2 'x))
@@ -51,8 +53,10 @@
      (is (= b2 'λ))
      (is (= t1 '✳)))
 
-  (let [[kw1 b1 v1 t1 _] (evaluation '(Π [⇧ A] B))
-        [kw2 b2 v2 t2 _] (evaluation '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))]
+  (let [term1 '(Π [⇧ A] B)
+        term2 '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B)))))
+        [kw1 b1 v1 t1 _] (evaluation term1)
+        [kw2 b2 v2 t2 _] (evaluation term2)]
     (is (= kw1 kw2 ::nbe/binder))
     (is (= b1 b2 'Π))
     (is (= t1 v2 'A))
@@ -73,7 +77,8 @@
   (is (= (normalisation [::nbe/app 'y 'z])
          [::nbe/app 'y 'z]))
 
-  (is (= (normalisation (evaluation '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c]))
+  (is (= (normalisation (evaluation
+                         '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c]))
          'c))
 
   (let [[_ _ _ _ f] (normalisation (evaluation '[(λ [x ✳] (λ [y ✳] [x y])) a]))]
@@ -81,7 +86,8 @@
     (is (= (f 'b)
            [::nbe/app 'a 'b])))
 
-  (let [[_ v1 v2] (normalisation (evaluation '(::stx/ascribe z [(λ [x ✳] x) y])))]
+  (let [[_ v1 v2] (normalisation (evaluation
+                                  '(::stx/ascribe z [(λ [x ✳] x) y])))]
     (is (= v1 'z))
     (is (= v2 'y))))
 

@@ -38,7 +38,8 @@
 
       (stx/binder? t)
       (let [[binder [x tx] body] t]
-        [::binder binder x (eva tx) (fn [y] (evaluation (assoc subst x y) body))])
+        [::binder binder x (eva tx)
+         (fn [y] (evaluation (assoc subst x y) body))])
 
       (stx/ref? t)
       ;; padding in case the ref has no args, so that [::ref "..."] isn't
@@ -60,21 +61,28 @@
   (if (stx/term? t) ;; other cases above
     t
     (case (first t)
-      ::binder (let [[_ binder x type-x f] t]
-                 [::binder binder x (normalisation type-x) f])
-      ::app (let [[_ l r] t
-                  l' (normalisation l)
-                  r' (normalisation r)]
-              (if (and (vector? l') (= ::binder (first l')))
-                ;; We can apply the function contained in l'
-                (recur ((peek l') r'))
-                [::app l' r']))
-      ::ref (vector* ::ref ::pad-ref (nth t 2) (map normalisation (drop 3 t)))
-      ::asc (vector* ::asc (map normalisation (rest t))))))
+      ::binder
+      (let [[_ binder x type-x f] t]
+        [::binder binder x (normalisation type-x) f])
+
+      ::app
+      (let [[_ l r] t
+            l' (normalisation l)
+            r' (normalisation r)]
+        (if (and (vector? l') (= ::binder (first l')))
+          ;; We can apply the function contained in l'
+          (recur ((peek l') r'))
+          [::app l' r']))
+
+      ::ref
+      (vector* ::ref ::pad-ref (nth t 2) (map normalisation (drop 3 t)))
+
+      ::asc
+      (vector* ::asc (map normalisation (rest t))))))
 
 (defn quotation
   "From nbe-specific syntax to normal LaTTe internal syntax.
-  'taken' means free *and* bound variables, and is used to prevent name clashes."
+  'taken' means free *and* bound variables and is used to prevent name clashes."
   [taken t]
   {:post [(stx/term? %)]}
   (if (stx/term? t)
