@@ -28,35 +28,28 @@
   Clojure functions.
   Variables within functions are marked as 'bound' and are translated
   into the name of the function argument, at call time."
- ([t] (evaluation [() #{}] t))
- ([[env bound] t]
+ ([t] (evaluation {} t))
+ ([subst t]
   {:pre [(stx/term? t)]}
-  (letfn [(eva [te] (evaluation [env bound] te))
-          (env-push [x y] [(cons [x y] env) (conj bound x)])
-          (env-fetch [x] (some #(when (= x (first %)) (second %)) env))]
+  (let [eva (partial evaluation subst)]
     (cond
-      ;; bound variable
-      (and (stx/variable? t) (contains? bound t))
-      (env-fetch t)
+      (stx/variable? t)
+      (get subst t t)
 
-      ;; binder
       (stx/binder? t)
       (let [[binder [x tx] body] t]
-        [::binder binder x (eva tx) (fn [y] (evaluation (env-push x y) body))])
+        [::binder binder x (eva tx) (fn [y] (evaluation (assoc subst x y) body))])
 
-      ;; reference
       (stx/ref? t)
       (vector* ::ref (first t) (map eva (rest t)))
 
-      ;; application
       (stx/app? t)
       (vector* ::app (map eva t))
 
-      ;; ascription
       (stx/ascription? t)
       (vector* ::asc (map eva (rest t)))
 
-      ;; other cases (including unbound variables and sorts)
+      ;; other cases (including sorts)
       :else t))))
 
 (defn normalisation
