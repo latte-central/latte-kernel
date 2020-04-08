@@ -23,7 +23,7 @@ The first two steps are done by the `evaluation` function, and the last one
 
 ```clojure
 (defn evaluation
-  "Convert all λ/Π-terms' bodies into Clojure function, and apply when
+  "Convert all λ/Π-terms' bodies into Clojure functions, and apply them when
   an application is seen.
   Variables within functions are marked as 'bound' and are translated
   into the name of the function argument, at call time."
