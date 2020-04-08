@@ -1,6 +1,5 @@
 (ns latte-kernel.nbe
-  (:require [latte-kernel.utils :refer [vector*]]
-            [latte-kernel.syntax :as stx]))
+  (:require [latte-kernel.syntax :as stx]))
 
 ;;{
 ;; # Normalisation by evaluation
@@ -8,102 +7,71 @@
 ;; Instead of applying ourselves the normalisation as seen in `norm.cljc`,
 ;; we want to let the Clojure language do for us the complicated part:
 ;; substituting argument names for their value while respecting nested scopes,
-;; aka calling the λ-functions.
+;; aka calling the λ/Π-functions.
 ;;
 ;; This is done in three steps:
-;; 1. translating terms into a nbe-specific syntax, in which
-;;    λ-expressions are replaced by Clojure functions.
+;; 1. translating λ/Π-expressions into Clojure functions.
 ;; 2. normalising those terms, aka applying the functions wherever possible.
-;; 3. retranslating back into normal λ-terms.
+;; 3. retranslating back into normal λ/Π-terms.
 ;;
-;;Those three steps are represented here with the functions
-;; `evaluation`, `normalisation`, and `quotation`, all summed up into `norm`.
+;;The first two steps are done by the `evaluation` function, and the last one
+;; is done by `quotation`. Everything is summed up into `norm`.
 ;;
 ;;}
 
 (defn evaluation
-  "Convert from LaTTe internal syntax to nbe-specific syntax, recursively.
-  All simple terms are left as-is, composite terms are translated into
-  a pair with a special keyword, excepts binders which are turned into real
-  Clojure functions.
+  "Convert all λ/Π-terms' bodies into Clojure function, and apply when
+  an application is seen.
   Variables within functions are marked as 'bound' and are translated
   into the name of the function argument, at call time."
  ([t] (evaluation {} t))
  ([subst t]
-  {:pre [(stx/term? t)]}
   (let [eva (partial evaluation subst)]
     (cond
+      (stx/binder? t)
+      (let [[binder [x type-x] body] t]
+        (list binder [x (eva type-x)]
+              (fn [y] (evaluation (assoc subst x y) body))))
+
+      (stx/app? t)
+      (let [[l r] (map eva t)]
+        (if (stx/binder? l)
+          ((last l) r)
+          [l r]))
+
       (stx/variable? t)
       (get subst t t)
 
-      (stx/binder? t)
-      (let [[binder [x tx] body] t]
-        [::binder binder x (eva tx)
-         (fn [y] (evaluation (assoc subst x y) body))])
+      (or (stx/ref? t) (stx/ascription? t))
+      (cons (first t) (map eva (rest t)))
 
-      (stx/ref? t)
-      ;; padding in case the ref has no args, so that [::ref "..."] isn't
-      ;; understood as an application
-      (vector* ::ref ::pad-ref (first t) (map eva (rest t)))
-
-      (stx/app? t)
-      (vector* ::app (map eva t))
-
-      (stx/ascription? t)
-      (vector* ::asc (map eva (rest t)))
-
-      ;; other cases (including sorts)
       :else t))))
 
-(defn normalisation
-  "Actually apply normalisation, staying in nbe-specific syntax."
-  [t]
-  (if (stx/term? t) ;; other cases above
-    t
-    (case (first t)
-      ::binder
-      (let [[_ binder x type-x f] t]
-        [::binder binder x (normalisation type-x) f])
-
-      ::app
-      (let [[_ l r] t
-            l' (normalisation l)
-            r' (normalisation r)]
-        (if (and (vector? l') (= ::binder (first l')))
-          ;; We can apply the function contained in l'
-          (recur ((peek l') r'))
-          [::app l' r']))
-
-      ::ref
-      (vector* ::ref ::pad-ref (nth t 2) (map normalisation (drop 3 t)))
-
-      ::asc
-      (vector* ::asc (map normalisation (rest t))))))
-
 (defn quotation
-  "From nbe-specific syntax to normal LaTTe internal syntax.
+  "Re-translate all remaining functions into standard λ/Π-terms by calling them.
   'taken' means free *and* bound variables and is used to prevent name clashes."
   [taken t]
-  {:post [(stx/term? %)]}
-  (if (stx/term? t)
-    t
-    (let [quot (partial quotation taken)]
-      (case (first t)
-        ;; A binder here means it was not called during normalisation, so its
-        ;; body may not be normalised. We call it now with the appropriate
-        ;; argument, and normalise the result.
-        ::binder (let [[_ binder x type-x f] t
-                       x' (stx/mk-fresh x taken)]
-                   (list binder [x' (quot type-x)]
-                     (quotation (conj taken x') (normalisation (f x')))))
-        ::app (vec (map quot (rest t)))
-        ::ref (cons (nth t 2) (map quot (drop 3 t)))
-        ::asc (cons ::stx/ascribe (map quot (rest t)))))))
+  (let [quot (partial quotation taken)]
+    (cond
+        ;; A binder here means the function was not called during evaluation.
+        ;; We call it now with the appropriate argument to extract the body.
+      (stx/binder? t)
+      (let [[binder [x type-x] f] t
+            x' (stx/mk-fresh x taken)]
+        (list binder [x' (quot type-x)]
+          (quotation (conj taken x') (f x'))))
+
+      (stx/app? t)
+      (mapv quot t)
+
+      (or (stx/ref? t) (stx/ascription? t))
+      (cons (first t) (map quot (rest t)))
+
+      :else t)))
 
 (defn norm
   "Compose above functions to create the 'normalisation by evaluation' process."
   [t]
-  {:pre [(stx/term? t)]
-   :post [(stx/term? %)]}
+  #_{:pre [(stx/term? t)] :post [(stx/term? %)]}
   (let [free (stx/free-vars t)]
-    (->> t evaluation normalisation (quotation free))))
+    (quotation free (evaluation t))))

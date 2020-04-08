@@ -6,8 +6,8 @@
             [latte-kernel.nbe :as nbe]))
 
 (def norm-type
-  ;:beta-norm)
-  ;:nbe)
+  #_:beta-norm
+  #_:nbe
   :both)
 
 ```

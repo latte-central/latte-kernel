@@ -9,102 +9,66 @@
   (is (= (evaluation 'a)
          'a))
 
-  (let [[kw1 l v1] (evaluation '[(λ [a ✳] a) b])
-        [kw2 b v2 t f] l]
-    (is (= kw1 ::nbe/app))
-    (is (= kw2 ::nbe/binder))
-    (is (= b 'λ))
-    (is (= v2 'a))
-    (is (= t '✳))
-    (is (= v1 'b))
-    (is (fn? f))
-    (is (= (f v1) v1)))
+  (is (= (evaluation '[(λ [a ✳] a) b])
+         'b))
 
   (is (= (evaluation '[a b])
-         [::nbe/app 'a 'b]))
+         ['a 'b]))
 
-  (let [[a1 [a2 l v1] v2] (evaluation '[[(λ [a ✳] (λ [b ✳] [a b])) c] d])
-        [b1 b2 v3 t f] l]
-    (is (= a1 a2 ::nbe/app))
-    (is (= b1 ::nbe/binder))
-    (is (= b2 'λ))
+  (let [[b [x tx] f] (evaluation '(λ [a ✳] a))]
+    (is (= b 'λ))
+    (is (= x 'a))
+    (is (= tx '✳))
+    (is (fn? f))
+    (is (= (f 5) 5)))
+
+  (let [res (evaluation '[(λ [a ✳] (λ [b ✳] [a b])) c])
+        [b [x tx] f] res]
+    (is (= b 'λ))
+    (is (= x 'b))
+    (is (= tx '✳))
+    (is (fn? f))
+    (is (stx/binder? res))
+    (is (= (f 'd) '[c d])))
+
+  (let [[v1 v2] (evaluation '[[(λ [a ✳] (λ [b ✳] [a b])) c] d])]
     (is (= v1 'c))
-    (is (= v2 'd))
-    (is (= v3 'a))
-    (is (= t '✳))
-    (is (fn? f)))
+    (is (= v2 'd)))
 
-  (let [term '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c]
-        [a1 [a2 [a3 [b1 b2 arg t _] v1] v2] v3] (evaluation term)]
-    (is (= a1 a2 a3 ::nbe/app))
-    (is (= b1 ::nbe/binder))
-    (is (= b2 'λ))
-    (is (= arg 'x))
-    (is (= t '✳)))
+  (let [term '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c]]
+    (is (= (evaluation term)
+           'c)))
 
   (let [term '(::stx/ascribe z [(λ [x ✳] x) y])
-        [as v1 [ap [b1 b2 v2 t1 _] v3]] (evaluation term)]
-     (is (= as ::nbe/asc))
+        [as v1 v2] (evaluation term)]
+     (is (= as ::stx/ascribe))
      (is (= v1 'z))
-     (is (= v2 'x))
-     (is (= v3 'y))
-     (is (= ap ::nbe/app))
-     (is (= b1 ::nbe/binder))
-     (is (= b2 'λ))
-     (is (= t1 '✳)))
+     (is (= v2 'y)))
 
   (let [term1 '(Π [⇧ A] B)
         term2 '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B)))))
-        [kw1 b1 v1 t1 _] (evaluation term1)
-        [kw2 b2 v2 t2 _] (evaluation term2)]
-    (is (= kw1 kw2 ::nbe/binder))
+        [b1 [v1 t1] f1] (evaluation term1)
+        [b2 [v2 t2] f2] (evaluation term2)]
     (is (= b1 b2 'Π))
     (is (= t1 v2 'A))
     (is (= v1 '⇧))
-    (is (= t2 '✳))))
-
-(deftest test-normalisation
-  (is (= (evaluation 'a)
-         (normalisation (evaluation 'a))))
-
-  (let [l1 (evaluation '(λ [y ✳] y))
-        l2 (normalisation (evaluation '(λ [y ✳] y)))]
-    (is (= (take 3 l1) (take 3 l2))))
-
-  (is (= (normalisation (evaluation '[(λ [x ✳] x) y]))
-         'y))
-
-  (is (= (normalisation [::nbe/app 'y 'z])
-         [::nbe/app 'y 'z]))
-
-  (is (= (normalisation (evaluation
-                         '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c]))
-         'c))
-
-  (let [[_ _ _ _ f] (normalisation (evaluation '[(λ [x ✳] (λ [y ✳] [x y])) a]))]
-    (is (fn? f))
-    (is (= (f 'b)
-           [::nbe/app 'a 'b])))
-
-  (let [[_ v1 v2] (normalisation (evaluation
-                                  '(::stx/ascribe z [(λ [x ✳] x) y])))]
-    (is (= v1 'z))
-    (is (= v2 'y))))
+    (is (= t2 '✳))
+    (is (and (fn? f1) (fn? f2)))))
 
 (deftest test-quotation
   (is (= (quotation #{'y} 'y)
          'y))
 
-  (is (= (quotation #{'y 'z} [::nbe/app 'y 'z])
+  (is (= (quotation #{'y 'z} ['y 'z])
          '[y z]))
 
-  (is (= (quotation #{} [::nbe/binder 'λ 'y '✳ (fn [x] x)])
+  (is (= (quotation #{} (list 'λ '[y ✳] (fn [x] x)))
          '(λ [y ✳] y)))
 
-  (is (= (quotation #{'y 'z} [::nbe/asc 'y 'z])
+  (is (= (quotation #{'y 'z} '(::stx/ascribe y z))
          '(::stx/ascribe y z)))
 
-  (is (= (quotation #{'B} [::nbe/binder 'Π '⇧ 'A (fn [x] 'B)])
+  (is (= (quotation #{'B} (list 'Π '[⇧ A] (fn [x] 'B)))
          '(Π [⇧ A] B))))
 
 (deftest test-norm
