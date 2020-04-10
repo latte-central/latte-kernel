@@ -232,14 +232,19 @@
 
 ;; This is to solve a *real* (and rare) use case for circular dependency
 (def +unfold-implict+ (atom nil))
-(defn, install-unfold-implicit! [unfold-fn]
-  (swap! +unfold-implict+ (fn [_]
-                            unfold-fn)))
+(defn install-unfold-implicit!
+  [unfold-fn]
+  (swap! +unfold-implict+
+    (fn [_]
+      unfold-fn))
+  (swap! nbe/+unfold-implict+
+    (fn [_]
+      unfold-fn)))
 
 (defn delta-reduction
   "Apply a strategy of delta-reduction in definitional environment `def-env`, context `ctx` and
   term `t`. If the flag `local?` is `true` the definition in only looked for
-  in `def-env`. By default it is also looked for in the current namespace (in Clojure only).²"
+  in `def-env`. By default it is also looked for in the current namespace (in Clojure only)."
   ([def-env ctx t] (delta-reduction def-env ctx t false))
   ([def-env ctx t local?]
    ;; (println "[delta-reduction] t=" t)
@@ -399,17 +404,15 @@
   The result is defined as *the normal form* of `t`."
   [def-env ctx t]
   ;;(println "[beta-delta-normalize]: t=" t)
-  (let [[t' _] (delta-step def-env ctx t)]
-    ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
-    (case norm-type
-      :beta-norm (first (beta-step t'))
-      :nbe (nbe/norm t')
-      :both (let [[beta-t _] (beta-step t')
-                  nbe-t (nbe/norm t')]
-              (if (stx/alpha-eq? beta-t nbe-t)
-                beta-t
-                (throw (ex-info "Terms not alpha-equivalent in beta-delta-norm."
-                         {:original t' :beta-term beta-t, :nbe-term nbe-t})))))))
+  (case norm-type
+    :beta-norm (first (beta-step (first (delta-step def-env ctx t))))
+    :nbe (nbe/norm def-env ctx t)
+    :both (let [[beta-t _] (beta-step (first (delta-step def-env ctx t)))
+                nbe-t (nbe/norm def-env ctx t)]
+            (if (stx/alpha-eq? beta-t nbe-t)
+              beta-t
+              (throw (ex-info "Terms not alpha-equivalent in beta-delta-norm."
+                       {:original t :beta-term beta-t, :nbe-term nbe-t}))))))
 
 ;;{
 ;; The following is the main user-level function for normalization.
@@ -418,7 +421,7 @@
 (defn normalize
   "Normalize term `t` in (optional) environment `def-env` and (optional) context `ctx`.
   The result is *the normal form* of `t`."
-  ([t] (normalize {} [] t))
+  ([t] (normalize defenv/empty-env [] t))
   ([def-env t] (normalize def-env [] t))
   ([def-env ctx t] (beta-delta-normalize def-env ctx t)))
 

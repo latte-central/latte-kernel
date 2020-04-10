@@ -1,9 +1,10 @@
 (ns latte-kernel.nbe-test
-  (:require #?(:clj [clojure.test :refer [is deftest]]
-               :cljs [cljs.test :as t :refer-macros [is deftest]])
+  (:require #?(:clj  [clojure.test :refer     [is deftest]]
+               :cljs [cljs.test :refer-macros [is deftest]])
             [latte-kernel.nbe :as nbe :refer :all]
             [latte-kernel.syntax :as stx]
-            [latte-kernel.norm :as beta-norm]))
+            [latte-kernel.norm :as beta-norm]
+            [latte-kernel.defenv :as defenv]))
 
 (deftest test-evaluation
   (is (= (evaluation 'a)
@@ -102,36 +103,11 @@
   (is (= (norm '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))
          '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧' A] (Π [⇧'' A] B)))))))
 
-  (let [term '[(λ [y T]
-                (Π [α ✳]
-                 (Π [⇧ (Π [x' (Π [⇧ T] ✳)]
-                        (Π [⇧' [(λ [x (Π [⇧ T] ✳)]
-                                 ("prop/and" [X x] [x y]))
-                                x']]
-                         α))]
-                  α)))
-               x']]
-    (is (stx/alpha-eq? (norm term)
-          (first (beta-norm/beta-step term)))))
-
   (let [term '[(λ [a T] (Π [b T] [b a])) b]]
     (is (stx/alpha-eq? (norm term)
           (first (beta-norm/beta-step term)))))
 
   (let [term '(Π [a T] (Π [a T] (Π [a T] [a a])))
-        res1 (stx/alpha-norm (norm term))
-        res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
-    (is (= res1 res2)))
-
-  (let [term '(Π [x' T]
-                [(λ [y T]
-                  (Π [⇧ (Π [x' ✳] ;3
-                          (Π [⇧' [(λ [x ✳]
-                                    ("prop/and" [X x] [x y]))
-                                  x']]
-                           y))]
-                     y))
-                 x'])
         res1 (stx/alpha-norm (norm term))
         res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
     (is (= res1 res2)))
@@ -143,11 +119,6 @@
                                       C))]
                       (Π [⇧'' C] C'))]
                 C'))
-        res1 (stx/alpha-norm (norm term))
-        res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
-    (is (= res1 res2)))
-
-  (let [term '("core/int")
         res1 (stx/alpha-norm (norm term))
         res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
     (is (= res1 res2))))
@@ -180,3 +151,37 @@
 
   (is (= (norm '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))
          '(λ [y ✳] y))))
+
+(deftest test-delta-nbe
+  (is (= (norm defenv/empty-env [] 'x)
+         'x))
+
+  (is (= (norm (defenv/mkenv {'test (defenv/map->Definition
+                                     '{:arity 1
+                                       :tag :definition
+                                       :params [[x ✳]]
+                                       :parsed-term [x x]
+                                       :opts {}})})
+           []
+           '[y (test [t t])])
+         '[y [[t t] [t t]]]))
+
+  (is (= (norm (defenv/mkenv {'test (defenv/map->Definition
+                                     '{:arity 2
+                                       :tag :definition
+                                       :params [[x ✳] [y ✳]]
+                                       :parsed-term [x [y x]]
+                                       :opts {}})})
+           []
+           '[y (test [t t] u)])
+         '[y [[t t] [u [t t]]]]))
+
+  (is (= (norm (defenv/mkenv {'test (defenv/map->Definition
+                                     '{:arity 2
+                                       :tag :definition
+                                       :params [[x ✳] [y ✳]]
+                                       :parsed-term [x [y x]]
+                                       :opts {:opaque true}})})
+           []
+           '[y (test [t t] u)])
+         '[y (test [t t] u)])))
