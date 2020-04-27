@@ -60,7 +60,7 @@
 (defn elab-have [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
   (let [[status res] (elab-have-impl def-env ctx var-deps def-uses name ty term meta)]
-   [status res]))
+    [status res]))
 
 (defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
@@ -101,10 +101,10 @@
                     var-deps' (-> var-deps
                                   ;; (update-var-deps name term)
                                   (update-var-deps name rec-ty))
-                    def-uses'(-> def-uses
-                                 (update-def-uses name term)
-                                 (update-def-uses name rec-ty)
-                                 (assoc name #{}))]
+                    def-uses' (-> def-uses
+                                  (update-def-uses name term)
+                                  (update-def-uses name rec-ty)
+                                  (assoc name #{}))]
                 [:ok [def-env' ctx var-deps' def-uses']]))))))))
 
 (defn update-var-deps [var-deps name term]
@@ -302,7 +302,7 @@
   (println "local definitions:")
   (doseq [[name ddef] (defenv/local-definitions def-env)]
     (println name (str "(" (show-deftype ddef) "):") (show-def ddef meta)))
- (println "============================"))
+  (println "============================"))
 
 ```
 
@@ -482,11 +482,11 @@
         [status res] (elab-proof def-env ctx proof)]
     (if (= status :ko)
       [status res]
-      (let [[def-env' proof-term proof-type] res]
-        (let [[status thm-type'] (typing/rebuild-type def-env' ctx thm-type)]
-          (if (= status :ko)
-            (throw (ex-info "Cannot rebuild theorem type." {:thm-type thm-type
-                                                            :error thm-type'})))
+      (let [[def-env' proof-term proof-type] res
+            [status thm-type'] (typing/rebuild-type def-env' ctx thm-type)]
+        (if (= status :ko)
+          (throw (ex-info "Cannot rebuild theorem type." {:thm-type thm-type
+                                                          :error thm-type'}))
           (if (not (norm/beta-eq? def-env' ctx proof-type thm-type'))
             [:ko {:msg "Theorem type and proof type do not match."
                   :thm-type thm-type'

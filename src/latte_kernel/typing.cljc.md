@@ -507,10 +507,10 @@
        ty))))
 
 (defn proper-type?
-  ([t] (proper-type? defenv/empty-env [] t))
-  ([ctx t] (proper-type? defenv/empty-env ctx t))
-  ([def-env ctx t]
-   (let [ty (type-of def-env ctx t)]
-     (let [sort (norm/normalize def-env ctx ty)]
-       (stx/sort? sort)))))
+ ([t] (proper-type? defenv/empty-env [] t))
+ ([ctx t] (proper-type? defenv/empty-env ctx t))
+ ([def-env ctx t]
+  (let [ty (type-of def-env ctx t)
+        sort (norm/normalize def-env ctx ty)]
+    (stx/sort? sort))))
 ```
