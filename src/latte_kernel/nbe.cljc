@@ -25,29 +25,9 @@
   "Substitute in the `body` of a definition the parameters `params`
   by the actual arguments `args`."
   [params body args]
-  (loop [args args, params params, sub {}]
-    (if (seq args)
-      (if (empty? params)
-        (throw (ex-info "Not enough parameters (please report)" {:args args}))
-        (recur (rest args) (rest params) (assoc sub (ffirst params) (first args))))
-      (loop [params (reverse params), res body]
-        (if (seq params)
-          (recur (rest params) (list 'λ (first params) res))
-          (stx/subst res sub))))))
-
-(defn instantiate-def2
-  "Substitute in the `body` of a definition the parameters `params`
-  by the actual arguments `args`.
-  Alternate version without using the horrendous `subst` function.
-  We know that params is a vector so peek and pop operate from the back."
-  [params body args]
   (if (> (count args) (count params))
     (throw (ex-info "Not enough parameters (please report)" {:args args}))
-    (letfn [(λ-front [params body]
-              (if (seq params)
-                (recur (pop params) (list 'λ (peek params) body))
-                body))]
-      (reduce #(vector %1 %2) (λ-front params body) args))))
+    (reduce #(vector %1 %2) (stx/binderify 'λ params body) args)))
 
 (def +unfold-implicit+ (atom nil))
 
@@ -142,25 +122,47 @@
 
       :else t))))
 
-(defn quotation
-  "Re-translate remaining functions into standard λ/Π-terms by calling them."
-  [t]
+(declare quotation-)
+
+(defn- quot*
+  "Apply the `quotation-` function below to several `args` and return the quoted
+  `args` with a single resulting `level`."
+  [level & args]
+  (loop [args args, level level, res []]
+    (if (seq args)
+      (let [[arg level'] (quotation- level (first args))]
+        (recur (rest args) level' (conj res arg)))
+      [res, level])))
+
+(defn- quotation-
+  "Re-translate remaining functions into standard λ/Π-terms by calling them
+  with nameless arguments.
+  Return a couple with the quoted term and the depth level of the term."
+  [level t]
   (cond
     ;; A binder here means the function was not called during evaluation.
     ;; We call it now with the appropriate argument to extract the body.
     (stx/binder? t)
-    (let [[binder [x type-x] f] t
-          x' (gensym (str "_" x))]
-      (list binder [x' (quotation type-x)]
-        (quotation (f x'))))
+    (let [[binder [x tx] f] t
+          x' (symbol (str "_" level))
+          [[tx' body] level'] (quot* (inc level) tx (f x'))]
+      [(list binder [x' tx'] body)
+       level'])
 
     (stx/app? t)
-    (mapv quotation t)
+    (apply quot* level t)
 
     (or (stx/ref? t) (stx/ascription? t))
-    (cons (first t) (map quotation (rest t)))
+    (let [[args level'] (apply quot* level (rest t))]
+      [(cons (first t) args) level'])
 
-    :else t))
+    :else [t level]))
+
+(defn quotation
+  "Re-translate remaining functions into standard λ/Π-terms by calling them
+  with nameless arguments."
+  [t]
+  (first (quotation- 1 t)))
 
 (defn norm
   "Compose above functions to create the 'normalisation by evaluation' process."
