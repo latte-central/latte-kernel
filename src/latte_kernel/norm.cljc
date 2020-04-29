@@ -179,7 +179,7 @@
             (if (stx/alpha-eq? beta-t nbe-t)
               beta-t
               (throw (ex-info "Terms not alpha-equivalent in beta-norm."
-                       {:original t :beta-term beta-t, :nbe-term nbe-t}))))))
+                       {:original t, :beta-term beta-t, :nbe-term nbe-t}))))))
 
 ;;{
 ;; ## Delta-reduction (unfolding of definitions)
@@ -409,7 +409,7 @@
             (if (stx/alpha-eq? beta-t nbe-t)
               beta-t
               (throw (ex-info "Terms not alpha-equivalent in beta-delta-norm."
-                       {:original t :beta-term beta-t, :nbe-term nbe-t
+                       {:original t, :beta-term beta-t, :nbe-term nbe-t
                         :def-env def-env, :ctx ctx}))))))
 
 ;;{
