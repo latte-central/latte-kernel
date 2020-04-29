@@ -240,15 +240,11 @@
 
 ```clojure
 ;; This is to solve a *real* (and rare) use case for circular dependency
-(def +unfold-implict+ (atom nil))
+(def +unfold-implicit+ (atom nil))
 (defn install-unfold-implicit!
   [unfold-fn]
-  (swap! +unfold-implict+
-    (fn [_]
-      unfold-fn))
-  (swap! nbe/+unfold-implict+
-    (fn [_]
-      unfold-fn)))
+  (reset! +unfold-implicit+ unfold-fn)
+  (reset! nbe/+unfold-implicit+ unfold-fn))
 
 (defn delta-reduction
   "Apply a strategy of delta-reduction in definitional environment `def-env`, context `ctx` and
@@ -267,7 +263,7 @@
          (throw (ex-info "No such definition" {:term t :def-name name}))
          (defenv/implicit? sdef)
          ;; (throw (ex-info "Cannot delta-reduce an implicit (please report)." {:term t}))
-         (let [[status, implicit-term, _] (@+unfold-implict+ def-env ctx sdef args)]
+         (let [[status, implicit-term, _] (@+unfold-implicit+ def-env ctx sdef args)]
            (if (= status :ko)
              (throw (ex-info "Cannot delta-reduce implicit term." implicit-term))
              [implicit-term true]))
