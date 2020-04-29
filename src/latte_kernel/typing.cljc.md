@@ -1,10 +1,8 @@
 ```clojure
 (ns latte-kernel.typing
-  (:require [latte-kernel.utils :as u]
-            [latte-kernel.syntax :as stx]
+  (:require [latte-kernel.syntax :as stx]
             [latte-kernel.norm :as norm]
-            [latte-kernel.defenv :as defenv]
-            [latte-kernel.presyntax :as prestx]))
+            [latte-kernel.defenv :as defenv]))
 
 ```
 
@@ -493,9 +491,9 @@
       (type-of-term def-env ctx implicit-term))))
 
 (defn rebuild-type [def-env ctx ty]
-  (let [vfresh (gensym "fresh")]
-    (let [[status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
-      [status ty'])))
+  (let [vfresh (gensym "fresh")
+        [status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
+    [status ty']))
 
 (defn type-of
   ([t] (type-of defenv/empty-env [] t))

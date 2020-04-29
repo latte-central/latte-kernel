@@ -402,12 +402,12 @@
             [:cont [def-env ctx var-deps def-uses]])))
     :print-def
     (let [[name meta] args]
-      (do (elab-print-def def-env name meta)
-          [:cont [def-env ctx var-deps def-uses]]))
+      (elab-print-def def-env name meta)
+      [:cont [def-env ctx var-deps def-uses]])
     :print-defenv
     (let [[meta] args]
-      (do (elab-print-defenv def-env meta)
-          [:cont [def-env ctx var-deps def-uses]]))
+      (elab-print-defenv def-env meta)
+      [:cont [def-env ctx var-deps def-uses]])
     ;; else
     (throw (ex-info "Unknown step kind in proof script."
                     {:step step
