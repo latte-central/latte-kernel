@@ -221,7 +221,7 @@
   (let [[status err A'] (type-of-term def-env ctx A)]
     (if (= status :ko)
       [:ko {:msg "Cannot calculate domain type of abstraction."
-            :term (list 'λ [x A] t) :from err} nil])
+            :term (list 'λ [x A] t) :from err} nil]
     (let [ctx' (ctx-put ctx x A) ;; or A' ? (ctx-put ctx x A')
           [status B t'] (type-of-term def-env ctx' t)]
       (if (= status :ko)
@@ -238,7 +238,7 @@
                     :term (list 'λ [x A] t')
                     :codomain B
                     :type sort}]
-              [:ok tprod (list 'λ [x A'] t')])))))))
+              [:ok tprod (list 'λ [x A'] t')]))))))))
 
 
 ;;{
