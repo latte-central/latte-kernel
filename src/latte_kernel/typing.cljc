@@ -222,23 +222,23 @@
     (if (= status :ko)
       [:ko {:msg "Cannot calculate domain type of abstraction."
             :term (list 'λ [x A] t) :from err} nil]
-    (let [ctx' (ctx-put ctx x A) ;; or A' ? (ctx-put ctx x A')
-          [status B t'] (type-of-term def-env ctx' t)]
-      (if (= status :ko)
-        [:ko {:msg "Cannot calculate codomain type of abstraction."
-              :term (list 'λ [x A] t) :from B} nil]
-        (let [tprod (list 'Π [x A] B) ;; or A' ? (list 'Π [x A'] B)
-              [status sort tprod'] (type-of-term def-env ctx tprod)]
-          (if (= status :ko)
-            [:ko {:msg "Not a valid codomain type in abstraction (cannot calculate super-type)."
-                  :term (list 'λ [x A] t')
-                  :codomain B :from sort} nil]
-            (if (not (stx/sort? (norm/normalize def-env ctx sort)))
-              [:ko {:msg "Not a valid codomain type in abstraction (super-type not a sort)."
+      (let [ctx' (ctx-put ctx x A) ;; or A' ? (ctx-put ctx x A')
+            [status B t'] (type-of-term def-env ctx' t)]
+        (if (= status :ko)
+          [:ko {:msg "Cannot calculate codomain type of abstraction."
+                :term (list 'λ [x A] t) :from B} nil]
+          (let [tprod (list 'Π [x A] B) ;; or A' ? (list 'Π [x A'] B)
+                [status sort tprod'] (type-of-term def-env ctx tprod)]
+            (if (= status :ko)
+              [:ko {:msg "Not a valid codomain type in abstraction (cannot calculate super-type)."
                     :term (list 'λ [x A] t')
-                    :codomain B
-                    :type sort}]
-              [:ok tprod (list 'λ [x A'] t')]))))))))
+                    :codomain B :from sort} nil]
+              (if (not (stx/sort? (norm/normalize def-env ctx sort)))
+                [:ko {:msg "Not a valid codomain type in abstraction (super-type not a sort)."
+                      :term (list 'λ [x A] t')
+                      :codomain B
+                      :type sort}]
+                [:ok tprod (list 'λ [x A'] t')]))))))))
 
 
 ;;{
