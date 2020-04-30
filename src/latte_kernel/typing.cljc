@@ -1,9 +1,7 @@
 (ns latte-kernel.typing
-  (:require [latte-kernel.utils :as u]
-            [latte-kernel.syntax :as stx]
+  (:require [latte-kernel.syntax :as stx]
             [latte-kernel.norm :as norm]
-            [latte-kernel.defenv :as defenv]
-            [latte-kernel.presyntax :as prestx]))
+            [latte-kernel.defenv :as defenv]))
 
 ;;{
 ;; # Type checking
@@ -466,9 +464,9 @@
       (type-of-term def-env ctx implicit-term))))
 
 (defn rebuild-type [def-env ctx ty]
-  (let [vfresh (gensym "fresh")]
-    (let [[status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
-      [status ty'])))
+  (let [vfresh (gensym "fresh")
+        [status ty' _] (type-of-term def-env (cons [vfresh ty] ctx) vfresh)]
+    [status ty']))
 
 (defn type-of
   ([t] (type-of defenv/empty-env [] t))
@@ -480,9 +478,9 @@
        ty))))
 
 (defn proper-type?
-  ([t] (proper-type? defenv/empty-env [] t))
-  ([ctx t] (proper-type? defenv/empty-env ctx t))
-  ([def-env ctx t]
-   (let [ty (type-of def-env ctx t)]
-     (let [sort (norm/normalize def-env ctx ty)]
-       (stx/sort? sort)))))
+ ([t] (proper-type? defenv/empty-env [] t))
+ ([ctx t] (proper-type? defenv/empty-env ctx t))
+ ([def-env ctx t]
+  (let [ty (type-of def-env ctx t)
+        sort (norm/normalize def-env ctx ty)]
+    (stx/sort? sort))))

@@ -57,33 +57,33 @@
     (is (and (fn? f1) (fn? f2)))))
 
 (deftest test-quotation
-  (is (= (quotation #{'y} 'y)
+  (is (= (quotation 'y)
          'y))
 
-  (is (= (quotation #{'y 'z} ['y 'z])
+  (is (= (quotation '[y z])
          '[y z]))
 
-  (is (= (quotation #{} (list 'λ '[y ✳] (fn [x] x)))
-         '(λ [y ✳] y)))
+  (is (= (quotation (list 'λ '[y ✳] (fn [x] x)))
+         '(λ [_1 ✳] _1)))
 
-  (is (= (quotation #{'y 'z} '(::stx/ascribe y z))
+  (is (= (quotation '(::stx/ascribe y z))
          '(::stx/ascribe y z)))
 
-  (is (= (quotation #{'B} (list 'Π '[⇧ A] (fn [x] 'B)))
-         '(Π [⇧ A] B))))
+  (is (= (quotation (list 'Π '[⇧ A] (fn [x] 'B)))
+         '(Π [_1 A] B))))
 
 (deftest test-norm
   (is (= (norm 'a)
          'a))
 
   (is (= (norm '(λ [x ✳] x))
-         '(λ [x ✳] x)))
+         '(λ [_1 ✳] _1)))
 
   (is (= (norm '[[(λ [x ✳] (λ [y ✳] [x y])) z] t])
          '[z t]))
 
   (is (= (norm '[(λ [x ✳] (λ [y ✳] [x y])) z])
-         '(λ [y ✳] [z y])))
+         '(λ [_1 ✳] [z _1])))
 
   (is (= (norm '[[[(λ [x ✳] (λ [x ✳] (λ [x ✳] x))) a] b] c])
          'c))
@@ -92,25 +92,22 @@
          '[c b]))
 
   (is (= (norm '(λ [x ✳] [(λ [y ✳] (λ [z ✳] [[x y] z])) a]))
-         '(λ [x ✳] (λ [z ✳] [[x a] z]))))
+         '(λ [_1 ✳] (λ [_2 ✳] [[_1 a] _2]))))
 
   (is (= (norm '[(λ [a ✳] [a b]) c])
          '[c b]))
 
   (is (= (norm '(Π [⇧ A] B))
-         '(Π [⇧ A] B)))
-
-  (is (= (norm '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧ A] (Π [⇧ A] B))))))
-         '(Π [A ✳] (Π [B ✳] (Π [⇧ (Π [⇧ A] B)] (Π [⇧' A] (Π [⇧'' A] B)))))))
+         '(Π [_1 A] B)))
 
   (let [term '[(λ [a T] (Π [b T] [b a])) b]]
-    (is (stx/alpha-eq? (norm term)
-          (first (beta-norm/beta-step term)))))
+    (is (stx/alpha-eq? (first (beta-norm/beta-step term))
+                       (norm term))))
 
-  (let [term '(Π [a T] (Π [a T] (Π [a T] [a a])))
-        res1 (stx/alpha-norm (norm term))
-        res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
-    (is (= res1 res2)))
+
+  (let [term '(Π [a T] (Π [a T] (Π [a T] [a a])))]
+    (is (stx/alpha-eq? (first (beta-norm/beta-step term))
+                       (norm term))))
 
   (let [term '(Π [C' ✳]
                (Π [⇧ (Π [⇧' (Π [C ✳] (Π [⇧ (Π [⇧' A]
@@ -118,10 +115,9 @@
                                              C))]
                                       C))]
                       (Π [⇧'' C] C'))]
-                C'))
-        res1 (stx/alpha-norm (norm term))
-        res2 (stx/alpha-norm (first (beta-norm/beta-step term)))]
-    (is (= res1 res2))))
+                C'))]
+    (is (stx/alpha-eq? (first (beta-norm/beta-step term))
+                       (norm term)))))
 
 (deftest test-equiv-beta-red
   "These tests are the same as those in norm-test"
@@ -135,7 +131,7 @@
          '[y z]))
 
   (is (= (norm '(λ [y [(λ [x □] x) ✳]] y))
-         '(λ [y ✳] y)))
+         '(λ [_1 ✳] _1)))
 
   (is (= (norm '[z [(λ [x ✳] x) y]])
          '[z y]))
@@ -150,7 +146,7 @@
          '[x y]))
 
   (is (= (norm '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))
-         '(λ [y ✳] y))))
+         '(λ [_1 ✳] _1))))
 
 (deftest test-delta-nbe
   (is (= (norm defenv/empty-env [] 'x)

@@ -40,9 +40,10 @@
     val
     (throw (ex-info "No such value in collection" {:coll coll :key key}))))
 
-(defn nano-time []
+(defn nano-time
   "Fetch the current time (with high precision).
   Returns 0 in clojurescript."
+  []
   #?(:clj (System/nanoTime)
      :cljs 0))
 

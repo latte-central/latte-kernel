@@ -122,8 +122,9 @@
 
 
 ```clojure
-(defn parse-symbol-term [def-env sym bound]
+(defn parse-symbol-term
   "Parses the symbol `sym`."
+  [def-env sym bound]
   (cond
     (reserved-symbol? sym) [:ko {:msg "Symbol is reserved" :term sym}]
     (contains? bound sym) [:ok sym]
@@ -254,17 +255,17 @@
       (if (= status :ko)
         [:ko {:msg (str "Wrong bindings in " binder " form") :term t :from bindings}]
         (let [bound' (reduce (fn [res [x _]]
-                               (conj res x)) #{} bindings)]
-          (let [body (if (= (count t) 3)
-                       (nth t 2)
-                       (rest (rest t)))]
-            (let [[status body] (parse-term def-env body bound')]
-              (if (= status :ko)
-                [:ko {:msg (str "Wrong body in " binder " form") :term t :from body}]
-                (loop [i (dec (count bindings)), res body]
-                  (if (>= i 0)
-                    (recur (dec i) (list binder (bindings i) res))
-                    [:ok res]))))))))))
+                               (conj res x)) #{} bindings)
+              body (if (= (count t) 3)
+                     (nth t 2)
+                     (rest (rest t)))
+              [status body] (parse-term def-env body bound')]
+          (if (= status :ko)
+            [:ko {:msg (str "Wrong body in " binder " form") :term t :from body}]
+            (loop [i (dec (count bindings)), res body]
+              (if (>= i 0)
+                (recur (dec i) (list binder (bindings i) res))
+                [:ok res]))))))))
 
 (defn parse-lambda-term
   "Parse a lambda abstraction."
@@ -365,8 +366,9 @@
         (recur (rest s) [res (first s)])
         res))))
 
-(defn parse-application-term [def-env t bound]
+(defn parse-application-term
   "Parse an application."
+  [def-env t bound]
   ;; (println "[parse-application-term] t=" t)
   (if (< (count t) 2)
     [:ko {:msg "Application needs at least 2 terms" :term t :nb-terms (count t)}]

@@ -179,7 +179,7 @@
             (if (stx/alpha-eq? beta-t nbe-t)
               beta-t
               (throw (ex-info "Terms not alpha-equivalent in beta-norm."
-                       {:original t :beta-term beta-t, :nbe-term nbe-t}))))))
+                       {:original t, :beta-term beta-t, :nbe-term nbe-t}))))))
 
 ;;{
 ;; ## Delta-reduction (unfolding of definitions)
@@ -231,15 +231,11 @@
 ;;}
 
 ;; This is to solve a *real* (and rare) use case for circular dependency
-(def +unfold-implict+ (atom nil))
+(def +unfold-implicit+ (atom nil))
 (defn install-unfold-implicit!
   [unfold-fn]
-  (swap! +unfold-implict+
-    (fn [_]
-      unfold-fn))
-  (swap! nbe/+unfold-implict+
-    (fn [_]
-      unfold-fn)))
+  (reset! +unfold-implicit+ unfold-fn)
+  (reset! nbe/+unfold-implicit+ unfold-fn))
 
 (defn delta-reduction
   "Apply a strategy of delta-reduction in definitional environment `def-env`, context `ctx` and
@@ -258,7 +254,7 @@
          (throw (ex-info "No such definition" {:term t :def-name name}))
          (defenv/implicit? sdef)
          ;; (throw (ex-info "Cannot delta-reduce an implicit (please report)." {:term t}))
-         (let [[status, implicit-term, _] (@+unfold-implict+ def-env ctx sdef args)]
+         (let [[status, implicit-term, _] (@+unfold-implicit+ def-env ctx sdef args)]
            (if (= status :ko)
              (throw (ex-info "Cannot delta-reduce implicit term." implicit-term))
              [implicit-term true]))
@@ -273,7 +269,7 @@
              [t false]
              ;; the definition is transparent
              [(instantiate-def (:params sdef) (:parsed-term sdef) args) true])
-           ;; no parsed term for definitoin
+           ;; no parsed term for definition
            (throw (ex-info "Cannot unfold term reference: no parsed term (please report)"
                            {:term t :def sdef})))
          (theorem? sdef)
@@ -306,6 +302,7 @@
   local environment is used, otherwise (the default case) the definitions
   are also searched in the current namespace (in Clojure only)."
   ([def-env ctx t] (delta-step def-env ctx t false 0))
+  ([def-env ctx t local?] (delta-step def-env ctx t local? 0))
   ([def-env ctx t local? rcount]
    ;; (println "[delta-step] t=" t)
    (cond
@@ -412,7 +409,8 @@
             (if (stx/alpha-eq? beta-t nbe-t)
               beta-t
               (throw (ex-info "Terms not alpha-equivalent in beta-delta-norm."
-                       {:original t :beta-term beta-t, :nbe-term nbe-t}))))))
+                       {:original t, :beta-term beta-t, :nbe-term nbe-t
+                        :def-env def-env, :ctx ctx}))))))
 
 ;;{
 ;; The following is the main user-level function for normalization.
