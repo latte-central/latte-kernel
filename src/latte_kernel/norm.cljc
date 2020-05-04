@@ -7,8 +7,8 @@
 (def norm-type
   #_:beta-norm
   #_:nbe
-  :both
-  #_:all)
+  #_:both
+  :all)
 
 ;;{
 ;; # Normalization

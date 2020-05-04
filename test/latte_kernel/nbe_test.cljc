@@ -207,7 +207,13 @@
 
   (let [arr (with-meta '_1 {::nbe/name '⇧})]
     (is (= (readable-quotation (list 'Π [arr 'A] 'B))
-           '(Π [⇧ A] B)))))
+           '(Π [⇧ A] B))))
+
+  (let [x1 (with-meta '_1 {::nbe/name 'x})
+        x2 (with-meta '_2 {::nbe/name 'x})
+        term (list 'λ [x1 'A] (list 'λ [x2 'B] [[x1 x2] 'x]))]
+    (is (= (readable-quotation term)
+           '(λ [x' A] (λ [x'' B] [[x' x''] x]))))))
 
 (deftest test-misc
   (let [x1 (with-meta 'x {::nbe/name 'y})]

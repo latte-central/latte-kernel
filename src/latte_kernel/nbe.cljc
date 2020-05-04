@@ -172,23 +172,33 @@
   (quotation (evaluation def-env ctx t))))
 
 (defn- readable-quotation-
-  [taken t]
-  (let [quot (partial readable-quotation- taken)]
-    (cond
-      ;; we fetch the original name of the var and make a fresh one out of it
-      ;; a variable without metadata is guaranteed to be a free variable
-      (stx/variable? t)
-      (if-let [name (::name (meta t))]
-        (stx/mk-fresh name taken)
-        t)
+  "Return a readable version of the same term `t`, without nameless variables.
+  `free` is to be provided by below function, and `bound` means all bound vars."
+  ([free t] (readable-quotation- free {} t))
+  ([free bound t]
+   (let [quot (partial readable-quotation- free bound)]
+     (cond
+       ;; a variable not in `bound` is guaranteed to be a free variable
+       (stx/variable? t)
+       (get bound t t)
 
-      (stx/app? t)
-      (mapv quot t)
+       (stx/binder? t)
+       (let [[binder [x tx] body] t
+             ;; fetch the original name of the var and make a fresh one with it.
+             ;; if there is no metadata we use the same base symbol.
+             x' (stx/mk-fresh (::name (meta x) x) free)]
+         (list binder [x' (quot tx)]
+           ;; we add the new name to `free` so it is not shadowed by a deeper
+           ;; binder, and we associate the old name with the new in `bound`.
+           (readable-quotation- (conj free x') (assoc bound x x') body)))
 
-      (or (stx/binder? t) (stx/ref? t) (stx/ascription? t))
-      (cons (first t) (map quot (rest t)))
+       (stx/app? t)
+       (mapv quot t)
 
-      :else t)))
+       (or (stx/ref? t) (stx/ascription? t))
+       (cons (first t) (map quot (rest t)))
+
+       :else t))))
 
 (defn readable-quotation
   "Return a readable version of the same term `t`, without nameless variables."
