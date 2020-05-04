@@ -193,12 +193,7 @@
         term (list 'λ [y1 '✳] y1)]
     (is (= (readable-quotation term)
            '(λ [y ✳] y)))
-    (is (= (stx/alpha-norm '(λ [y ✳] y))
-           '(λ [_1 ✳] _1)))
-    ;; These two tests fail with an output of '(λ [y ✳] y)
     (is (= (stx/alpha-norm (readable-quotation term))
-           '(λ [_1 ✳] _1)))
-    (is (= ((comp stx/alpha-norm readable-quotation) term)
            '(λ [_1 ✳] _1))))
 
   (let [x1 (with-meta '_1 {::nbe/name 'x})]
@@ -214,8 +209,3 @@
         term (list 'λ [x1 'A] (list 'λ [x2 'B] [[x1 x2] 'x]))]
     (is (= (readable-quotation term)
            '(λ [x' A] (λ [x'' B] [[x' x''] x]))))))
-
-(deftest test-misc
-  (let [x1 (with-meta 'x {::nbe/name 'y})]
-    (is (stx/alpha-eq? (list 'λ [x1 '✳] x1)
-                       '(λ [x ✳] x)))))

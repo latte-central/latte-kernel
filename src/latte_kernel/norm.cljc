@@ -188,9 +188,8 @@
              (if (stx/alpha-eq? beta-t readable-t)
                beta-t
                (throw (ex-info "Term not actually readable in beta-red."
-                        {:original t, :beta-term (stx/alpha-norm beta-t)
-                         :nbe-term (stx/alpha-norm nbe-t)
-                         :readable-term (stx/alpha-norm readable-t)})))
+                        {:original t, :beta-term beta-t
+                         :nbe-term nbe-t, :readable-term readable-t})))
              (throw (ex-info "Terms not alpha-equivalent in beta-red."
                       {:original t, :beta-term beta-t, :nbe-term nbe-t}))))))
 
@@ -431,9 +430,8 @@
              (if (stx/alpha-eq? beta-t readable-t)
                beta-t
                (throw (ex-info "Term not actually readable in beta-red."
-                        {:original t, :beta-term (stx/alpha-norm beta-t)
-                         :nbe-term (stx/alpha-norm nbe-t)
-                         :readable-term (stx/alpha-norm readable-t)})))
+                        {:original t, :beta-term beta-t
+                         :nbe-term nbe-t, :readable-term readable-t})))
              (throw (ex-info "Terms not alpha-equivalent in beta-red."
                       {:original t, :beta-term beta-t, :nbe-term nbe-t}))))))
 ;;{
