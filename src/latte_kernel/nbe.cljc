@@ -87,7 +87,8 @@
   "Convert all λ/Π-terms' bodies into Clojure functions, and apply them when
   an application is seen.
   Variables within functions are marked as 'bound' and are translated
-  into the name of the function argument, at call time."
+  into the name of the function argument, at call time.
+  References are delta-reduced when possible."
  ([t] (evaluation {} defenv/empty-env [] t))
  ([def-env ctx t] (evaluation {} def-env ctx t))
  ([fn-env def-env ctx t]
@@ -144,7 +145,7 @@
     ;; We call it now with the appropriate argument to extract the body.
     (stx/binder? t)
     (let [[binder [x tx] f] t
-          x' (symbol (str "_" level))
+          x' (with-meta (symbol (str "_" level)) {::name x})
           [[tx' body] level'] (quot* (inc level) tx (f x'))]
       [(list binder [x' tx'] body)
        level'])
@@ -169,3 +170,28 @@
  ([t] (norm defenv/empty-env [] t))
  ([def-env ctx t]
   (quotation (evaluation def-env ctx t))))
+
+(defn- readable-quotation-
+  [taken t]
+  (let [quot (partial readable-quotation- taken)]
+    (cond
+      ;; we fetch the original name of the var and make a fresh one out of it
+      ;; a variable without metadata is guaranteed to be a free variable
+      (stx/variable? t)
+      (if-let [name (::name (meta t))]
+        (stx/mk-fresh name taken)
+        t)
+
+      (stx/app? t)
+      (mapv quot t)
+
+      (or (stx/binder? t) (stx/ref? t) (stx/ascription? t))
+      (cons (first t) (map quot (rest t)))
+
+      :else t)))
+
+(defn readable-quotation
+  "Return a readable version of the same term `t`, without nameless variables."
+  [t]
+  (let [free (stx/free-vars t)]
+    (readable-quotation- free t)))

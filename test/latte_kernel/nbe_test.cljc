@@ -29,7 +29,6 @@
     (is (= x 'b))
     (is (= tx '✳))
     (is (fn? f))
-    (is (stx/binder? res))
     (is (= (f 'd) '[c d])))
 
   (let [[v1 v2] (evaluation '[[(λ [a ✳] (λ [b ✳] [a b])) c] d])]
@@ -63,14 +62,21 @@
   (is (= (quotation '[y z])
          '[y z]))
 
-  (is (= (quotation (list 'λ '[y ✳] (fn [x] x)))
-         '(λ [_1 ✳] _1)))
+  (let [[l [x tx] body] (quotation (list 'λ '[y ✳] (fn [x] x)))]
+    (is (= l 'λ))
+    (is (= x body '_1))
+    (is (= (meta x) (meta body) {::nbe/name 'y}))
+    (is (= tx '✳)))
 
   (is (= (quotation '(::stx/ascribe y z))
          '(::stx/ascribe y z)))
 
-  (is (= (quotation (list 'Π '[⇧ A] (fn [x] 'B)))
-         '(Π [_1 A] B))))
+  (let [[p [x tx] body] (quotation (list 'Π '[⇧ A] (fn [x] 'B)))]
+    (is (= p 'Π))
+    (is (= x '_1))
+    (is (= (meta x) {::nbe/name '⇧}))
+    (is (= tx 'A))
+    (is (= body 'B))))
 
 (deftest test-norm
   (is (= (norm 'a)
@@ -181,3 +187,29 @@
            []
            '[y (test [t t] u)])
          '[y (test [t t] u)])))
+
+(deftest test-readable-quotation
+  (let [y1 (with-meta '_1 {::nbe/name 'y})
+        term (list 'λ [y1 '✳] y1)]
+    (is (= (readable-quotation term)
+           '(λ [y ✳] y)))
+    (is (= (stx/alpha-norm '(λ [y ✳] y))
+           '(λ [_1 ✳] _1)))
+    ;; These two tests fail with an output of '(λ [y ✳] y)
+    (is (= (stx/alpha-norm (readable-quotation term))
+           '(λ [_1 ✳] _1)))
+    (is (= ((comp stx/alpha-norm readable-quotation) term)
+           '(λ [_1 ✳] _1))))
+
+  (let [x1 (with-meta '_1 {::nbe/name 'x})]
+    (is (= (readable-quotation (list 'λ [x1 '✳] [x1 'x]))
+           '(λ [x' ✳] [x' x]))))
+
+  (let [arr (with-meta '_1 {::nbe/name '⇧})]
+    (is (= (readable-quotation (list 'Π [arr 'A] 'B))
+           '(Π [⇧ A] B)))))
+
+(deftest test-misc
+  (let [x1 (with-meta 'x {::nbe/name 'y})]
+    (is (stx/alpha-eq? (list 'λ [x1 '✳] x1)
+                       '(λ [x ✳] x)))))
