@@ -1,6 +1,7 @@
 (ns latte-kernel.nbe
   (:require [latte-kernel.defenv :as defenv :refer [implicit? definition?
                                                     theorem? axiom?]]
+            [latte-kernel.utils :refer [map-with]]
             [latte-kernel.syntax :as stx]))
 
 ;;{
@@ -123,18 +124,6 @@
 
       :else t))))
 
-(declare quotation-)
-
-(defn- quot*
-  "Apply the `quotation-` function below to several `args` and return the quoted
-  `args` with a single resulting `level`."
-  [level & args]
-  (loop [args args, level level, res []]
-    (if (seq args)
-      (let [[arg level'] (quotation- level (first args))]
-        (recur (rest args) level' (conj res arg)))
-      [res, level])))
-
 (defn- quotation-
   "Re-translate remaining functions into standard λ/Π-terms by calling them
   with nameless arguments.
@@ -144,26 +133,27 @@
     ;; A binder here means the function was not called during evaluation.
     ;; We call it now with the appropriate argument to extract the body.
     (stx/binder? t)
-    (let [[binder [x tx] f] t
-          x' (with-meta (symbol (str "_" level)) {::name x})
-          [[tx' body] level'] (quot* (inc level) tx (f x'))]
-      [(list binder [x' tx'] body)
-       level'])
+    (let [[binder [x tx] f] t]
+      (if (some? (meta x))
+        (throw (ex-info "wtf"))
+        (let [x' (with-meta (symbol (str "_" level)) {::name x})
+              [level' [tx' body]] (map-with quotation- (inc level) [tx (f x')])]
+          [level' (list binder [x' tx'] body)])))
 
     (stx/app? t)
-    (apply quot* level t)
+    (map-with quotation- level t)
 
     (or (stx/ref? t) (stx/ascription? t))
-    (let [[args level'] (apply quot* level (rest t))]
-      [(cons (first t) args) level'])
+    (let [[level' args] (map-with quotation- level (rest t))]
+      [level' (cons (first t) args)])
 
-    :else [t level]))
+    :else [level t]))
 
 (defn quotation
   "Re-translate remaining functions into standard λ/Π-terms by calling them
   with nameless arguments."
   [t]
-  (first (quotation- 1 t)))
+  (second (quotation- 1 t)))
 
 (defn norm
   "Compose above functions to create the 'normalisation by evaluation' process."
