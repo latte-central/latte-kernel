@@ -133,12 +133,11 @@
     ;; A binder here means the function was not called during evaluation.
     ;; We call it now with the appropriate argument to extract the body.
     (stx/binder? t)
-    (let [[binder [x tx] f] t]
-      (if (some? (meta x))
-        (throw (ex-info "wtf"))
-        (let [x' (with-meta (symbol (str "_" level)) {::name x})
-              [level' [tx' body]] (map-with quotation- (inc level) [tx (f x')])]
-          [level' (list binder [x' tx'] body)])))
+    (let [[binder [x tx] f] t
+          name (get (meta x) ::name x)
+          x' (with-meta (symbol (str "_" level)) {::name name})
+          [level' [tx' body]] (map-with quotation- (inc level) [tx (f x')])]
+      [level' (list binder [x' tx'] body)])
 
     (stx/app? t)
     (map-with quotation- level t)
