@@ -7,7 +7,8 @@
 (def norm-type
   #_:beta-norm
   #_:nbe
-  :both)
+  #_:both
+  :all)
 
 ;;{
 ;; # Normalization
@@ -178,8 +179,19 @@
                 nbe-t (nbe/norm t)]
             (if (stx/alpha-eq? beta-t nbe-t)
               beta-t
-              (throw (ex-info "Terms not alpha-equivalent in beta-norm."
-                       {:original t, :beta-term beta-t, :nbe-term nbe-t}))))))
+              (throw (ex-info "Terms not alpha-equivalent in beta-red."
+                       {:original t, :beta-term beta-t, :nbe-term nbe-t}))))
+    :all (let [[beta-t _] (beta-step t)
+                nbe-t (nbe/norm t)
+                readable-t (nbe/readable-quotation nbe-t)]
+           (if (stx/alpha-eq? beta-t nbe-t)
+             (if (stx/alpha-eq? beta-t readable-t)
+               beta-t
+               (throw (ex-info "Term not actually readable in beta-red."
+                        {:original t, :beta-term beta-t
+                         :nbe-term nbe-t, :readable-term readable-t})))
+             (throw (ex-info "Terms not alpha-equivalent in beta-red."
+                      {:original t, :beta-term beta-t, :nbe-term nbe-t}))))))
 
 ;;{
 ;; ## Delta-reduction (unfolding of definitions)
@@ -410,8 +422,18 @@
               beta-t
               (throw (ex-info "Terms not alpha-equivalent in beta-delta-norm."
                        {:original t, :beta-term beta-t, :nbe-term nbe-t
-                        :def-env def-env, :ctx ctx}))))))
-
+                        :def-env def-env, :ctx ctx}))))
+    :all (let [[beta-t _] (beta-step (first (delta-step def-env ctx t)))
+                nbe-t (nbe/norm def-env ctx t)
+                readable-t (nbe/readable-quotation nbe-t)]
+           (if (stx/alpha-eq? beta-t nbe-t)
+             (if (stx/alpha-eq? beta-t readable-t)
+               beta-t
+               (throw (ex-info "Term not actually readable in beta-red."
+                        {:original t, :beta-term beta-t
+                         :nbe-term nbe-t, :readable-term readable-t})))
+             (throw (ex-info "Terms not alpha-equivalent in beta-red."
+                      {:original t, :beta-term beta-t, :nbe-term nbe-t}))))))
 ;;{
 ;; The following is the main user-level function for normalization.
 ;;}
