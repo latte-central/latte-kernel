@@ -275,7 +275,7 @@
 
 ```clojure
 (defn mk-fresh
-  "Generate a fresh variable name, with prepfix `base`
+  "Generate a fresh variable name, with prefix `base`
   and suffix chosen from ' (quote), '', ''' then -4, -5, etc.
   The `forbid` argument says what names are forbidden."
   ([base forbid] (mk-fresh base 0 forbid))
@@ -342,8 +342,9 @@
     ;;(println "   ==> " t')
     [t' forbid']))
 
-(defn rebinder [x rebind forbid]
+(defn rebinder
   "Rebind `x` if it is present in `forbid`."
+  [x rebind forbid]
   (if (contains? forbid x)
     (let [x' (mk-fresh x forbid)]
       [x' (assoc rebind x x') (conj forbid x')])
@@ -354,10 +355,10 @@
   "Applies substitution `sub` (defaulting to `{x u}`) to term `t`."
   ([t x u] (subst t {x u}))
   ([t sub]
-   (let [forbid (set/union
-                 (apply set/union (map vars (vals sub)))
-                 (into #{} (keys sub))
-                 (free-vars t))
+   (let [forbid (apply set/union
+                  (into #{} (keys sub))
+                  (free-vars t)
+                  (map vars (vals sub)))
          [t' _] (subst- t sub forbid {})]
      t')))
 
@@ -407,7 +408,7 @@
     :else [t level]))
 
 (defn alpha-norm
-  "Produce a canonical nameless reprensentation of the lambda-term `t`"
+  "Produce a canonical nameless representation of the lambda-term `t`"
   [t]
   (let [[t' _] (alpha-norm- t {} 1)]
     t'))

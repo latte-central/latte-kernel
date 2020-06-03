@@ -16,6 +16,11 @@
   [e v]
   (vconcat [e] v))
 
+(def vector*
+  "Creates a new vector containing the items prepended to the rest, the last
+  of which will be treated as a sequence."
+  (comp vec list*))
+
 (defn pair?
   "Is `v` a pair?"
   [v]
@@ -33,11 +38,12 @@
   [coll key]
   (if-let [val (get coll key)]
     val
-    (throw (ex-info "No such value is collection" {:coll coll :key key}))))
+    (throw (ex-info "No such value in collection" {:coll coll :key key}))))
 
-(defn nano-time []
+(defn nano-time
   "Fetch the current time (with high precision).
   Returns 0 in clojurescript."
+  []
   #?(:clj (System/nanoTime)
      :cljs 0))
 
@@ -55,3 +61,17 @@
   "Remove all elements recognizing `pred` in vector `v`."
   [pred v]
   (vec (remove pred v)))
+
+(defn map-with
+  "Combine a mapv of `f` on `coll` with a reduce on `val`.
+  `f` should be a function of two arguments and return a couple.
+  It will be applied on `val` and the first element in `coll`, then on the first
+  part of the returning couple and the second element in `coll`, etc...
+  Return a couple with the resulting `val` and a vector containing all elements
+  in `coll` with `f` applied to them."
+  [f val coll]
+  (loop [s coll, val val, res []]
+    (if (seq s)
+      (let [[val' x] (f val (first s))]
+        (recur (rest s) val' (conj res x)))
+      [val, res])))

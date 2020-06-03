@@ -252,7 +252,7 @@
 ;;}
 
 (defn mk-fresh
-  "Generate a fresh variable name, with prepfix `base`
+  "Generate a fresh variable name, with prefix `base`
   and suffix chosen from ' (quote), '', ''' then -4, -5, etc.
   The `forbid` argument says what names are forbidden."
   ([base forbid] (mk-fresh base 0 forbid))
@@ -317,8 +317,9 @@
     ;;(println "   ==> " t')
     [t' forbid']))
 
-(defn rebinder [x rebind forbid]
+(defn rebinder
   "Rebind `x` if it is present in `forbid`."
+  [x rebind forbid]
   (if (contains? forbid x)
     (let [x' (mk-fresh x forbid)]
       [x' (assoc rebind x x') (conj forbid x')])
@@ -329,10 +330,10 @@
   "Applies substitution `sub` (defaulting to `{x u}`) to term `t`."
   ([t x u] (subst t {x u}))
   ([t sub]
-   (let [forbid (set/union
-                 (apply set/union (map vars (vals sub)))
-                 (into #{} (keys sub))
-                 (free-vars t))
+   (let [forbid (apply set/union
+                  (into #{} (keys sub))
+                  (free-vars t)
+                  (map vars (vals sub)))
          [t' _] (subst- t sub forbid {})]
      t')))
 
@@ -380,7 +381,7 @@
     :else [t level]))
 
 (defn alpha-norm
-  "Produce a canonical nameless reprensentation of the lambda-term `t`"
+  "Produce a canonical nameless representation of the lambda-term `t`"
   [t]
   (let [[t' _] (alpha-norm- t {} 1)]
     t'))
@@ -422,3 +423,51 @@
       (if (nil? top)
         v
         (recur t' (conj v top))))))
+
+;;{
+;; ## Readable terms
+;;
+;; Because of normalization, it may be the case that
+;; terms become hard to read because of the use of
+;; pseudo-debruijn indices for bound variables.
+;; The following functions can be used to restore
+;; a readable variant of term, while ensuring the
+;; barendegt convention.
+;; This is done through the use of of metadata.
+;;
+;;}
+
+(defn- readable-term-
+  "Return a readable version of the same term `t`, without nameless variables.
+  `free` is to be provided by below function, and `bound` means all bound vars."
+  ([free t] (readable-term- free {} t))
+  ([free bound t]
+   (let [quot (partial readable-term- free bound)]
+     (cond
+       ;; a variable not in `bound` is guaranteed to be a free variable
+       (variable? t)
+       (get bound t t)
+
+       (binder? t)
+       (let [[binder [x tx] body] t
+             ;; fetch the original name of the var and make a fresh one with it.
+             ;; if there is no metadata we use the same base symbol.
+             x' (mk-fresh (:name (meta x) x) free)]
+         (list binder [x' (quot tx)]
+           ;; we add the new name to `free` so it is not shadowed by a deeper
+           ;; binder, and we associate the old name with the new in `bound`.
+           (readable-term- (conj free x') (assoc bound x x') body)))
+
+       (app? t)
+       (mapv quot t)
+
+       (or (ref? t) (ascription? t))
+       (cons (first t) (map quot (rest t)))
+
+       :else t))))
+
+(defn readable-term
+  "Return a readable version of the same term `t`, without nameless variables."
+  [t]
+  (let [free (free-vars t)]
+    (readable-term- free t)))

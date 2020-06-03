@@ -1,10 +1,15 @@
 ```clojure
 (ns latte-kernel.norm
   "Normalization and beta-equivalence."
-  (:require [latte-kernel.utils :as utils :refer [vconcat]]
-            [latte-kernel.syntax :as stx]
-            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]))
+  (:require [latte-kernel.syntax :as stx]
+            [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]
+            [latte-kernel.nbe :as nbe]))
 
+(def norm-type
+  #_:beta-norm
+  #_:nbe
+  #_:both
+  :all)
 
 ```
 
@@ -83,7 +88,6 @@
   (and (stx/app? t)
        (stx/lambda? (first t))))
 
-
 (defn beta-reduction
   "The basic rule of *beta-reduction* for term `t`.
   Note that the term `t` must already be a *redex*
@@ -103,7 +107,6 @@
  must be implemented. It is a kind of a *black art* of not
  spending too much time looking for them, but also ensuring
  that all of them are found. LaTTe focuses on the latter.
-
 
 
 ```clojure
@@ -174,9 +177,26 @@
 (defn beta-red
   "Reduce term `t` according to the normalization strategy."
   [t]
-  (let [[t' _] (beta-step t)]
-    t'))
-
+  (case norm-type
+    :beta-norm (first (beta-step t))
+    :nbe (nbe/norm t)
+    :both (let [[beta-t _] (beta-step t)
+                nbe-t (nbe/norm t)]
+            (if (stx/alpha-eq? beta-t nbe-t)
+              beta-t
+              (throw (ex-info "Terms not alpha-equivalent in beta-red."
+                       {:original t, :beta-term beta-t, :nbe-term nbe-t}))))
+    :all (let [[beta-t _] (beta-step t)
+                nbe-t (nbe/norm t)
+                readable-t (nbe/readable-quotation nbe-t)]
+           (if (stx/alpha-eq? beta-t nbe-t)
+             (if (stx/alpha-eq? beta-t readable-t)
+               beta-t
+               (throw (ex-info "Term not actually readable in beta-red."
+                        {:original t, :beta-term beta-t
+                         :nbe-term nbe-t, :readable-term readable-t})))
+             (throw (ex-info "Terms not alpha-equivalent in beta-red."
+                      {:original t, :beta-term beta-t, :nbe-term nbe-t}))))))
 
 ```
 
@@ -232,15 +252,16 @@
 
 ```clojure
 ;; This is to solve a *real* (and rare) use case for circular dependency
-(def +unfold-implict+ (atom nil))
-(defn, install-unfold-implicit! [unfold-fn]
-  (swap! +unfold-implict+ (fn [_]
-                            unfold-fn)))
+(def +unfold-implicit+ (atom nil))
+(defn install-unfold-implicit!
+  [unfold-fn]
+  (reset! +unfold-implicit+ unfold-fn)
+  (reset! nbe/+unfold-implicit+ unfold-fn))
 
 (defn delta-reduction
   "Apply a strategy of delta-reduction in definitional environment `def-env`, context `ctx` and
   term `t`. If the flag `local?` is `true` the definition in only looked for
-  in `def-env`. By default it is also looked for in the current namespace (in Clojure only).²"
+  in `def-env`. By default it is also looked for in the current namespace (in Clojure only)."
   ([def-env ctx t] (delta-reduction def-env ctx t false))
   ([def-env ctx t local?]
    ;; (println "[delta-reduction] t=" t)
@@ -254,7 +275,7 @@
          (throw (ex-info "No such definition" {:term t :def-name name}))
          (defenv/implicit? sdef)
          ;; (throw (ex-info "Cannot delta-reduce an implicit (please report)." {:term t}))
-         (let [[status, implicit-term, _] (@+unfold-implict+ def-env ctx sdef args)]
+         (let [[status, implicit-term, _] (@+unfold-implicit+ def-env ctx sdef args)]
            (if (= status :ko)
              (throw (ex-info "Cannot delta-reduce implicit term." implicit-term))
              [implicit-term true]))
@@ -269,7 +290,7 @@
              [t false]
              ;; the definition is transparent
              [(instantiate-def (:params sdef) (:parsed-term sdef) args) true])
-           ;; no parsed term for definitoin
+           ;; no parsed term for definition
            (throw (ex-info "Cannot unfold term reference: no parsed term (please report)"
                            {:term t :def sdef})))
          (theorem? sdef)
@@ -304,6 +325,7 @@
   local environment is used, otherwise (the default case) the definitions
   are also searched in the current namespace (in Clojure only)."
   ([def-env ctx t] (delta-step def-env ctx t false 0))
+  ([def-env ctx t local?] (delta-step def-env ctx t local? 0))
   ([def-env ctx t local? rcount]
    ;; (println "[delta-step] t=" t)
    (cond
@@ -361,13 +383,6 @@
 
 
 ```clojure
-(defn beta-normalize
-  "Normalize term `t` for beta-reduction."
-  [t]
-  (let [[t' rcount] (beta-step t)]
-    ;;(println "[INFO] Number of beta-reductions=" rcount)
-    t'))
-
 (defn delta-normalize
   "Normalize term `t` for delta-reduction."
   [def-env ctx t]
@@ -413,11 +428,27 @@
   The result is defined as *the normal form* of `t`."
   [def-env ctx t]
   ;;(println "[beta-delta-normalize]: t=" t)
-  (let [[t' delta-count] (delta-step def-env ctx t)
-        [t'' beta-count] (beta-step t')]
-    ;; (println "[Info] delta-count=" delta-count ", beta-count=" beta-count)
-    t''))
-
+  (case norm-type
+    :beta-norm (first (beta-step (first (delta-step def-env ctx t))))
+    :nbe (nbe/norm def-env ctx t)
+    :both (let [[beta-t _] (beta-step (first (delta-step def-env ctx t)))
+                nbe-t (nbe/norm def-env ctx t)]
+            (if (stx/alpha-eq? beta-t nbe-t)
+              beta-t
+              (throw (ex-info "Terms not alpha-equivalent in beta-delta-norm."
+                       {:original t, :beta-term beta-t, :nbe-term nbe-t
+                        :def-env def-env, :ctx ctx}))))
+    :all (let [[beta-t _] (beta-step (first (delta-step def-env ctx t)))
+                nbe-t (nbe/norm def-env ctx t)
+                readable-t (nbe/readable-quotation nbe-t)]
+           (if (stx/alpha-eq? beta-t nbe-t)
+             (if (stx/alpha-eq? beta-t readable-t)
+               beta-t
+               (throw (ex-info "Term not actually readable in beta-red."
+                        {:original t, :beta-term beta-t
+                         :nbe-term nbe-t, :readable-term readable-t})))
+             (throw (ex-info "Terms not alpha-equivalent in beta-red."
+                      {:original t, :beta-term beta-t, :nbe-term nbe-t}))))))
 ```
 
  The following is the main user-level function for normalization.
@@ -427,7 +458,7 @@
 (defn normalize
   "Normalize term `t` in (optional) environment `def-env` and (optional) context `ctx`.
   The result is *the normal form* of `t`."
-  ([t] (normalize {} [] t))
+  ([t] (normalize defenv/empty-env [] t))
   ([def-env t] (normalize def-env [] t))
   ([def-env ctx t] (beta-delta-normalize def-env ctx t)))
 

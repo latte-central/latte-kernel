@@ -144,3 +144,25 @@
 (deftest test-assumptions
   (is (= (assumptions '(Π [x T] U)) '[T]))
   (is (= (assumptions '(Π [x T] (Π [y U] V))) '[T U])))
+
+(deftest test-readable-term
+  (let [y1 (with-meta '_1 {:name 'y})
+        term (list 'λ [y1 '✳] y1)]
+    (is (= (readable-term term)
+           '(λ [y ✳] y)))
+    (is (= (alpha-norm (readable-term term))
+           '(λ [_1 ✳] _1))))
+
+  (let [x1 (with-meta '_1 {:name 'x})]
+    (is (= (readable-term (list 'λ [x1 '✳] [x1 'x]))
+           '(λ [x' ✳] [x' x]))))
+
+  (let [arr (with-meta '_1 {:name '⇧})]
+    (is (= (readable-term (list 'Π [arr 'A] 'B))
+           '(Π [⇧ A] B))))
+
+  (let [x1 (with-meta '_1 {:name 'x})
+        x2 (with-meta '_2 {:name 'x})
+        term (list 'λ [x1 'A] (list 'λ [x2 'B] [[x1 x2] 'x]))]
+    (is (= (readable-term term)
+           '(λ [x' A] (λ [x'' B] [[x' x''] x]))))))

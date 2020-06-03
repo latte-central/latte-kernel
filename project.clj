@@ -1,4 +1,4 @@
-(defproject latte-kernel "1.0b7-SNAPSHOT"
+(defproject latte-kernel "1.0b8-SNAPSHOT"
   :description "The (very) small kernel of the LaTTe proof assistant"
   :url "https://github.com/latte-central/latte-kernel.git"
   :license {:name "MIT Licence"
@@ -7,8 +7,7 @@
           :metadata {:doc/format :markdown}}
           ;;:namespaces []
   :plugins [[lein-cljsbuild "1.1.7"]]
-  :cljsbuild {
-              :builds [{:source-paths ["src-cljs"]
+  :cljsbuild {:builds [{:source-paths ["src-cljs"]
                         :compiler {:output-to "resources/public/js/main.js"
                                    :optimizations :whitespace
                                    :pretty-print true}}]}
