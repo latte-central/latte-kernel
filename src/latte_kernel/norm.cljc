@@ -4,11 +4,16 @@
             [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]
             [latte-kernel.nbe :as nbe]))
 
+;; XXX: while we experiment with
+;; the normalization-by-evaluation schemen,
+;; we keep the (compile-time) possibility of
+;; switching to the old symbolic normalization
+;; scheme (`:beta-norm`).
 (def norm-type
   #_:beta-norm
-  #_:nbe
+  :nbe
   #_:both
-  :all)
+  #_:all)
 
 ;;{
 ;; # Normalization
@@ -85,7 +90,7 @@
   (and (stx/app? t)
        (stx/lambda? (first t))))
 
-(defn beta-reduction
+(defn ^{:deprecated "use nbe instead"} beta-reduction
   "The basic rule of *beta-reduction* for term `t`.
   Note that the term `t` must already be a *redex*
   so that the rewrite can be performed."
@@ -107,7 +112,7 @@
 
 (declare beta-step-args)
 
-(defn beta-step
+(defn  ^{:deprecated "use nbe instead"} beta-step
   "A call to this function will reduce a (somewhat)
   arbitrary number of *redexes* in term `t`
   using a mostly bottom-up strategy, and reducing
@@ -155,7 +160,7 @@
      ;; other cases
      :else [t rcount])))
 
-(defn beta-step-args
+(defn  ^{:deprecated "use nbe instead"} beta-step-args
   "Apply the reduction strategy on the terms `ts`
   in *\"parallel\"*. This is one place
   where many redexes can be found at once.
@@ -169,7 +174,7 @@
         (recur (rest ts) (conj ts' t') rcount'))
       [ts' rcount])))
 
-(defn beta-red
+(defn  ^{:deprecated "use nbe instead"} beta-red
   "Reduce term `t` according to the normalization strategy."
   [t]
   (case norm-type
@@ -220,7 +225,7 @@
 ;; by actual arguments. The process is called *instantiation*.
 ;;}
 
-(defn instantiate-def
+(defn ^{:deprecated "use nbe instead"} instantiate-def
   "Substitute in the `body` of a definition the parameters `params`
   by the actual arguments `args`."
   [params body args]
@@ -249,7 +254,7 @@
   (reset! +unfold-implicit+ unfold-fn)
   (reset! nbe/+unfold-implicit+ unfold-fn))
 
-(defn delta-reduction
+(defn  ^{:deprecated "use nbe instead"} delta-reduction
   "Apply a strategy of delta-reduction in definitional environment `def-env`, context `ctx` and
   term `t`. If the flag `local?` is `true` the definition in only looked for
   in `def-env`. By default it is also looked for in the current namespace (in Clojure only)."
@@ -308,7 +313,7 @@
 
 (declare delta-step-args)
 
-(defn delta-step
+(defn  ^{:deprecated "use nbe instead"} delta-step
   "Applies the strategy of *delta-reduction* on term `t` with definitional
   environment `def-env`. If the optional flag `local?` is `true` only the
   local environment is used, otherwise (the default case) the definitions
@@ -352,7 +357,7 @@
      ;; other cases
      :else [t rcount])))
 
-(defn delta-step-args
+(defn  ^{:deprecated "use nbe instead"} delta-step-args
   "Applies the delta-reduction on the terms `ts`."
   [def-env ctx ts local? rcount]
   (loop [ts ts, ts' [], rcount rcount]
@@ -370,14 +375,14 @@
 ;;   - normalize using delta-reduction with the local environment only: [[delta-normalize-local]]
 ;;}
 
-(defn delta-normalize
+(defn  ^{:deprecated "use nbe instead"} delta-normalize
   "Normalize term `t` for delta-reduction."
   [def-env ctx t]
   (let [[t' rcount] (delta-step def-env ctx t)]
     ;;(println "[INFO] Number of delta-reductions=" rcount)
     t'))
 
-(defn delta-normalize-local
+(defn  ^{:deprecated "use nbe instead"} delta-normalize-local
   "Normalize term `t` for delta-reduction using only
   environment `def-env` (and *not* the current namespace)."
   [def-env ctx t]
@@ -414,8 +419,9 @@
   [def-env ctx t]
   ;;(println "[beta-delta-normalize]: t=" t)
   (case norm-type
-    :beta-norm (first (beta-step (first (delta-step def-env ctx t))))
     :nbe (nbe/norm def-env ctx t)
+    ;; XXX: The alternative schemes below are deprecated
+    :beta-norm (first (beta-step (first (delta-step def-env ctx t))))
     :both (let [[beta-t _] (beta-step (first (delta-step def-env ctx t)))
                 nbe-t (nbe/norm def-env ctx t)]
             (if (stx/alpha-eq? beta-t nbe-t)
