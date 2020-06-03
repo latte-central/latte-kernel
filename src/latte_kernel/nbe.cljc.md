@@ -2,6 +2,7 @@
 (ns latte-kernel.nbe
   (:require [latte-kernel.defenv :as defenv :refer [implicit? definition?
                                                     theorem? axiom?]]
+            [latte-kernel.utils :refer [map-with]]
             [latte-kernel.syntax :as stx]))
 
 ```
@@ -90,7 +91,8 @@ The first two steps are done by the `evaluation` function, and the last one
   "Convert all λ/Π-terms' bodies into Clojure functions, and apply them when
   an application is seen.
   Variables within functions are marked as 'bound' and are translated
-  into the name of the function argument, at call time."
+  into the name of the function argument, at call time.
+  References are delta-reduced when possible."
  ([t] (evaluation {} defenv/empty-env [] t))
  ([def-env ctx t] (evaluation {} def-env ctx t))
  ([fn-env def-env ctx t]
@@ -125,18 +127,6 @@ The first two steps are done by the `evaluation` function, and the last one
 
       :else t))))
 
-(declare quotation-)
-
-(defn- quot*
-  "Apply the `quotation-` function below to several `args` and return the quoted
-  `args` with a single resulting `level`."
-  [level & args]
-  (loop [args args, level level, res []]
-    (if (seq args)
-      (let [[arg level'] (quotation- level (first args))]
-        (recur (rest args) level' (conj res arg)))
-      [res, level])))
-
 (defn- quotation-
   "Re-translate remaining functions into standard λ/Π-terms by calling them
   with nameless arguments.
@@ -147,29 +137,64 @@ The first two steps are done by the `evaluation` function, and the last one
     ;; We call it now with the appropriate argument to extract the body.
     (stx/binder? t)
     (let [[binder [x tx] f] t
-          x' (symbol (str "_" level))
-          [[tx' body] level'] (quot* (inc level) tx (f x'))]
-      [(list binder [x' tx'] body)
-       level'])
+          name (get (meta x) ::name x)
+          x' (with-meta (symbol (str "_" level)) {::name name})
+          [level' [tx' body]] (map-with quotation- (inc level) [tx (f x')])]
+      [level' (list binder [x' tx'] body)])
 
     (stx/app? t)
-    (apply quot* level t)
+    (map-with quotation- level t)
 
     (or (stx/ref? t) (stx/ascription? t))
-    (let [[args level'] (apply quot* level (rest t))]
-      [(cons (first t) args) level'])
+    (let [[level' args] (map-with quotation- level (rest t))]
+      [level' (cons (first t) args)])
 
-    :else [t level]))
+    :else [level t]))
 
 (defn quotation
   "Re-translate remaining functions into standard λ/Π-terms by calling them
   with nameless arguments."
   [t]
-  (first (quotation- 1 t)))
+  (second (quotation- 1 t)))
 
 (defn norm
   "Compose above functions to create the 'normalisation by evaluation' process."
  ([t] (norm defenv/empty-env [] t))
  ([def-env ctx t]
   (quotation (evaluation def-env ctx t))))
+
+(defn- readable-quotation-
+  "Return a readable version of the same term `t`, without nameless variables.
+  `free` is to be provided by below function, and `bound` means all bound vars."
+  ([free t] (readable-quotation- free {} t))
+  ([free bound t]
+   (let [quot (partial readable-quotation- free bound)]
+     (cond
+       ;; a variable not in `bound` is guaranteed to be a free variable
+       (stx/variable? t)
+       (get bound t t)
+
+       (stx/binder? t)
+       (let [[binder [x tx] body] t
+             ;; fetch the original name of the var and make a fresh one with it.
+             ;; if there is no metadata we use the same base symbol.
+             x' (stx/mk-fresh (::name (meta x) x) free)]
+         (list binder [x' (quot tx)]
+           ;; we add the new name to `free` so it is not shadowed by a deeper
+           ;; binder, and we associate the old name with the new in `bound`.
+           (readable-quotation- (conj free x') (assoc bound x x') body)))
+
+       (stx/app? t)
+       (mapv quot t)
+
+       (or (stx/ref? t) (stx/ascription? t))
+       (cons (first t) (map quot (rest t)))
+
+       :else t))))
+
+(defn readable-quotation
+  "Return a readable version of the same term `t`, without nameless variables."
+  [t]
+  (let [free (stx/free-vars t)]
+    (readable-quotation- free t)))
 ```
