@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer :all]
                :cljs [cljs.test :as t :refer-macros [is deftest testing]])
             [latte-kernel.defenv :as defenv]
+            [latte-kernel.syntax :as stx]
             [latte-kernel.norm :refer :all]))
 
 (deftest test-beta-reduction
@@ -15,7 +16,7 @@
   (is (= (beta-red '[[(λ [x ✳] x) y] z])
          '[y z]))
 
-  (is (= (beta-red '(λ [y [(λ [x □] x) ✳]] y))
+  (is (= (stx/readable-term (beta-red '(λ [y [(λ [x □] x) ✳]] y)))
          '(λ [y ✳] y)))
 
   (is (= (beta-red '[z [(λ [x ✳] x) y]])
@@ -119,7 +120,7 @@
          '[[y (test [t t] u)] 0])))
 
 (deftest test-normalize
-  (is (= (normalize '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))
+  (is (= (stx/readable-term (normalize '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y])))
          '(λ [y ✳] y))))
 
 (deftest test-beta-eq?

@@ -423,3 +423,51 @@
       (if (nil? top)
         v
         (recur t' (conj v top))))))
+
+;;{
+;; ## Readable terms
+;;
+;; Because of normalization, it may be the case that
+;; terms become hard to read because of the use of
+;; pseudo-debruijn indices for bound variables.
+;; The following functions can be used to restore
+;; a readable variant of term, while ensuring the
+;; barendegt convention.
+;; This is done through the use of of metadata.
+;;
+;;}
+
+(defn- readable-term-
+  "Return a readable version of the same term `t`, without nameless variables.
+  `free` is to be provided by below function, and `bound` means all bound vars."
+  ([free t] (readable-term- free {} t))
+  ([free bound t]
+   (let [quot (partial readable-term- free bound)]
+     (cond
+       ;; a variable not in `bound` is guaranteed to be a free variable
+       (variable? t)
+       (get bound t t)
+
+       (binder? t)
+       (let [[binder [x tx] body] t
+             ;; fetch the original name of the var and make a fresh one with it.
+             ;; if there is no metadata we use the same base symbol.
+             x' (mk-fresh (:name (meta x) x) free)]
+         (list binder [x' (quot tx)]
+           ;; we add the new name to `free` so it is not shadowed by a deeper
+           ;; binder, and we associate the old name with the new in `bound`.
+           (readable-term- (conj free x') (assoc bound x x') body)))
+
+       (app? t)
+       (mapv quot t)
+
+       (or (ref? t) (ascription? t))
+       (cons (first t) (map quot (rest t)))
+
+       :else t))))
+
+(defn readable-term
+  "Return a readable version of the same term `t`, without nameless variables."
+  [t]
+  (let [free (free-vars t)]
+    (readable-term- free t)))

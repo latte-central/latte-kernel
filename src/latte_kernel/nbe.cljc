@@ -134,8 +134,8 @@
     ;; We call it now with the appropriate argument to extract the body.
     (stx/binder? t)
     (let [[binder [x tx] f] t
-          name (get (meta x) ::name x)
-          x' (with-meta (symbol (str "_" level)) {::name name})
+          ;;name (get (meta x) ::name x)
+          x' (with-meta (symbol (str "_" level)) {:name x})
           [level' [tx' body]] (map-with quotation- (inc level) [tx (f x')])]
       [level' (list binder [x' tx'] body)])
 
@@ -159,38 +159,3 @@
  ([t] (norm defenv/empty-env [] t))
  ([def-env ctx t]
   (quotation (evaluation def-env ctx t))))
-
-(defn- readable-quotation-
-  "Return a readable version of the same term `t`, without nameless variables.
-  `free` is to be provided by below function, and `bound` means all bound vars."
-  ([free t] (readable-quotation- free {} t))
-  ([free bound t]
-   (let [quot (partial readable-quotation- free bound)]
-     (cond
-       ;; a variable not in `bound` is guaranteed to be a free variable
-       (stx/variable? t)
-       (get bound t t)
-
-       (stx/binder? t)
-       (let [[binder [x tx] body] t
-             ;; fetch the original name of the var and make a fresh one with it.
-             ;; if there is no metadata we use the same base symbol.
-             x' (stx/mk-fresh (::name (meta x) x) free)]
-         (list binder [x' (quot tx)]
-           ;; we add the new name to `free` so it is not shadowed by a deeper
-           ;; binder, and we associate the old name with the new in `bound`.
-           (readable-quotation- (conj free x') (assoc bound x x') body)))
-
-       (stx/app? t)
-       (mapv quot t)
-
-       (or (stx/ref? t) (stx/ascription? t))
-       (cons (first t) (map quot (rest t)))
-
-       :else t))))
-
-(defn readable-quotation
-  "Return a readable version of the same term `t`, without nameless variables."
-  [t]
-  (let [free (stx/free-vars t)]
-    (readable-quotation- free t)))

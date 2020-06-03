@@ -188,7 +188,7 @@
                        {:original t, :beta-term beta-t, :nbe-term nbe-t}))))
     :all (let [[beta-t _] (beta-step t)
                 nbe-t (nbe/norm t)
-                readable-t (nbe/readable-quotation nbe-t)]
+                readable-t (stx/readable-term nbe-t)]
            (if (stx/alpha-eq? beta-t nbe-t)
              (if (stx/alpha-eq? beta-t readable-t)
                beta-t
@@ -431,7 +431,7 @@
                         :def-env def-env, :ctx ctx}))))
     :all (let [[beta-t _] (beta-step (first (delta-step def-env ctx t)))
                 nbe-t (nbe/norm def-env ctx t)
-                readable-t (nbe/readable-quotation nbe-t)]
+                readable-t (stx/readable-term nbe-t)]
            (if (stx/alpha-eq? beta-t nbe-t)
              (if (stx/alpha-eq? beta-t readable-t)
                beta-t
