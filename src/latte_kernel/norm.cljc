@@ -10,8 +10,8 @@
 ;; switching to the old symbolic normalization
 ;; scheme (`:beta-norm`).
 (def norm-type
-  #_:beta-norm
-  :nbe
+  :beta-norm
+  #_:nbe
   #_:both
   #_:all)
 
