@@ -121,7 +121,23 @@
 
 (deftest test-normalize
   (is (= (stx/readable-term (normalize '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y])))
-         '(λ [y ✳] y))))
+         '(λ [y ✳] y)))
+
+  (is (= (stx/readable-term (normalize (defenv/mkenv {'app (defenv/map->Definition
+                                 '{:arity 2
+                                   :tag :definition
+                                   :params [[a ✳] [f (Π [b ✳] ✳)]]
+                                   :parsed-term [f a]
+                                   :opts {:opaque false}})
+                          'const (defenv/map->Definition
+                                   '{:arity 1
+                                     :tag :definition
+                                     :params [[x ✳]]
+                                     :parsed-term (λ [y ✳] x)
+                                     :opts {:opaque false}})})
+                                       '(λ [y ✳] (λ [g (Π [z ✳] ✳)] (const (app g y))))))
+         '(λ [y ✳] (λ [g (Π [z ✳] ✳)] (λ [y' ✳] [y g]))))))
+
 
 (deftest test-beta-eq?
   (is (beta-eq? '(λ [z ✳] z)

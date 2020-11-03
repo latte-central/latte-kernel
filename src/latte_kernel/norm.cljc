@@ -2,7 +2,8 @@
   "Normalization and beta-equivalence."
   (:require [latte-kernel.syntax :as stx]
             [latte-kernel.defenv :as defenv :refer [definition? theorem? axiom?]]
-            [latte-kernel.nbe :as nbe]))
+            [latte-kernel.nbe :as nbe]
+            [latte-kernel.unparser :as u]))
 
 ;; XXX: while we experiment with
 ;; the normalization-by-evaluation schemen,
@@ -478,4 +479,6 @@
   ([def-env ctx t1 t2]
    (let [t1' (normalize def-env ctx t1)
          t2' (normalize def-env ctx t2)]
+     ;;(println "t1' = " (u/show-term t1'))
+     ;;(println "t2' = " (u/show-term t2'))
      (stx/alpha-eq? t1' t2'))))

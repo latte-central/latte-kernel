@@ -66,24 +66,25 @@
             :from term-type
             :meta meta}]
       ;; we have the type here
-      (let [[status, rec-ty] (if (= ty '_)
-                               [:ok term-type]
-                               (let [[status, have-type] (typing/rebuild-type def-env ctx ty)]
-                                 (cond
-                                   (= status :ko)
-                                   [:ko {:msg "Have step elaboration failed: cannot rebuild have-type."
-                                         :have-name name
-                                         :have-type ty
-                                         :error have-type}]
-                                   (not (norm/beta-eq? def-env ctx term-type have-type))
-                                   [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
-                                         :have-name name
-                                         :expected-type have-type ;; or ty ?
-                                         :synthetized-type term-type
-                                         :meta meta}]
-                                   :else
-                                   ;;[:ok term-type] ;; XXX: the have-type is mode "declarative" (?)
-                                   [:ok have-type])))] ;; largely faster in bad cases !
+      (let [[status, rec-ty] 
+            (if (= ty '_)
+              [:ok term-type]
+              (let [[status, have-type] (typing/rebuild-type def-env ctx ty)]
+                (cond
+                  (= status :ko)
+                  [:ko {:msg "Have step elaboration failed: cannot rebuild have-type."
+                        :have-name name
+                        :have-type ty
+                        :error have-type}]
+                  (not (norm/beta-eq? def-env ctx term-type have-type))
+                  [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
+                        :have-name name
+                        :expected-type have-type ;; or ty ?
+                        :synthetized-type term-type
+                        :meta meta}]
+                  :else
+                  ;;[:ok term-type] ;; XXX: the have-type is mode "declarative" (?)
+                  [:ok have-type])))] ;; largely faster in bad cases !
         (if (= status :ko)
           [:ko (assoc rec-ty :meta meta)]
           (if (= name '_)
