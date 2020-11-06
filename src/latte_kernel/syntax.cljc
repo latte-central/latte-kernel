@@ -214,6 +214,9 @@
     (ascription? t) (let [[_ e u] t]
                      (set/union (free-vars e)
                                 (free-vars u)))
+    ;;; XXX : here the free vars should be computed inside
+    ;;; the definition if it is in a local-env (e.g. a "pose" proof step capturing some
+    ;;; context variable)...
     (ref? t) (apply set/union (map free-vars (rest t)))
     :else #{}))
 

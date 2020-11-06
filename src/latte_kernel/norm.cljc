@@ -11,8 +11,8 @@
 ;; switching to the old symbolic normalization
 ;; scheme (`:beta-norm`).
 (def norm-type
-  #_:beta-norm
-  :nbe
+  :beta-norm
+  #_:nbe
   #_:both
   #_:all)
 
@@ -230,6 +230,7 @@
   "Substitute in the `body` of a definition the parameters `params`
   by the actual arguments `args`."
   [params body args]
+  ;;(println "====================================")
   ;;(println "[instantiate-def] params=" params "body=" body "args=" args)
   (loop [args args, params params, sub {}]
     (if (seq args)
@@ -239,7 +240,10 @@
       (loop [params (reverse params), res body]
         (if (seq params)
           (recur (rest params) (list 'λ (first params) res))
-          (stx/subst res sub))))))
+          (let [result (stx/subst res sub)]
+            ;;(println "  ==> result = " result)
+            ;;(println "====================================")
+            result))))))
 
 ;;{
 ;; Note that for the sake of efficiency, we do not unfold theorems (by their proof)

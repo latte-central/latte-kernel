@@ -370,6 +370,7 @@
         (if (= status :ko)
           [:ko res]
           (let [[params sub] res
+                ;; XXX : here the substitution should take into account the freevars of the term to substitute...
                 expanded-term (stx/subst (:type ddef) sub)
                 typ (generalize-params (reverse params) expanded-term)]
             ;; (let [[status err typ'] (type-of-term def-env ctx typ)]
