@@ -37,7 +37,8 @@
          '#{y z}))
 
 
-  (is (= (free-vars '{test #latte_kernel.defenv.Definition{:name test, :params [], :arity 0, :parsed-term x, :type nil, :opts {}, :free-vars #{x}}} '(λ [y T] (y (test))))
+  (is (= (free-vars '[{} {test #latte_kernel.defenv.Definition{:name test, :params [], :arity 0, :parsed-term x, :type nil, :opts {}, :term-free-vars #{x}}}]
+                    '(λ [y T] (y (test))))
       '#{x T}))
 
   )
