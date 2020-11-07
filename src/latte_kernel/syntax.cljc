@@ -218,7 +218,11 @@
     ;;; XXX : here the free vars should be computed inside
     ;;; the definition if it is in a local-env (e.g. a "pose" proof step capturing some
     ;;; context variable)...
-     (ref? t) (apply set/union (map (partial free-vars def-env) (rest t)))
+     (ref? t) (let [def-freevars (if-let [ddef (get def-env (first t))]
+                                   (get ddef :free-vars #{})
+                                   #{})]
+                (set/union def-freevars
+                           (apply set/union (map (partial free-vars def-env) (rest t)))))
      :else #{})))
 
 (defn vars
