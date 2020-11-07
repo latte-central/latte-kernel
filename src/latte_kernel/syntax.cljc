@@ -203,22 +203,23 @@
 
 (defn free-vars
   "Get the set of free variables of term `t`."
-  [t]
-  (cond
-    (variable? t) #{t}
-    (binder? t) (let [[_ [x ty] body] t]
-                  (set/union (free-vars ty)
-                             (disj (free-vars body) x)))
-    (app? t) (set/union (free-vars (first t))
-                        (free-vars (second t)))
-    (ascription? t) (let [[_ e u] t]
-                     (set/union (free-vars e)
-                                (free-vars u)))
+  ([t] (free-vars {} t))
+  ([def-env t]
+   (cond
+     (variable? t) #{t}
+     (binder? t) (let [[_ [x ty] body] t]
+                   (set/union (free-vars def-env ty)
+                              (disj (free-vars def-env body) x)))
+     (app? t) (set/union (free-vars def-env (first t))
+                         (free-vars def-env (second t)))
+     (ascription? t) (let [[_ e u] t]
+                       (set/union (free-vars def-env e)
+                                  (free-vars def-env u)))
     ;;; XXX : here the free vars should be computed inside
     ;;; the definition if it is in a local-env (e.g. a "pose" proof step capturing some
     ;;; context variable)...
-    (ref? t) (apply set/union (map free-vars (rest t)))
-    :else #{}))
+     (ref? t) (apply set/union (map (partial free-vars def-env) (rest t)))
+     :else #{})))
 
 (defn vars
   "Get the set of free and bound variables of term `t`."

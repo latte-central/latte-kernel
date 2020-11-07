@@ -34,7 +34,13 @@
          '#{x y z}))
 
   (is (= (free-vars '(λ [x y] (:latte-kernel.syntax/ascribe x [y z])))
-         '#{y z})))
+         '#{y z}))
+
+
+  (is (= (free-vars '{test #latte_kernel.defenv.Definition{:name test, :params [], :arity 0, :parsed-term x, :type nil, :opts {}}} '(λ [y T] (y (test))))
+      '#{x T}))
+
+  )
 
 (deftest test-vars- ;; nameclash
   (is (= (vars 'x)
