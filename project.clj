@@ -1,4 +1,4 @@
-(defproject latte-kernel "1.0b8-SNAPSHOT"
+(defproject latte-kernel "1.0b9-SNAPSHOT"
   :description "The (very) small kernel of the LaTTe proof assistant"
   :url "https://github.com/latte-central/latte-kernel.git"
   :license {:name "MIT Licence"
