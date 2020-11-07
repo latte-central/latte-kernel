@@ -11,8 +11,8 @@
 ;; switching to the old symbolic normalization
 ;; scheme (`:beta-norm`).
 (def norm-type
-  :beta-norm
-  #_:nbe
+  #_:beta-norm
+  :nbe
   #_:both
   #_:all)
 
@@ -98,7 +98,7 @@
   [t]
   (if (redex? t)
     (let [[[_ [x _] body] rand] t]
-      (stx/subst body x rand))
+      (stx/subst body {x rand}))
     (throw (ex-info "Cannot beta-reduce. Not a redex" {:term t}))))
 
 ;;{

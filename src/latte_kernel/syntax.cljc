@@ -336,13 +336,14 @@
 
 (defn subst
   "Applies substitution `sub` (defaulting to `{x u}`) to term `t`."
-  ([t x u] (subst t {x u}))
-  ([t sub]
-   (let [forbid (apply set/union
-                  (into #{} (keys sub))
-                  (free-vars t)
-                  (map vars (vals sub)))
-         [t' _] (subst- t sub forbid {})]
+  ([t sub] (subst t sub #{}))
+  ([t sub forbid]
+   (let [forbid' (apply set/union
+                        forbid
+                        (into #{} (keys sub))
+                        (free-vars t)
+                        (map vars (vals sub)))
+         [t' _] (subst- t sub forbid' {})]
      t')))
 
 ;;{

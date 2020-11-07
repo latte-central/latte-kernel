@@ -123,7 +123,7 @@
 
   (is  ;; XXX: this comes from a very subtile bug !
    (= (subst '(Π [⇧ (Π [x' T] (Π [⇧ (Π [x T] (Π [⇧ [X x]] [[R x] x']))] [R z]))]
-                 [R z]) 'z 'x)
+                 [R z]) {'z 'x})
       '(Π [⇧ (Π [x' T] (Π [⇧' (Π [x'' T] (Π [⇧'' [X x'']] [[R x''] x']))] [R x]))] [R x]))))
 
 (deftest test-alpha-norm
