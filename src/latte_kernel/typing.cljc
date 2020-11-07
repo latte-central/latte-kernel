@@ -1,5 +1,6 @@
 (ns latte-kernel.typing
-  (:require [latte-kernel.syntax :as stx]
+  (:require [clojure.set :as set]
+            [latte-kernel.syntax :as stx]
             [latte-kernel.norm :as norm]
             [latte-kernel.defenv :as defenv]))
 
@@ -275,7 +276,7 @@
                     ;;(println "    B = " B)
                     ;;(println "    x = " x)
                     ;;(println "    rand = " rand)
-                    (let [res (stx/subst B x rand)] ;; or rand' ? (stx/subst B x rand')
+                    (let [res (stx/subst B {x rand})] ;; or rand' ? (stx/subst B {x rand'})
                       ;;(println "   ===> " res)
                       [:ok res [rator' rand']])))))))))))
 
@@ -360,6 +361,7 @@
 (declare generalize-params)
 
 (defn type-of-refdef [def-env ctx name ddef args]
+  ;; (println "[type-of-refdef] name =" name)
   (let [[status, targs, args'] (type-of-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs nil]
@@ -370,7 +372,11 @@
         (if (= status :ko)
           [:ko res]
           (let [[params sub] res
-                expanded-term (stx/subst (:type ddef) sub)
+                ;; Note : here the substitution takes into account the freevars of the term to substitute...
+                expanded-term (stx/subst (:type ddef) sub
+                                         (apply set/union
+                                                (:term-free-vars ddef)
+                                                (map (partial stx/free-vars def-env) (map second sub))))
                 typ (generalize-params (reverse params) expanded-term)]
             ;; (let [[status err typ'] (type-of-term def-env ctx typ)]
             ;;   (if (= status :ko)
@@ -378,7 +384,6 @@
             ;;     [:ok typ' (list* name args')]))
             ;; [:ok typ (list* name args')] ;;  no unfold (???)
             [:ok typ (list* name args)]))))))
-
 
 
 (defn type-of-args
@@ -391,7 +396,6 @@
           [:ko typ nil]
           (recur (rest args) (conj targs [(first args) typ]) (conj args' arg'))))
       [:ok targs args'])))
-
 ;;{
 ;; The function below realizes the substitution of the parameters by
 ;; their corresponding argument. The substitution `sub` is represented

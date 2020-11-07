@@ -16,13 +16,14 @@
 ;; lambda-terms.
 ;;}
 
-(defrecord Definition [name params arity parsed-term type opts])
+(defrecord Definition [name params arity parsed-term term-free-vars type opts])
 
 ;;{
 ;; The components of a definition are:
 ;;   - the `name` of the defined term
 ;;   - the vector `params` of typed parameters
 ;;   - the `arity` of the definition, i.e. its number of parameters
+;;   - the `term-free-vars` is the set of free variables found in the term
 ;;   - the `parsed-term` corresponding to the body of the definition
 ;;   - the `type` of the defined lambda-term.
 ;;   - some options may be indicated in the map `opts`.
