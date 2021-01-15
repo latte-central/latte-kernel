@@ -59,6 +59,7 @@
 
 (defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
+  ;;#dbg ^{:break/when (= name '<a>)}
   (let [[status, term-type, term'] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
       [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
@@ -298,6 +299,40 @@
     (println name (str "(" (show-deftype ddef) "):") (show-def ddef meta)))
   (println "============================"))
 
+
+(defn print-state [msg def-env ctx var-deps def-uses]
+  (println msg)
+  (println "  def-env=" def-env)
+  (println "  ctx=" ctx)
+  (println "  var-deps=" var-deps)
+  (println "  def-uses=" def-uses))
+
+;;; Opacity management (warning: side effects !)
+
+(def +opacity-fn+ (atom (fn [arg1 arg2]
+                          (throw (ex-info "Opacity management function not installed (please report)" {:weird true})))))
+
+(defn install-opacity-function [f]
+  (swap! +opacity-fn+ (fn [_] f)))
+
+(defn is-opaque? [ddef]
+  (if-let [opts (get ddef :opts)]
+    (get opts :opaque)))
+
+(defn elab-opaque [def-env names]
+  (doseq [name names]
+    (let [dname (resolve name)]
+      (when (is-opaque? @dname)
+        (throw (ex-info ":opaque fails: definition is already opaque" {:name name})))
+      (@+opacity-fn+ dname true))))
+
+(defn elab-transparent [def-env names]
+  (doseq [name names]
+    (let [dname (resolve name)]
+      (if (is-opaque? @dname)
+        (@+opacity-fn+ dname false)
+        (throw (ex-info ":transparent fails: definition is not opaque" {:name name}))))))
+
 ;;{
 ;; ## Proof elabortation
 ;;
@@ -306,13 +341,7 @@
 ;;
 ;; All the parsing issues are managed by the elaborator.
 ;;}
-
-(defn print-state [msg def-env ctx var-deps def-uses]
-  (println msg)
-  (println "  def-env=" def-env)
-  (println "  ctx=" ctx)
-  (println "  var-deps=" var-deps)
-  (println "  def-uses=" def-uses))
+  
 
 (defn elab-proof-step [def-env ctx var-deps def-uses step args]
   (case step
@@ -400,6 +429,13 @@
     (let [[meta] args]
       (elab-print-defenv def-env meta)
       [:cont [def-env ctx var-deps def-uses]])
+    :opaque
+    (do (elab-opaque def-env args)
+        [:cont [def-env ctx var-deps def-uses]])
+    :transparent
+    (do
+      (elab-transparent def-env args)
+      [:cont [def-env ctx var-deps def-uses]])
     ;; else
     (throw (ex-info "Unknown step kind in proof script."
                     {:step step
@@ -455,7 +491,7 @@
                                    [:discharge x meta]) (reverse params)))
                     ;; no more assumptions after an assume
                     ()])
-                 (contains? #{:have :qed :print-term :print-type :print-def :print-defenv} (ffirst proof))
+                 (contains? #{:have :qed :print-term :print-type :print-def :print-defenv :opaque :transparent} (ffirst proof))
                    ;; XXX: cannot use goal assumptions after a non-assume step
                  [(list (first proof)) ()]
                  :else
