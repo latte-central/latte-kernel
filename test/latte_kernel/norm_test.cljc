@@ -144,10 +144,10 @@
                                                                  :tag :definition
                                                                  :params [[x ✳]]
                                                                  :parsed-term (λ [y ✳] x)
-                                                                 :opts {:opaque false}})})
-                                       '[[z ✳]] '[const z]))
+                                                                 :opts {:opaque true}})})
+                                       '[[z ✳]] '[(const) z]))
          ;; XXX: ambiguity with (const z)
-         '[const z]))
+         '(const z)))
       
 )
 

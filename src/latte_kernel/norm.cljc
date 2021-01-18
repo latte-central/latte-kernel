@@ -343,7 +343,17 @@
            [left' rcount1] (delta-step def-env ctx left local? rcount)
            ;; 2) also try right reduction
            [right' rcount2] (delta-step def-env ctx right local? rcount1)]
-       [[left' right'] rcount2])
+       (if (stx/ref? left')
+         ;; special case : we may inject an applied term into a partially-applied
+         ;; reference
+         (let [[def-name & args] left'
+               [status sdef]  (defenv/fetch-definition def-env def-name local?)]
+           (if (and (= status :ok)
+                    (< (count args) (get sdef :arity 0)))
+             [(list* def-name (conj (vec args) right')) (inc rcount2)]
+             [[left' right'] rcount2]))
+         ;; other cases
+       [[left' right'] rcount2]))
      ;; reference
      (stx/ref? t)
      (let [[def-name & args] t

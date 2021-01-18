@@ -106,8 +106,21 @@
 
       (stx/app? t)
       (let [[l r] (map eva t)]
-        (if (stx/lambda? l)
+        (cond
+          (stx/lambda? l)
           ((last l) r)
+
+          (stx/ref? l)
+          ;; special case : we may inject an applied term into a partially-applied
+          ;; reference
+         (let [[def-name & args] l
+               [status sdef]  (defenv/fetch-definition def-env def-name)]
+           (if (and (= status :ok)
+                    (< (count args) (get sdef :arity 0)))
+             (list* def-name (conj (vec args) r))
+             [l r]))
+
+          :else
           [l r]))
 
       (stx/variable? t)
