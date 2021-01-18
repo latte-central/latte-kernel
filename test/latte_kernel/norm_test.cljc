@@ -147,7 +147,7 @@
                                                                  :opts {:opaque true}})})
                                        '[[z ✳]] '[(const) z]))
          ;; XXX: ambiguity with (const z)
-         '[const z]))
+         '(const z)))
       
 )
 
