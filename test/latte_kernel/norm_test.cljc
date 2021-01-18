@@ -136,9 +136,25 @@
                                      :parsed-term (λ [y ✳] x)
                                      :opts {:opaque false}})})
                                        '(λ [y ✳] (λ [g (Π [z ✳] ✳)] (const (app g y))))))
-         '(λ [y ✳] (λ [g (Π [z ✳] ✳)] (λ [y' ✳] [y g]))))))
+         '(λ [y ✳] (λ [g (Π [z ✳] ✳)] (λ [y' ✳] [y g])))))
+
+
+  (is (= (stx/readable-term (normalize (defenv/mkenv {'const (defenv/map->Definition
+                                                               '{:arity 1
+                                                                 :tag :definition
+                                                                 :params [[x ✳]]
+                                                                 :parsed-term (λ [y ✳] x)
+                                                                 :opts {:opaque false}})})
+                                       '[[z ✳]] '[const z]))
+         ;; XXX: ambiguity with (const z)
+         '[const z]))
+      
+)
 
 
 (deftest test-beta-eq?
   (is (beta-eq? '(λ [z ✳] z)
-                '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y]))))
+                '(λ [y [(λ [x □] x) ✳]] [(λ [x ✳] x) y])))
+
+
+)
