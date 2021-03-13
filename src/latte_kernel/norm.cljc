@@ -491,8 +491,14 @@
          t2' (normalize def-env t2)]
      (stx/alpha-eq? t1' t2')))
   ([def-env ctx t1 t2]
-   (let [t1' (normalize def-env ctx t1)
-         t2' (normalize def-env ctx t2)]
-     ;;(println "t1' = " (u/show-term t1'))
-     ;;(println "t2' = " (u/show-term t2'))
-     (stx/alpha-eq? t1' t2'))))
+   ;; (let [gg (gensym "here")]
+     ;; (println gg "===================================>>>>")
+     ;; (println "t1 = " (u/show-term t1))
+     ;; (println "t2 = " (u/show-term t2))
+     (let [t1' (normalize def-env ctx t1)
+           t2' (normalize def-env ctx t2)]
+       ;; (println "t1' = " (u/show-term t1'))
+       ;; (println "t2' = " (u/show-term t2'))
+       ;; (println gg "<<<<================================")
+       (stx/alpha-eq? t1' t2')) ;;)
+   ))

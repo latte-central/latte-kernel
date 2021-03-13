@@ -59,7 +59,7 @@
 
 (defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
-  ;;#dbg ^{:break/when (= name '<a>)}
+  ;; #dbg ^{:break/when (= name '<d>)}
   (let [[status, term-type, term'] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
       [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
@@ -344,6 +344,7 @@
   
 
 (defn elab-proof-step [def-env ctx var-deps def-uses step args]
+  ;; dbg ^{:break/when (and (= step ':have) (= (first args) '<d>))}
   (case step
     :declare
     (let [[v ty-expr meta] args
