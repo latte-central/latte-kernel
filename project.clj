@@ -6,15 +6,15 @@
   :codox {:output-path "docs"
           :metadata {:doc/format :markdown}}
           ;;:namespaces []
-  :plugins [[lein-cljsbuild "1.1.7"]]
+  :plugins [[lein-cljsbuild "1.1.8"]]
   :cljsbuild {:builds [{:source-paths ["src-cljs"]
                         :compiler {:output-to "resources/public/js/main.js"
                                    :optimizations :whitespace
                                    :pretty-print true}}]}
   :profiles {:dev {:dependencies
-                   [[org.clojure/clojure "1.10.1"]
-                    [org.clojure/clojurescript "1.10.439"]
-                    [cider/piggieback "0.3.10"]
-                    [lambdaisland/kaocha "0.0-541"]
-                    [nubank/matcher-combinators "1.2.1"]]}
-             :test {:dependencies [[org.clojure/clojure "1.10.1"]]}})
+                   [[org.clojure/clojure "1.11.1"]
+                    [org.clojure/clojurescript "1.11.60"]
+                    [cider/piggieback "0.5.3"]
+                    [lambdaisland/kaocha "1.71.1119"]
+                    [nubank/matcher-combinators "3.7.0"]]}
+             :test {:dependencies [[org.clojure/clojure "1.11.1"]]}})
