@@ -117,6 +117,18 @@ ctx4
             ;;[:ok term-type] ;; could be the term type but the have-type is mode "declarative"
             [:ok have-type]))))))
 
+(comment
+
+(defn new-elab-have [local-env ctx name ty term meta]
+  (let [[status have-type] (check-have-type local-env ctx term ty)]
+    (if (= status :ko)
+      [status have-type]
+      ;; record the have step as a theorem in the local-env
+      (throw (ex-info "TODO" {:not-yet 'implemented}))
+      )))  
+
+)
+
 
 (defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
