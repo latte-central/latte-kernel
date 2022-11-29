@@ -41,6 +41,39 @@
       [:ok [def-env, (cons [v ty'] ctx), (cons [v #{}] var-deps), def-uses]])))
 
 
+(comment
+
+;;; XXX : experiment with a new, simpler and hopefully more efficient
+;;;       proof elaborator
+
+(defn new-elab-declare [local-env ctx v ty meta]
+  (let [[status, ty'] (typing/rebuild-type local-env ctx ty)]
+    (if (= status :ko)
+      [:ko ty']
+      [:ok [local-env, (cons [v ty'] ctx)]])))
+
+(def ctx1 (let [[_ [_ ctx1]] (new-elab-declare defenv/empty-env [] 'A '✳ {})]
+            ctx1))
+ctx1
+
+(def ctx2 (let [[_ [_ ctx2]] (new-elab-declare defenv/empty-env ctx1 'B '✳ {})]
+            ctx2))
+
+ctx2
+
+(def ctx3 (let [[_ [_ ctx3]] (new-elab-declare defenv/empty-env ctx2 
+                                               'f (second (parse/parse-term defenv/empty-env '(==> A B))) {})]
+            ctx3))
+
+ctx3
+
+(def ctx4 (let [[_ [_ ctx4]] (new-elab-declare defenv/empty-env ctx3 'x 'A {})]
+            ctx4))
+
+ctx4
+
+)
+
 ;;{
 ;; ## Local definitions
 ;;
@@ -56,6 +89,34 @@
   ;;(println "  => have step: " name)
   (let [[status res] (elab-have-impl def-env ctx var-deps def-uses name ty term meta)]
     [status res]))
+
+(defn check-have-type [local-env ctx term ty]
+  (let [[status, term-type, term'] (typing/type-of-term local-env ctx term)]
+    (if (= status :ko)
+      [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
+            :have-name name
+            :from term-type
+            :meta meta}]
+      (if (= ty '_)
+        [:ok term-type] ; synthesis only
+        ;; checking
+        (let [[status, have-type] (typing/rebuild-type local-env ctx ty)]
+          (cond
+            (= status :ko)
+            [:ko {:msg "Have step elaboration failed: cannot rebuild have-type."
+                  :have-name name
+                  :have-type ty
+                  :error have-type}]
+            (not (norm/beta-eq? local-env ctx term-type have-type))
+            [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
+                  :have-name name
+                  :expected-type have-type ;; or ty ?
+                  :synthetized-type term-type
+                  :meta meta}]
+            :else
+            ;;[:ok term-type] ;; could be the term type but the have-type is mode "declarative"
+            [:ok have-type]))))))
+
 
 (defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
@@ -86,25 +147,26 @@
                   :else
                   ;;[:ok term-type] ;; XXX: the have-type is mode "declarative" (?)
                   [:ok have-type])))] ;; largely faster in bad cases !
-        (if (= status :ko)
-          [:ko (assoc rec-ty :meta meta)]
-          (if (= name '_)
-            [:ok [def-env ctx var-deps def-uses]]
-            (if (defenv/registered-definition? def-env name true)
-              [:ko {:msg "Have step elaboration failed: local definition already registered"
-                    :have-name name
-                    :meta meta}]
-              (let [def-env' (defenv/register-definition
-                               def-env
-                               (defenv/->Definition name [] 0 term (stx/free-vars def-env term) rec-ty {}) true)
-                    var-deps' (-> var-deps
-                                  ;; (update-var-deps name term)
-                                  (update-var-deps name rec-ty))
-                    def-uses' (-> def-uses
-                                  (update-def-uses name term)
-                                  (update-def-uses name rec-ty)
-                                  (assoc name #{}))]
-                [:ok [def-env' ctx var-deps' def-uses']]))))))))
+        (let [[status, rec-ty] (check-have-type def-env ctx term ty)]
+          (if (= status :ko)
+            [:ko (assoc rec-ty :meta meta)]
+            (if (= name '_)
+              [:ok [def-env ctx var-deps def-uses]]
+              (if (defenv/registered-definition? def-env name true)
+                [:ko {:msg "Have step elaboration failed: local definition already registered"
+                      :have-name name
+                      :meta meta}]
+                (let [def-env' (defenv/register-definition
+                                 def-env
+                                 (defenv/->Definition name [] 0 term (stx/free-vars def-env term) rec-ty {}) true)
+                      var-deps' (-> var-deps
+                                    ;; (update-var-deps name term)
+                                    (update-var-deps name rec-ty))
+                      def-uses' (-> def-uses
+                                    (update-def-uses name term)
+                                    (update-def-uses name rec-ty)
+                                    (assoc name #{}))]
+                  [:ok [def-env' ctx var-deps' def-uses']])))))))))
 
 (defn update-var-deps [var-deps name term]
   (let [tvars (stx/free-vars term)]
