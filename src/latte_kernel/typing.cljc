@@ -373,17 +373,12 @@
           [:ko res]
           (let [[params sub] res
                 ;; Note : here the substitution takes into account the freevars of the term to substitute...
-                expanded-term (stx/subst (:type ddef) sub
+                expanded-type (stx/subst (:type ddef) sub
                                          (apply set/union
                                                 (:term-free-vars ddef)
                                                 (map (partial stx/free-vars def-env) (map second sub))))
-                typ (generalize-params (reverse params) expanded-term)]
-            ;; (let [[status err typ'] (type-of-term def-env ctx typ)]
-            ;;   (if (= status :ko)
-            ;;     [:ko err nil]
-            ;;     [:ok typ' (list* name args')]))
-            ;; [:ok typ (list* name args')] ;;  no unfold (???)
-            [:ok typ (list* name args)]))))))
+                gen-type (generalize-params (reverse params) expanded-type)]
+            [:ok gen-type (list* name args)]))))))
 
 
 (defn type-of-args
