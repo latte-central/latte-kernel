@@ -90,7 +90,7 @@ ctx4
   (let [[status res] (elab-have-impl def-env ctx var-deps def-uses name ty term meta)]
     [status res]))
 
-(defn check-have-type [local-env ctx term ty]
+(defn check-have-type [local-env ctx name term ty]
   (let [[status, term-type, term'] (typing/type-of-term local-env ctx term)]
     (if (= status :ko)
       [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
@@ -106,7 +106,8 @@ ctx4
             [:ko {:msg "Have step elaboration failed: cannot rebuild have-type."
                   :have-name name
                   :have-type ty
-                  :error have-type}]
+                  :error have-type
+                  :meta meta}]
             (not (norm/beta-eq? local-env ctx term-type have-type))
             [:ko {:msg "Have step elaboration failed: synthetized term type and expected type do not match"
                   :have-name name
@@ -119,20 +120,27 @@ ctx4
 
 (comment
 
+(declare abstract-term)
+
 (defn new-elab-have [local-env ctx name ty term meta]
-  (let [[status have-type] (check-have-type local-env ctx term ty)]
+  (let [[status have-type] (check-have-type local-env ctx name term ty)]
     (if (= status :ko)
       [status have-type]
       ;; record the have step as a theorem in the local-env
-      (throw (ex-info "TODO" {:not-yet 'implemented}))
-      )))  
+      (let [thm (defenv/->Theorem name [] 0 have-type term)]
+        thm
+        ;; TODO : finish this
+        ))))
+
+
+(new-elab-have defenv/empty-env ctx4 '<a> (second (parse/parse-term defenv/empty-env '(==> A B))) 'f {})
 
 )
 
 
 (defn elab-have-impl [def-env ctx var-deps def-uses name ty term meta]
   ;;(println "  => have step: " name)
-  ;; #dbg ^{:break/when (= name '<d>)}
+  ;;#dbg ^{:break/when (= name '<c>)}
   (let [[status, term-type, term'] (typing/type-of-term def-env ctx term)]
     (if (= status :ko)
       [:ko {:msg "Have step elaboration failed: cannot synthetize term type."
@@ -159,7 +167,7 @@ ctx4
                   :else
                   ;;[:ok term-type] ;; XXX: the have-type is mode "declarative" (?)
                   [:ok have-type])))] ;; largely faster in bad cases !
-        (let [[status, rec-ty] (check-have-type def-env ctx term ty)]
+        (let [[status, rec-ty] (check-have-type def-env ctx name term ty)]
           (if (= status :ko)
             [:ko (assoc rec-ty :meta meta)]
             (if (= name '_)
@@ -170,7 +178,7 @@ ctx4
                       :meta meta}]
                 (let [def-env' (defenv/register-definition
                                  def-env
-                                 (defenv/->Definition name [] 0 term (stx/free-vars def-env term) rec-ty {}) true)
+                                 (defenv/->Definition name [] 0 term (stx/free-vars def-env term) rec-ty {:opaque (if (get meta :pose) false true)}) true)
                       var-deps' (-> var-deps
                                     ;; (update-var-deps name term)
                                     (update-var-deps name rec-ty))
