@@ -361,7 +361,9 @@
 (declare generalize-params)
 
 (defn type-of-refdef [def-env ctx name ddef args]
-  ;; (println "[type-of-refdef] name =" name)
+  ;;(println "[type-of-refdef] name =" name)
+  ;;#dbg ^{:break/when (and #_(= (str name) "#'latte-prelude.algebra/identity-def")
+  ;;                       (= (count args) 2))}
   (let [[status, targs, args'] (type-of-args def-env ctx args)]
     (if (= status :ko)
       [:ko targs nil]
@@ -373,11 +375,13 @@
           [:ko res]
           (let [[params sub] res
                 ;; Note : here the substitution takes into account the freevars of the term to substitute...
-                expanded-term (stx/subst (:type ddef) sub
-                                         (apply set/union
-                                                (:term-free-vars ddef)
-                                                (map (partial stx/free-vars def-env) (map second sub))))
-                typ (generalize-params (reverse params) expanded-term)]
+                freevars (apply set/union
+                                (:term-free-vars ddef)
+                                (map (partial stx/free-vars def-env) (map second sub)))
+                sub-params (map (fn [[param, ty]] [param (stx/subst ty sub freevars)]) params)
+                sub-term (stx/subst (:type ddef) sub freevars)
+            
+                typ (generalize-params (reverse sub-params) sub-term)]
             ;; (let [[status err typ'] (type-of-term def-env ctx typ)]
             ;;   (if (= status :ko)
             ;;     [:ko err nil]
@@ -404,7 +408,7 @@
 
 (defn prepare-argument-subst [def-env ctx name args targs params]
   (loop [args args, targs targs, params params, sub {}]
-    ;; (println "args=" args "params=" params "sub=" sub)
+    ;;(println "[prepare-subst] args=" args "params=" params "sub=" sub)
     (if (seq args)
       (let [arg (first args)
             targ (second (first targs))
