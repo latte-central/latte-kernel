@@ -12,9 +12,9 @@
                                    :optimizations :whitespace
                                    :pretty-print true}}]}
   :profiles {:dev {:dependencies
-                   [[org.clojure/clojure "1.12.0"]
-                    [org.clojure/clojurescript "1.11.132"]
+                   [[org.clojure/clojure "1.12.5"]
+                    [org.clojure/clojurescript "1.12.145"]
                     [cider/piggieback "0.6.0"]
                     [lambdaisland/kaocha "1.91.1392"]
-                    [nubank/matcher-combinators "3.9.1"]]}
-             :test {:dependencies [[org.clojure/clojure "1.12.0"]]}})
+                    [nubank/matcher-combinators "3.10.0"]]}
+             :test {:dependencies [[org.clojure/clojure "1.12.5"]]}})
