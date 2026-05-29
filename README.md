@@ -68,6 +68,7 @@ or via the clojure deps `:test` profile
 ```sh
 clj -A:test
 ```
+(Warning: clj support fragile and somewhat broken, prefer leiningen for now)
 
 ----
 This software is Copyright (C) 2018 Frederic Peschanski, under the MIT License (cf. `LICENSE` file)
